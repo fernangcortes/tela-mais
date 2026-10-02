@@ -18,7 +18,7 @@ O tela mAIs não converte vídeo sozinho: quem recebe o arquivo é o provedor (`
 ## Em lote (quem tem muitos arquivos)
 
 `node scripts/upload.mjs` (envia), `node scripts/cadastrar-hls.mjs` (provedor `hls-generico`, endereços `.m3u8` já existentes),
-`node scripts/capas-legendas.mjs`, `node scripts/series.mjs` e `node scripts/sinopses.mjs`. Leia `scripts/LEIA-ME.md` antes. Lotes
+`node scripts/capas-legendas.mjs`, `node scripts/series.mjs` (para sinopses use `npm run ia:textos`). Leia `scripts/LEIA-ME.md` antes. Lotes
 GASTAM armazenamento e processamento: diga a quantidade e o custo estimado e peça "sim". Faça um teste com UM vídeo antes.
 
 ## Organização

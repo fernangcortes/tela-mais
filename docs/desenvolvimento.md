@@ -73,6 +73,22 @@ contagens; o link do convite é a única credencial que sai, de propósito). Fer
 três locales, e teste de escopo, confirmação, vazamento e auditoria. O `/mcp` está na matriz (`'aberto'` para o middleware; o handler autentica) e em
 `run_worker_first` do `wrangler.jsonc`. Tela: `mesa-mcp.js` + `/api/mcp-tokens` (só super). CLI: `setup.mjs mcp` (o token nunca passa pelo agente).
 
+## IA de conteúdo (M9)
+
+Para o público leigo: `docs/ia.md`. Para quem mexe no código, o que importa:
+
+- **Biblioteca** `core/worker/_lib/ia/` (ESM puro, `fetch` injetável; importe de `index.js`; veja o `LEIA-ME.md` da pasta). `gerarTexto` nunca lança nem grava:
+  JSON validado, 1 retentativa, depois `falhou`. Tarefa nova = uma entrada em `tarefas.js` e o prompt em `prompts.js`. Preço novo = `precos.js` (com data e `confirmado`).
+- **Regras que os testes cobram:** nada gerado vai ao ar sem uma pessoa (a única porta é `aceitar`, pelo `gravarCatalogo`); recurso nasce desligado; custo estimado ANTES e lote
+  acima do orçamento recusado; a legenda é dado, nunca instrução; nome próprio que a legenda não sustenta é recusado (`INSUFICIENTE`); segredo nunca sai (`temChave` é booleano).
+- **Mídia gerada:** `scripts/capas.mjs` e `scripts/trailer.mjs` (ffmpeg, externo e opcional, nunca no Worker). Trailer e clipe sobem ao R2 do cliente e entram na fila como
+  `midia_clipe` e `midia_trailer`; aceitar grava `item.midia_gerada` com `revisado:true`, e `mesclarMidiaGerada` (em `provedores/index.js`) põe `clipe` e `trailer` em `item.midia`
+  sem sobrescrever o do provedor. O host do R2 (`ia.midia.urlBase`) entra sozinho na CSP (`hostsDeMidia`). O fundo do destaque (`destaque-fundo.js`) já usa `midia.clipe`.
+- **Executor:** `.github/workflows/gerar-midia.yml` (manual, desligado por `IA_EXECUTOR_LIGADO`; entradas por variável de ambiente, nunca coladas em comando) e o botão do `/admin`
+  (`POST /api/ia { acao:'disparar' }`, só o superadmin, `ia.executor.github.ligado`, token `GITHUB_DISPATCH_TOKEN` de escopo mínimo que nunca sai do Worker).
+- **Tela:** `core/site/mesa-ia.js`; textos `ia.*` e `api.ia-*` nos três locales. O `doctor --only=ia` só avisa (custo, chave, token, bucket): IA é opcional e nunca bloqueia.
+- Testes: `tests/ia-*.test.js` (o `ia-midia-ffmpeg` usa o ffmpeg de verdade e se pula sem ele).
+
 ## Player e guardião
 
 Guia para o cliente: `docs/player.md`. `core/site/guardiao.js` é o guardião único (`podeIniciarSozinho`) e saneia `player.*` e

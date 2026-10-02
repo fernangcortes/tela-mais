@@ -32,6 +32,8 @@ import * as minhaLista from './api/minha-lista.js';
 import * as saude from './api/saude.js';
 import * as backup from './api/backup.js';
 import * as mcpTokens from './api/mcp-tokens.js';
+import * as ia from './api/ia.js';
+import * as iaSugestoes from './api/ia-sugestoes.js';
 import * as mcp from './mcp.js';
 
 const MODULOS = {
@@ -62,6 +64,8 @@ const MODULOS = {
   '/api/saude': saude,
   '/api/backup': backup,
   '/api/mcp-tokens': mcpTokens,
+  '/api/ia': ia,
+  '/api/ia-sugestoes': iaSugestoes,
   /* O MCP (M10) mora fora de api/ porque não é a API da mesa: tem protocolo e autenticação próprios (token `mcp_…`). */
   '/mcp': mcp
 };

@@ -23,6 +23,11 @@ Primeira versão pública para teste.
   token que você cria e revoga em `/admin`, Integrações (MCP), ou por `setup.mjs mcp`. Escrita só pelo caminho validado da mesa, com histórico,
   confirmação nas ações com efeito e auditoria (`docs/mcp.md`).
 
+- IA de conteúdo opcional (M9, tudo desligado e pago por uso): sinopses, capítulos, tags, título alternativo, descrição para acessibilidade,
+  tradução e transcrição de legendas, capas por template, trailer e clipe mudo de fundo para o destaque da home. Estimativa de custo antes de cada
+  lote, teto mensal (`ia.orcamentoMensalUSD`), proveniência em cada campo e **nada vai ao ar sem uma pessoa aceitar** na tela IA do `/admin`.
+  Executor opcional no GitHub (`gerar-midia.yml`). Guia: `docs/ia.md`.
+
 ### Correções
 - A mensagem de erro do player quando o vídeo não carrega agora aparece em até 15 segundos (antes, cerca de 52).
 

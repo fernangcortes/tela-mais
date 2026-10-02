@@ -145,6 +145,7 @@
         itemMenu('saude', 'alerta', tr('saude.menu'), M.saude && M.saude.pendencias() ? M.saude.pendencias() : null, 'b-ouro'),
         itemMenu('backup', 'desfazer', tr('backup.menu')),
         itemMenu('custos', 'tabela', tr('custos.menu')),
+        M.pode('conteudo') ? itemMenu('ia', 'busca', tr('ia.menu'), M.ia && M.ia.pendentes() ? M.ia.pendentes() : null, 'b-ouro') : null,
         M.sessao.super ? itemMenu('assistente', 'check', tr('assistente.menu')) : null),
       h('div', { class: 'menu-pe' },
         seletorDeIdioma(),
@@ -201,6 +202,7 @@
       : st.tela === 'saude' ? [tr('operacao.grupo'), tr('saude.menu')]
       : st.tela === 'backup' ? [tr('operacao.grupo'), tr('backup.menu')]
       : st.tela === 'custos' ? [tr('operacao.grupo'), tr('custos.menu')]
+      : st.tela === 'ia' ? [tr('operacao.grupo'), tr('ia.menu')]
       : st.tela === 'assistente' ? [tr('operacao.grupo'), tr('assistente.menu')]
       : M.FILAS[st.tela] ? [tr('mesa.filasDeTrabalho'), M.FILAS[st.tela].rotulo]
       : [tr('mesa.catalogo'), tr('mesa.todosOsTitulos')];
@@ -245,6 +247,7 @@
         : st.tela === 'saude' ? M.telaSaude()
         : st.tela === 'backup' ? M.telaBackup()
         : st.tela === 'custos' ? M.telaCustos()
+        : st.tela === 'ia' ? M.telaIA()
         : st.tela === 'assistente' ? M.telaAssistente()
         : st.tela === 'fila-pendencias' ? M.telaPendencias(cat)
         : st.tela === 'estrutura' ? M.telaEstrutura(cat)

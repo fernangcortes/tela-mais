@@ -1,0 +1,38 @@
+---
+description: Liga e usa a IA de conteúdo (sinopses, capítulos, tags, legendas por transcrição, tradução, capas, trailer e clipe de fundo), sempre como sugestão revisada por uma pessoa, com custo avisado antes. Use quando pedirem texto automático, legenda por IA, trailer, vídeo de fundo ou capa gerada.
+alwaysApply: false
+---
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md d924f6dbb50a -->
+
+# Gerar conteúdo com IA
+
+A IA é **opcional, paga e nasce desligada**. Nada que ela gera vai ao ar: vira **sugestão** na tela IA do `/admin`, e só uma pessoa
+aceita. Guia completo: `docs/ia.md`. Comece por `node scripts/setup.mjs doctor --only=ia --json` (só avisa custo e o que falta; nunca dá erro).
+
+## Ordem
+
+1. **Pergunte o que ela quer** (uma pergunta por vez): textos, legenda por IA, tradução, capas, trailer/clipe de fundo? Para quantos títulos? Comece por UM título.
+2. **Avise o custo ANTES** (regra 5) e peça o "sim". Estimativa por vídeo de 1 hora, já com margem (preços de 2026-10-02, reconfira): textos com Claude Haiku
+   cerca de US$ 0,28 (todos), Sonnet cerca de US$ 0,56, Workers AI cerca de US$ 0,02; transcrição com Whisper cerca de US$ 0,03. Capas, corte do trailer e do clipe
+   (ffmpeg) são grátis. A tela e os scripts mostram a estimativa exata e recusam o que passa de `ia.orcamentoMensalUSD` (padrão US$ 5).
+3. **Privacidade:** com Anthropic, OpenAI, Gemini ou AssemblyAI a legenda e o título vão para o provedor. Só o Workers AI fica na conta Cloudflare. Diga isso e peça o "sim".
+4. **Escolha o provedor** em `config/site.json` (`ia.textos`, `ia.transcricao`; a chave só como `{"$env":"NOME"}`) e `npm run config:validar`.
+5. **A chave é da pessoa** (regra 1): ela roda `node scripts/setup.mjs segredo ANTHROPIC_API_KEY` num segundo terminal (prompt oculto). Nunca peça nem imprima o valor.
+   Confirme com `doctor --only=ia`.
+6. **Publique** (`publicar-e-atualizar`) e peça que ela abra `/admin`, tela **IA**, e ligue UM recurso (só o superadministrador liga; o botão confirma).
+7. **Gere** para poucos títulos (até 3 na tela) ou pelo terminal: `npm run ia:textos -- --tarefa sinopse-curta --item id --simular`, depois com `--yes`
+   (`ia:transcrever`, `ia:capas`, `ia:trailer` funcionam igual; `--simular` só mostra o custo).
+8. **A revisão é dela**: lado a lado (no ar hoje x sugestão), Aceitar, Editar e aceitar ou Descartar. Não aceite por ela e não grave direto no catálogo.
+   Trailer e clipe: peça que assista antes de aceitar. Aceito o clipe, o fundo do destaque passa a usá-lo (`home.destaque.fundo.tipo: "video-mudo"`).
+
+## Trailer, clipe e GitHub
+
+- Trailer e clipe pedem `ffmpeg` (na máquina dela ou no executor do GitHub) e um bucket R2 público (`ia.midia`: `destino: "r2"`, `bucket`, `urlBase`; R2 tem 10 GB grátis).
+- Executor do GitHub (`.github/workflows/gerar-midia.yml`): **desligado por padrão**; liga com a variável `IA_EXECUTOR_LIGADO=true` e, para o botão do `/admin`,
+  `ia.executor.github.ligado` mais o segredo `GITHUB_DISPATCH_TOKEN` (token fino, só o repositório, só "Actions: Read and write"). A pessoa cria o token e o guarda
+  pelo prompt oculto; você nunca o vê.
+
+## Se algo falhar
+
+`falhou` (nada foi gravado), `insuficiente` (a legenda não sustenta; nada foi inventado: gere a legenda antes), lote recusado por orçamento: veja a tabela "Quando algo dá errado"
+em `docs/ia.md`. O mesmo erro 3 vezes: pare e peça ajuda. Nunca troque o modelo em silêncio para "passar" nem afrouxe a regra anti-invenção.

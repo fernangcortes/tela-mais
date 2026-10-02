@@ -2,7 +2,7 @@
 name: configurar-acesso
 description: Escolhe e configura quem pode ver o streaming (publico, cadastro ou privado), com Turnstile e testes de que o modo realmente protege. Use quando pedirem login, cadastro, convite, conteúdo só para alunos ou para mudar o modo de acesso.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md 112280574856 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md d924f6dbb50a -->
 
 # Configurar quem pode ver o site
 

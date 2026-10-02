@@ -1667,20 +1667,23 @@
       "type": "object",
       "properties": {
         "textos": {
-          "description": "Textos.",
+          "description": "IA que escreve os textos (sinopse, capítulos, tags, título alternativo, descrição para acessibilidade, tradução de legenda). O conteúdo do título vai para o provedor escolhido, exceto no workers-ai (fica na Cloudflare). Tudo gerado vira SUGESTÃO para uma pessoa revisar; nada vai ao ar sozinho.",
           "type": "object",
           "properties": {
             "provedor": {
-              "description": "Serviço.",
+              "description": "Serviço de texto. nenhum = desligado.",
               "type": "string",
               "enum": [
                 "nenhum",
                 "workers-ai",
-                "anthropic"
+                "anthropic",
+                "openai",
+                "gemini"
               ],
               "default": "nenhum"
             },
             "modelo": {
+              "description": "Nome do modelo. Vazio = o padrão do provedor. Confira o nome na página do fornecedor: ele muda com o tempo.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/segredo"
@@ -1693,39 +1696,104 @@
               ]
             },
             "chave": {
+              "description": "Chave de API do provedor, sempre {\"$env\":\"NOME\"} (ex.: ANTHROPIC_API_KEY). Não vale para workers-ai dentro do Worker (usa o binding).",
+              "$ref": "#/$defs/segredo"
+            },
+            "contaId": {
+              "description": "ID da conta Cloudflare, só para o workers-ai FORA do Worker (scripts e GitHub Actions), sempre {\"$env\":\"CLOUDFLARE_ACCOUNT_ID\"}.",
               "$ref": "#/$defs/segredo"
             },
             "estilo": {
-              "description": "Estilo dos textos.",
-              "type": "object"
+              "description": "Como os textos saem.",
+              "type": "object",
+              "properties": {
+                "idioma": {
+                  "description": "Idioma dos textos gerados (código BCP 47). Vazio = o idioma padrão do site.",
+                  "type": "string",
+                  "pattern": "^[a-z]{2}(-[A-Za-z]{2})?$"
+                },
+                "tom": {
+                  "description": "Tom de voz (ex.: institucional, descontraído).",
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "tamanhoSinopse": {
+                  "description": "Máximo de palavras da sinopse curta.",
+                  "type": "integer",
+                  "minimum": 20,
+                  "maximum": 120,
+                  "default": 60
+                },
+                "glossario": {
+                  "description": "Nomes que devem ser escritos exatamente assim (pessoas, lugares, marcas).",
+                  "type": "array",
+                  "maxItems": 200,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "nomesProibidos": {
+                  "description": "Nomes ou palavras que a IA nunca deve escrever.",
+                  "type": "array",
+                  "maxItems": 100,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "vocabularioTags": {
+                  "description": "Lista de tags permitidas. Com lista, a IA só escolhe tags dela (e sugere novas à parte).",
+                  "type": "array",
+                  "maxItems": 200,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                },
+                "instrucaoExtra": {
+                  "description": "Uma instrução a mais para todos os textos (até 500 letras).",
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
         },
         "transcricao": {
-          "description": "Transcrição.",
+          "description": "IA que ouve o vídeo e escreve a legenda (vira sugestão de legenda para revisar).",
           "type": "object",
           "properties": {
             "provedor": {
-              "description": "Serviço.",
+              "description": "Serviço de transcrição. nenhum = desligado. provedor-de-video usa a legenda nativa do Bunny/Stream (quando o provedor oferece).",
               "type": "string",
               "enum": [
                 "nenhum",
                 "workers-ai-whisper",
-                "assemblyai"
+                "assemblyai",
+                "openai",
+                "provedor-de-video"
               ],
               "default": "nenhum"
             },
             "idioma": {
-              "description": "Idioma da fala.",
+              "description": "Idioma da fala (2 letras).",
               "type": "string",
               "default": "pt",
               "pattern": "^[a-z]{2}$"
             },
             "chave": {
+              "description": "Chave de API, sempre {\"$env\":\"NOME\"} (ex.: ASSEMBLYAI_API_KEY).",
+              "$ref": "#/$defs/segredo"
+            },
+            "contaId": {
+              "description": "ID da conta Cloudflare, só para o workers-ai-whisper FORA do Worker, sempre {\"$env\":\"CLOUDFLARE_ACCOUNT_ID\"}.",
               "$ref": "#/$defs/segredo"
             },
             "modelo": {
+              "description": "Nome do modelo. Vazio = o padrão do provedor. Confira o nome na página do fornecedor: ele muda com o tempo.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/segredo"
@@ -1741,7 +1809,7 @@
           "additionalProperties": false
         },
         "capas": {
-          "description": "Capas.",
+          "description": "Capas por template (scripts/capas.mjs, ffmpeg). Três candidatas por título; nada vai ao ar sem uma pessoa escolher.",
           "type": "object"
         },
         "trailers": {
@@ -1753,7 +1821,174 @@
           "default": 5,
           "minimum": 0,
           "maximum": 100000,
-          "description": "Teto mensal de gasto com IA, em dólares."
+          "description": "Teto mensal de gasto com IA, em dólares. Um lote que não cabe no que sobra do mês é recusado ANTES de começar."
+        },
+        "recursos": {
+          "description": "Recursos de IA ligados desde o deploy. Tudo nasce desligado (recurso pago); o /admin também liga e desliga, e a escolha do /admin vale por cima desta.",
+          "type": "object",
+          "properties": {
+            "sinopse-curta": {
+              "description": "Sinopse curta.",
+              "type": "boolean",
+              "default": false
+            },
+            "sinopse-longa": {
+              "description": "Sinopse longa.",
+              "type": "boolean",
+              "default": false
+            },
+            "capitulos": {
+              "description": "Capítulos.",
+              "type": "boolean",
+              "default": false
+            },
+            "tags": {
+              "description": "Tema e tags.",
+              "type": "boolean",
+              "default": false
+            },
+            "titulo-alternativo": {
+              "description": "Título alternativo.",
+              "type": "boolean",
+              "default": false
+            },
+            "descricao-acessivel": {
+              "description": "Descrição para acessibilidade.",
+              "type": "boolean",
+              "default": false
+            },
+            "traducao-legenda": {
+              "description": "Tradução de legendas.",
+              "type": "boolean",
+              "default": false
+            },
+            "transcricao": {
+              "description": "Transcrição (legenda por IA).",
+              "type": "boolean",
+              "default": false
+            },
+            "trailer": {
+              "description": "Trailer e clipe de fundo (o modelo escolhe os trechos pela transcrição; o corte é do ffmpeg).",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "precos": {
+          "description": "Corrige a tabela de preços usada na estimativa de custo (o preço muda; esta tabela é sua). Chave = provedor:modelo.",
+          "type": "object",
+          "properties": {
+            "texto": {
+              "description": "Por milhão de tokens, em dólares.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "entradaPorMTok",
+                  "saidaPorMTok"
+                ],
+                "properties": {
+                  "entradaPorMTok": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "saidaPorMTok": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "transcricao": {
+              "description": "Por minuto de áudio, em dólares.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "porMinuto"
+                ],
+                "properties": {
+                  "porMinuto": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "midia": {
+          "description": "Onde ficam o clipe de fundo e o trailer gerados por scripts/trailer.mjs. Nenhum provedor de vídeo aceita clipe hoje: os arquivos vão para o R2 da própria conta (centavos por mês) ou para uma pasta, e o endereço https público entra aqui. Só depois de uma pessoa aceitar o clipe ele vira o fundo do destaque.",
+          "type": "object",
+          "properties": {
+            "destino": {
+              "description": "pasta (padrão: copia os arquivos para uma pasta local) ou r2 (envia ao bucket R2 do cliente).",
+              "type": "string",
+              "enum": [
+                "pasta",
+                "r2"
+              ],
+              "default": "pasta"
+            },
+            "bucket": {
+              "description": "Nome do bucket R2 (só com destino r2).",
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$"
+            },
+            "urlBase": {
+              "description": "Endereço https público do bucket (domínio próprio ou r2.dev), sem barra no fim. Entra na política de segurança do site (imagem e vídeo).",
+              "type": "string",
+              "pattern": "^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$",
+              "maxLength": 200
+            }
+          },
+          "additionalProperties": false
+        },
+        "executor": {
+          "description": "Quem roda os scripts de mídia (ffmpeg) quando o botão do /admin é apertado: o GitHub Actions do próprio cliente (.github/workflows/gerar-midia.yml). DESLIGADO por padrão. O token do GitHub é segredo do Worker (escopo mínimo: só Actions, só este repositório).",
+          "type": "object",
+          "properties": {
+            "github": {
+              "type": "object",
+              "properties": {
+                "ligado": {
+                  "description": "Liga o botão \"gerar no GitHub\" do /admin.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "repositorio": {
+                  "description": "dono/repositorio onde está o fluxo.",
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+                },
+                "fluxo": {
+                  "description": "Arquivo do fluxo.",
+                  "type": "string",
+                  "default": "gerar-midia.yml",
+                  "pattern": "^[A-Za-z0-9_.-]+\\.ya?ml$"
+                },
+                "ref": {
+                  "description": "Ramo em que o fluxo roda.",
+                  "type": "string",
+                  "default": "main",
+                  "pattern": "^[A-Za-z0-9_./-]{1,100}$"
+                },
+                "token": {
+                  "description": "Token do GitHub, sempre {\"$env\":\"GITHUB_DISPATCH_TOKEN\"}.",
+                  "$ref": "#/$defs/segredo"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

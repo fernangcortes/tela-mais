@@ -1,8 +1,8 @@
 # scripts/
 
 Utilitários de linha de comando em Node puro (sem dependências, exceto
-`@anthropic-ai/sdk` para `sinopses.mjs` e `series.mjs`, que se instala só se você
-for usá-los). Rode sempre da **raiz do repositório**: `node scripts/<nome>.mjs`.
+`@anthropic-ai/sdk` para `series.mjs`, que se instala só se você
+for usá-lo). Rode sempre da **raiz do repositório**: `node scripts/<nome>.mjs`.
 
 ## Caminhos e configuração
 
@@ -39,7 +39,9 @@ for usá-los). Rode sempre da **raiz do repositório**: `node scripts/<nome>.mjs
 | `cadastrar-hls.mjs` | provedor `hls-generico`: grava no catálogo a `fonte` de cada título a partir de um mapa de endereços (`--mapa`), conferidos pelo adaptador; sem upload |
 | `semear.mjs`, `acrescentar-ao-kv.mjs` | levar o catálogo local ao KV (todo, ou só os títulos novos) |
 | `gerar-capas.mjs`, `capas-legendas.mjs`, `capas-menores.mjs`, `sincronizar-capas.mjs` | capas: gerar, enviar, reduzir e gravar o nome do arquivo |
-| `legendas-assembly.mjs`, `sinopses.mjs`, `series.mjs` | legendas por transcrição e textos por IA |
+| `legendas-assembly.mjs`, `series.mjs` (`sinopses.mjs` só redireciona para `npm run ia:textos`) | legendas por transcrição e textos por IA |
+| `ia-textos.mjs`, `ia-transcrever.mjs` | M9, IA de conteúdo: SUGESTÕES de sinopse, capítulos, tags, título alternativo, descrição para acessibilidade e tradução de legenda (`npm run ia:textos`), e legenda por IA (`npm run ia:transcrever`). Mostram a estimativa de custo antes e só seguem com `--yes`; nada vai ao ar, tudo cai na fila da tela IA do /admin. Substituem `sinopses.mjs` (que só fazia a sinopse) |
+| `capas.mjs`, `trailer.mjs` | M9, mídia com ffmpeg (grátis): 3 capas candidatas por título (`npm run ia:capas`) e trailer de até 60 s + clipe mudo de 6 a 10 s para o fundo do destaque (`npm run ia:trailer`). Com `--ia --yes` o modelo escolhe os trechos pela legenda (custa centavos, dentro do orçamento); com `--fila` (usado pelo GitHub, `gerar-midia.yml`) o vídeo vem do site, o arquivo vai ao R2 e a sugestão cai na tela IA. Nada vai ao ar sem aceitar. Veja `docs/ia.md` |
 | `capitulos.mjs`, `framerate.mjs`, `indice-busca.mjs` | capítulos, taxa de quadros e índice da busca |
 | `mesa-local.mjs` | a mesa de administração em `http://127.0.0.1:8790`, com API de mentira em memória |
 | `exportar-kv.mjs`, `importar-kv.mjs` | backup do catálogo e da configuração operacional em um arquivo JSON (o mesmo do botão "Baixar backup" do /admin) e restauração (só mostra, até receber `--yes`); `podar-backups.mjs` mantém 30 diários e 12 mensais. Veja `docs/atualizar.md` |

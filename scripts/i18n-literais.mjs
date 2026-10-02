@@ -46,6 +46,7 @@ export const EXCECOES = new Map([
   ['core/worker/_lib/contraste.mjs', 'diagnósticos de instalação (contraste de paleta): pt-BR por decisão'],
   ['core/site/indice-core.js', 'validação máquina a máquina do pedido de indexação (volta em `params.detalhe` do erro da API)'],
   ['core/site/busca-core.js', 'linguística da busca em português (palavras vazias, plurais): não é texto de tela'],
+  ['core/worker/_lib/ia/', 'M9 (IA): prompts enviados ao modelo, regras de conferência e `detalhe` técnico de erro (máquina para quem configura); a tela só vê códigos `api.ia-*` do catálogo. Chave que termina em / vale para a pasta toda'],
   ['core/worker/_lib/custos.js', 'rótulos e observações da estimativa de custo, em pt-BR como docs/custos.md (guia de preços, não texto de tela traduzido)']
 ]);
 
@@ -136,7 +137,7 @@ export function contarTudo(raiz = RAIZ) {
   let total = 0;
   for (const arq of arquivos) {
     const rel = path.relative(raiz, arq).split(path.sep).join('/');
-    if (EXCECOES.has(rel)) continue;
+    if (EXCECOES.has(rel) || [...EXCECOES.keys()].some((k) => k.endsWith('/') && rel.startsWith(k))) continue;
     const achados = contarArquivo(rel, readFileSync(arq, 'utf8'));
     if (achados.length) { porArquivo[rel] = achados; total += achados.length; }
   }

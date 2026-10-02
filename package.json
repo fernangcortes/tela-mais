@@ -18,6 +18,10 @@
     "ganchos:instalar": "node scripts/instalar-ganchos.mjs",
     "smoke": "node scripts/smoke-navegador.mjs",
     "backup": "node scripts/exportar-kv.mjs",
+    "ia:textos": "node scripts/ia-textos.mjs",
+    "ia:transcrever": "node scripts/ia-transcrever.mjs",
+    "ia:capas": "node scripts/capas.mjs",
+    "ia:trailer": "node scripts/trailer.mjs",
     "atualizar": "node scripts/atualizar-core.mjs --baixar"
   }
 }

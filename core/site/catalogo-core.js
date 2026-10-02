@@ -1651,7 +1651,11 @@
    * da mesa: sai de script. */
   var CAMPOS_CONTEUDO = ['titulo', 'serie', 'temporada', 'episodio', 'ano', 'sinopse',
     'sinopse_origem', 'tema', 'publico_alvo', 'tags', 'pendencia', 'titularidade',
-    'nivel_evidencia', 'capa_arquivo', 'capa_versao', 'nota_curadoria'];
+    'nivel_evidencia', 'capa_arquivo', 'capa_versao', 'nota_curadoria',
+    /* M9 (IA): o que uma sugestão aceita grava. `ia` é o carimbo de proveniência de cada campo gerado. */
+    'sinopse_longa', 'titulo_alternativo', 'descricao_acessivel', 'ia',
+    /* M9 (mídia): clipe e trailer gerados que uma pessoa aceitou. Só `midia_gerada` vai ao ar (o Worker o mescla em `midia`). */
+    'midia_gerada'];
 
   function permissaoDoCampo(alvo, campo) {
     if (alvo === 'ajustes') return CAMPOS_AJUSTES_MESA.indexOf(campo) >= 0 ? 'player' : null;
