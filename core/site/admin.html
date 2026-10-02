@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<!-- NÃO troque por "no-referrer": as capas e o MP4 do seletor de capa vêm da
+     pull zone do provedor de vídeo, que é protegida por Allowed Referrers e responde 403
+     sem Referer. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Mesa de Curadoria — Plataforma Exemplo</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="stylesheet" href="mesa.css">
+</head>
+<body>
+
+<!-- A mesa de curadoria: o /admin em três colunas — o menu, o site de verdade
+     no meio (index.html em modo mesa) e os dados à direita.
+     As decisões de desenho estão nos comentários de mesa.css e mesa-*.js. -->
+
+<section id="tela-entrar" class="entrar" aria-labelledby="entrar-titulo">
+  <form id="form-entrar" class="entrar-cartao">
+    <p class="entrar-marca">Plataforma <b>Exemplo</b></p>
+    <h1 id="entrar-titulo">Mesa de Curadoria</h1>
+    <p class="entrar-sub">Entre com a sua conta. O superadmin entra só com a senha.</p>
+    <div class="campo">
+      <label for="usuario">Usuário <span class="fraco">— vazio, se você é o superadmin</span></label>
+      <input type="text" id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="campo">
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="botao botao-verde">Entrar</button>
+    <p class="estado" id="estado-entrar" role="status"></p>
+  </form>
+</section>
+
+<div class="mesa" id="mesa" hidden>
+  <div class="m-grade">
+    <nav class="m-esq" id="esq" aria-label="Menu da mesa"></nav>
+    <main class="m-centro" aria-label="O site e as telas da mesa">
+      <div class="barra" id="barra"></div>
+      <div class="palco palco-site" id="palco">
+        <p class="mesa-carregando" id="mesa-carregando" hidden>Lendo o catálogo…</p>
+        <div class="quadro" id="quadro">
+          <div class="quadro-barra" id="quadro-barra"></div>
+          <div class="quadro-janela" id="quadro-janela">
+            <iframe id="site" title="O site, em modo mesa" src="about:blank"></iframe>
+          </div>
+        </div>
+        <div class="palco-admin" id="palco-admin" hidden></div>
+      </div>
+    </main>
+    <aside class="m-dir" id="dir" aria-label="Dados e edição">
+      <div class="dir-cab" id="dir-cab"></div>
+      <div class="dir-corpo" id="dir-corpo"></div>
+      <div class="rascunho" id="rascunho"></div>
+    </aside>
+  </div>
+  <div class="veu" id="veu"></div>
+  <div class="aviso-flutuante" id="aviso" role="status" aria-live="polite" hidden></div>
+</div>
+
+<datalist id="lista-series"></datalist>
+
+<script src="vendor/tus.min.js"></script>
+<script src="catalogo-core.js"></script>
+<!-- A leitura da legenda e as contas do índice da busca: é a mesa que lê o
+     .srt do envio e condensa em blocos de 30 s, porque a função tem 10 ms de
+     CPU. O mesmo arquivo que o script usa. -->
+<script src="indice-core.js"></script>
+<script src="mesa-base.js"></script>
+<script src="mesa-painel.js"></script>
+<script src="mesa-telas.js"></script>
+<script src="mesa.js"></script>
+</body>
+</html>

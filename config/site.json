@@ -1,0 +1,12 @@
+{
+  "nome": "Plataforma Exemplo",
+  "descricao": "Catálogo de vídeos sob demanda.",
+  "idioma": "pt-BR",
+  "prefixoStorage": "tm",
+  "cores": {
+    "fundo": "#121212",
+    "superficie": "#1e1e1e",
+    "texto": "#f2f2f2",
+    "destaque": "#6b8afd"
+  }
+}

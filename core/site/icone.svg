@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ícone de tela inicial: fundo sangrado (o Android recorta em círculo) e o "P" no meio.
+     Os PNG saem de scripts/gerar-marca-neutra.mjs. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#6aa6ff"/>
+  <g transform="scale(32)" fill="#07101c"><path d="M.30 .22h.20a.20 .20 0 0 1 0 .40h-.08v.16h-.12z M.42 .32v.20h.08a.10 .10 0 0 0 0-.20z" fill-rule="evenodd"/></g>
+</svg>

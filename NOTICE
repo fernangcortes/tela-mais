@@ -1,0 +1,18 @@
+tela mAIs
+Copyright (c) 2026 fernangcortes
+
+Este produto inclui software de terceiros, distribuído sob as licenças
+originais, que continuam valendo para esses componentes.
+
+hls.js (build "light")
+  Versão: 1.6.14
+  Arquivo: core/site/vendor/hls.light.min.js
+  Origem: https://github.com/video-dev/hls.js
+  Licença: Apache License, Version 2.0
+  Copyright (c) 2017 Dailymotion (http://www.dailymotion.com)
+  Texto da licença: https://www.apache.org/licenses/LICENSE-2.0
+
+Além do hls.js, não há outro componente de terceiros copiado para este
+repositório (não há node_modules nem package.json). Os scripts opcionais de
+sinopses e séries usam o SDK da Anthropic (@anthropic-ai/sdk, MIT), que o
+usuário instala por conta própria e que não é distribuído aqui.

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<!-- NÃO troque por "no-referrer". A proteção do provedor de vídeo é por Allowed Referrers:
+     sem o cabeçalho Referer, a pull zone responde 403 e as capas somem. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Plataforma Exemplo — catálogo</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<!-- A TELA INICIAL (D8): o manifest põe o site no celular como um app, com o
+     ícone do E8 do briefing. NÃO há service worker, e é de propósito: nada
+     funciona sem rede, e nenhum cache novo guarda catálogo velho. A cor é o
+     --fundo do style.css — a barra do Android e a tela de abertura ficam da
+     cor da chegada, sem clarão. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1115">
+
+<meta property="og:title" content="Plataforma Exemplo — catálogo">
+<meta property="og:description" content="Catálogo de vídeos da Plataforma Exemplo.">
+<!-- og:image absoluta e og:url são acrescentados por functions/index.js a
+     partir de APP_SITE_URL; sem a variável, fica a imagem relativa. -->
+<meta property="og:image" content="og-image.png">
+<meta property="og:type" content="website">
+
+<!-- O LCP da chegada é a capa do destaque, e ela depende de duas esperas que
+     não precisam ser em fila (Lighthouse em 22/09: 3,0 a 3,2 s no perfil de
+     celular, contra o teto de 2,5 s):
+       - a conexão com a pull zone, que só abria quando a capa era pedida;
+       - o catálogo, que só era pedido depois de o app.js baixar e rodar. O
+         `fetch` do app.js reaproveita este pedido — conferido: um pedido só.
+     Na mesa (`?mesa=1`) o catálogo vem por postMessage e este pedido sobra;
+     é um pedido a mais para quem edita, contra uma espera a menos para todo
+     mundo. -->
+<!-- A pré-conexão com a pull zone de vídeo (BUNNY_PULLZONE) é acrescentada
+     por functions/index.js, junto do preload da capa. -->
+<link rel="preload" href="/api/catalogo" as="fetch" crossorigin>
+<!-- A ABERTURA: a marca que acende, uma vez por
+     sessão, só na chegada. Quem decide é ESTE script, e ele mora aqui, antes
+     da folha de estilo, porque a camada tem de cobrir o PRIMEIRO quadro — se
+     a decisão esperasse o app.js, o esqueleto piscaria antes dela.
+     A regra inteira:
+       - sem sessionStorage (o acesso que lança), a abertura NÃO roda;
+       - só na chegada: link de ficha, de série ou de busca não passa por ela;
+       - nunca dentro da mesa, nunca com movimento reduzido;
+       - no APP INSTALADO (D8) a abertura roda SEM A MARCA (`sem-marca`): só
+         o destaque entrando. Lá o sistema já mostra o ícone ao abrir, e a
+         marca logo depois parecia uma segunda abertura piscando (visto no
+         Android em 23/09). No navegador do celular não há ícone, e a marca
+         fica. O sinal é o `standalone` do manifest, e o `navigator.standalone`
+         do iPhone.
+     A chave é gravada ao COMEÇAR: recarregar no meio não repete. Quem tira a
+     camada é o app.js (`soltarAbertura`), e a folha de estilo a tira sozinha
+     aos 3 s se o app.js não vier. -->
+<script>
+try {
+  if (!sessionStorage.getItem('tm-abertura') &&
+      /^(#\/?)?$/.test(location.hash) &&
+      !/[?&]mesa=1(&|$)/.test(location.search) &&
+      !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    sessionStorage.setItem('tm-abertura', '1');
+    document.documentElement.className +=
+      (window.navigator && navigator.standalone) ||
+      (window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+        ? ' abrindo sem-marca' : ' abrindo';
+  }
+} catch (e) {}
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- A CAMADA DA ABERTURA: escura, com a marca, POR CIMA da página — que é
+     desenhada inteira por baixo dela. É isso que protege o LCP: o Chrome
+     conta a capa do destaque pintada debaixo de uma camada, e não conta a
+     que está com `opacity: 0` (medido em 23/09, dez rodadas do Lighthouse
+     com e sem a camada: 1.955 e 1.892 ms de mediana, a capa pintada aos
+     ~170 ms nas duas). Sem a classe `abrindo` ela nem existe na tela. -->
+<div class="abertura" id="abertura" aria-hidden="true">
+  <img class="abertura-marca" src="logo-fundo-escuro.svg" width="117" height="48" alt="">
+</div>
+
+<!-- A SENTINELA do cabeçalho (D5): 1 px no alto do documento. Enquanto ela está
+     na tela, a página está no alto e o cabeçalho fica sem fundo; quando ela
+     sai, o cabeçalho fica sólido. Quem avisa é um IntersectionObserver no
+     app.js — nenhum ouvinte de `scroll`. -->
+<div class="topo-sentinela" id="topo-sentinela" aria-hidden="true"></div>
+
+<a class="pular" href="#conteudo" id="pular">Pular para o conteúdo</a>
+
+<!-- O CABEÇALHO DE STREAMING (D5): o logo, dois links e a busca, numa linha
+     só. `topo-flutuante` é o que o deixa sem fundo no alto da página — o
+     /admin usa o `.topo` puro, que continua sólido.
+
+     Os chips de série SAÍRAM daqui (decisão D8): foram para a página Séries e
+     para o filtro da grade. A linha deles nascia vazia e empurrava a página ao
+     ganhar os botões, e é por isso que o cabeçalho não tem mais nenhuma caixa
+     que o JS encha depois de o catálogo chegar. -->
+<header class="topo topo-flutuante" id="topo">
+  <div class="limite topo-linha">
+    <!-- O logo é a imagem de compartilhamento recortada no logo: o
+         "Cabeçalho" que veio junto tem o texto da pílula em Calibri viva, e
+         celular não tem Calibri.
+         O <picture> de duas fontes saiu na D1 (14/09): com um tema só, não há
+         o que escolher. O `logo-fundo-claro.svg` continua no site — é o que
+         serve a quem exportar ou imprimir a marca sobre branco, e sai do ar
+         junto com a decisão de ter tema claro, não antes. -->
+    <a class="marca" href="#/" data-inicio>
+      <img class="marca-logo" src="logo-fundo-escuro.svg" width="117" height="48"
+           alt="Plataforma Exemplo — catálogo">
+    </a>
+    <nav class="topo-nav" aria-label="Seções do catálogo">
+      <a class="topo-link" href="#/" data-inicio>Início</a>
+      <a class="topo-link" href="#/series">Séries</a>
+    </nav>
+    <div class="busca" id="busca-caixa">
+      <label class="pular" for="busca">Buscar no catálogo</label>
+      <input id="busca" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Buscar por título, tema ou o que é falado…">
+      <!-- Só no celular, com a busca aberta. Ícone é <path> em currentColor:
+           sem fonte de ícone, sem CDN. -->
+      <button type="button" class="topo-botao busca-fechar" id="busca-fechar" aria-label="Fechar a busca">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <!-- Só no celular: o campo recolhido atrás de um botão. Aberto, ele toma o
+         lugar do logo e dos links, e a linha continua com a mesma altura. -->
+    <button type="button" class="topo-botao busca-abrir" id="busca-abrir" aria-controls="busca-caixa" aria-expanded="false" aria-label="Buscar no catálogo">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.5 4 a6.5 6.5 0 1 0 0 13 a6.5 6.5 0 1 0 0 -13 Z M15.2 15.2 L20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- `tabindex="-1"` é o que dá ao atalho de pular um lugar onde pousar: o
+     <main> aceita foco pelo script, e não entra na ordem do Tab. -->
+<main id="conteudo" class="limite" tabindex="-1">
+  <div id="avisos"></div>
+  <!-- O ESQUELETO (D7): a forma da chegada — destaque e duas prateleiras —
+       enquanto /api/catalogo não responde. Mora AQUI, e não no app.js, para
+       ser pintado com o HTML, antes de qualquer script: é o primeiro quadro
+       de quem abre o site numa rede lenta. O app.js o apaga ao desenhar
+       qualquer tela, e já no início quando a rota não é a chegada.
+       Nenhum retângulo é candidato a LCP (não é imagem nem texto), e ele sai
+       inteiro de uma vez: nada que já estava na tela é deslocado. -->
+  <div id="conteudo-grade"><div class="esqueleto" role="status"><span class="pular">Carregando o catálogo…</span><div aria-hidden="true">
+    <div class="esq-destaque"><div class="esq-texto"><span class="esq-linha esq-l1"></span><span class="esq-linha esq-l2"></span><span class="esq-linha esq-l3"></span><span class="esq-linha"></span><span class="esq-linha"></span><span class="esq-botao"></span></div><div class="esq-capa"></div></div>
+    <div class="esq-prateleira"><span class="esq-linha esq-rotulo"></span><div class="esq-pista"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+    <div class="esq-prateleira"><span class="esq-linha esq-rotulo"></span><div class="esq-pista"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+  </div></div></div>
+  <div id="conteudo-ficha" hidden></div>
+</main>
+
+<footer class="rodape">
+  <div class="limite">
+    Plataforma Exemplo. ·
+    <a href="admin.html">Administração</a>
+  </div>
+</footer>
+
+<!-- O PLAYER NÃO entra aqui (23/09): o player-core.js e o player.js são 77 KB
+     comprimidos que a chegada não usa, e baixavam antes do app.js, na frente
+     da capa do destaque — que é o LCP. Quem os pede é o app.js
+     (`carregarPlayer`): depois da capa do destaque, ou já no início quando
+     o link é de uma ficha. O hls.js, o player.js pede só na ficha. -->
+<script src="catalogo-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
