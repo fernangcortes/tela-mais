@@ -39,7 +39,7 @@ export function avisosDe(config) {
     avisos.push('e-mail por Resend: cadastre o secret RESEND_API_KEY e a variável EMAIL_REMETENTE (um remetente de domínio verificado no Resend).');
   }
   if (config.acesso?.modo !== 'publico') {
-    avisos.push('contas de espectador usam o banco D1 (binding DB, já declarado no wrangler.jsonc): sem ele, só a equipe entra.');
+    avisos.push('neste modo as contas de quem assiste ficam num banco de dados da Cloudflare (D1), que o projeto já deixa preparado; o passo "cloudflare provisionar" do setup o cria. Sem ele, só a equipe consegue entrar.');
   }
   return avisos;
 }
@@ -60,7 +60,7 @@ export async function principal(argv = process.argv.slice(2), saida = console) {
   saida.log(`  Vídeo:    ${c.video.provedor}`);
   saida.log(`  Autoplay: ${c.player.autoplay.modo}`);
   const vars = [...variaveisEsperadas(r.bruto)];
-  if (vars.length) saida.log(`  Variáveis secretas que precisam existir no ambiente: ${vars.join(', ')}`);
+  if (vars.length) saida.log(`  Chaves que você vai precisar guardar mais adiante (o setup pede cada uma, num campo escondido; nunca no chat): ${vars.join(', ')}`);
   for (const a of avisosDe(c)) saida.log(`  Aviso: ${a}`);
   return 0;
 }

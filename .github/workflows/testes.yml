@@ -16,3 +16,12 @@ jobs:
         run: npm test
       - name: Varredura anti-marca
         run: node scripts/anti-marca.mjs
+      - name: Espelhos dos agentes em dia
+        run: node scripts/setup.mjs sync-agents --check
+      - name: Varredura de segredos
+        run: node scripts/setup.mjs scan-secrets
+      - name: Config e arquivos gerados em dia
+        run: |
+          node scripts/validar-config.mjs
+          node scripts/aplicar-config.mjs --verificar
+          node scripts/gerar-headers.mjs --verificar

@@ -1,0 +1,75 @@
+{
+  "id": "festival",
+  "nome": "Festival ou mostra de cinema",
+  "resumo": "Aberto a todos, filmes avulsos (sem temporadas), visual de cinema escuro, fileira de curtas e prévia animada.",
+  "config": {
+    "preset": "festival",
+    "tema": {
+      "preset": "cinema",
+      "modo": "escuro"
+    },
+    "idiomas": {
+      "padrao": "pt-BR",
+      "disponiveis": [
+        "pt-BR"
+      ]
+    },
+    "acesso": {
+      "modo": "publico"
+    },
+    "catalogo": {
+      "modeloDeConteudo": "avulso"
+    },
+    "recursos": {
+      "busca": {
+        "porPalavra": true,
+        "pelaFala": false,
+        "porSentido": false
+      },
+      "continuarAssistindo": true,
+      "minhaLista": false,
+      "legendas": true,
+      "capitulos": false
+    },
+    "player": {
+      "proximoEpisodio": {
+        "modo": "nunca"
+      },
+      "retomar": {
+        "modo": "perguntar"
+      },
+      "marcaDagua": {
+        "ligada": false
+      }
+    },
+    "home": {
+      "destaque": {
+        "modo": "manual",
+        "fundo": {
+          "tipo": "previa-animada"
+        }
+      },
+      "blocos": [
+        {
+          "tipo": "destaque"
+        },
+        {
+          "tipo": "prateleira-recentes",
+          "limite": 12
+        },
+        {
+          "id": "curtas",
+          "tipo": "prateleira-duracao",
+          "ate": 1800
+        },
+        {
+          "tipo": "busca"
+        },
+        {
+          "tipo": "prateleira-restante",
+          "garantirQueTodoTituloApareca": true
+        }
+      ]
+    }
+  }
+}
