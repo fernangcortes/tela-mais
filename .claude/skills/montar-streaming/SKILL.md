@@ -2,7 +2,7 @@
 name: montar-streaming
 description: Monta do zero o streaming (tela mAIs) de uma pessoa leiga na conta Cloudflare dela, em 9 etapas com checkpoint verificável. Use quando pedirem para instalar, montar, configurar ou colocar o streaming no ar.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md 112280574856 -->
 
 # Montar o streaming, do zero ao primeiro vídeo
 

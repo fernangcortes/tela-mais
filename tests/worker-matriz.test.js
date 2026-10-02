@@ -125,7 +125,7 @@ test('todo arquivo de core/worker/api está no roteador: handler novo não fica 
 test('a tabela só usa níveis e métodos conhecidos', async () => {
   const { PERMISSOES } = await mod('permissoes.js');
   for (const [caminho, linha] of Object.entries(PERMISSOES)) {
-    assert.ok(caminho === '/' || caminho.startsWith('/api/'), caminho);
+    assert.ok(caminho === '/' || caminho === '/mcp' || caminho.startsWith('/api/'), caminho);
     for (const [metodo, nivel] of Object.entries(linha)) {
       assert.ok(['GET', 'POST', 'PUT', 'DELETE'].includes(metodo), metodo);
       assert.ok(['aberto', 'modo', 'conta', 'equipe', 'super'].includes(nivel), caminho + ' ' + metodo + ': nível ' + nivel);

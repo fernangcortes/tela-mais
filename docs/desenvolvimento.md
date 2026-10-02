@@ -58,6 +58,21 @@ KV). O superadmin é a variável `ADMIN_PASSWORD`. Quem é a pessoa: `sessaoDaRe
 `data.sessao` no handler. Toda consulta do caminho quente usa índice (`tests/contas-d1.test.js`, `EXPLAIN QUERY PLAN`):
 não adicione consulta por requisição sem índice. Nada de segredo, IP ou e-mail em claro em chave de limite ou log.
 
+## MCP (assistentes de IA)
+
+Guia para o cliente: `docs/mcp.md`. `/mcp` (`core/worker/mcp.js`) é um servidor MCP remoto **stateless**, JSON-RPC 2.0 à mão sobre Streamable HTTP,
+revisão 2025-06-18 (aceita 2025-03-26 e 2024-11-05); sem `Mcp-Session-Id`, `GET`/`DELETE` dão 405. Ordem das defesas: `mcp.ligado` (padrão `false`, senão 404)
+> `Origin` de outro site (403) > token `mcp_…` (`_lib/mcp-tokens.js`; só o SHA-256 no D1, tabelas da migração 0003, validade obrigatória, revogação, escopo
+`read < curate < admin`) > limite por token (60/min, `_lib/limite.js`) > escopo efetivo = o menor entre o do token e `mcp.somenteLeitura` (padrão `true`) >
+auditoria de toda `tools/call` (`mcp_auditoria`, 180 dias, argumentos resumidos sem segredo/e-mail/link). As ferramentas moram em `_lib/mcp-ferramentas.js`.
+**Regras que os testes cobram** (`tests/mcp-*.test.js`): (1) escrita SÓ por `gravarCatalogo` (`api/catalogo.js`), o mesmo caminho do PUT da mesa (validação,
+permissão por campo com a conta `mcp:<nome>` sem poder de super, histórico, 409); nunca `CATALOGO.put` direto. (2) Ferramenta que muda o que está no ar, publica,
+reorganiza a home, troca textos ou gera convite devolve antes o resumo e só age com `confirmar: true`; não existe ferramenta de apagar. (3) Todo texto do catálogo
+sai dentro de `conteudoNaoConfiavel` com `aviso`; texto nunca vira ordem. (4) Nada de segredo, chave, hash de token ou e-mail de espectador na resposta (só
+contagens; o link do convite é a única credencial que sai, de propósito). Ferramenta nova: entrada em `FERRAMENTAS` com `escopo`, descrição em `mcp.d.<nome>` nos
+três locales, e teste de escopo, confirmação, vazamento e auditoria. O `/mcp` está na matriz (`'aberto'` para o middleware; o handler autentica) e em
+`run_worker_first` do `wrangler.jsonc`. Tela: `mesa-mcp.js` + `/api/mcp-tokens` (só super). CLI: `setup.mjs mcp` (o token nunca passa pelo agente).
+
 ## Player e guardião
 
 Guia para o cliente: `docs/player.md`. `core/site/guardiao.js` é o guardião único (`podeIniciarSozinho`) e saneia `player.*` e

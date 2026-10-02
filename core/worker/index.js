@@ -23,6 +23,8 @@ import { localizarResposta } from './_lib/mensagens.js';
 import { limparExpirados } from './_lib/contas.js';
 
 /* As páginas que desenham o desafio anti-robô: só elas levam a Cloudflare na CSP. */
+/* O endpoint MCP (M10): protocolo próprio, mas passa pelo mesmo funil (config, modo, tabela de permissões). */
+const CAMINHO_DO_MCP = '/mcp';
 const PAGINAS_COM_TURNSTILE = ['/entrar', '/entrar.html', '/cadastro', '/cadastro.html'];
 
 async function modoDoAcesso(env, obterConfig) {
@@ -42,7 +44,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
     const metodo = request.method === 'HEAD' ? 'GET' : request.method;
     const ehApi = caminho === '/api' || caminho.startsWith('/api/');
 
-    if (!ehApi && caminho !== '/') {
+    if (!ehApi && caminho !== '/' && caminho !== CAMINHO_DO_MCP) {
       /* Chegou aqui sem ser rota do Worker (dev local, ou run_worker_first
        * mais largo): arquivo estático, sem tabela. */
       return env.ASSETS ? env.ASSETS.fetch(request) : erro(404, 'nao-encontrado');
@@ -94,6 +96,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
     async fetch(request, env, ctx) {
       const caminho = normalizarCaminho(new URL(request.url).pathname);
       const ehApi = caminho === '/api' || caminho.startsWith('/api/');
+      const ehMcp = caminho === CAMINHO_DO_MCP;
       const lugar = { config: null };
       let resposta;
       try {
@@ -103,7 +106,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
         resposta = erro(500, 'erro-interno');
       }
       if (ehApi) resposta = await localizarResposta(resposta, request, lugar.config);
-      return comCabecalhos(resposta, env, { api: ehApi, config: lugar.config, turnstile: PAGINAS_COM_TURNSTILE.indexOf(caminho) >= 0 });
+      return comCabecalhos(resposta, env, { api: ehApi || ehMcp, config: lugar.config, turnstile: PAGINAS_COM_TURNSTILE.indexOf(caminho) >= 0 });
     }
   };
 }

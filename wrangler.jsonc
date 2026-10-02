@@ -30,10 +30,11 @@
     // acesso) e as páginas que carregam mídia (`/index.html`, `/admin`,
     // `/admin.html`): a política de segurança delas (CSP) leva os hosts do
     // provedor de vídeo escolhido em `video.provedor`, e só o Worker os conhece.
+    // `/mcp` é o servidor MCP (M10): protocolo próprio, desligado por padrão (`mcp.ligado`).
     // Todo o resto é Static Assets puro.
     // As páginas de entrada e de cadastro também: elas levam o desafio anti-robô
     // (Turnstile) e a política de segurança só as libera para ele.
-    "run_worker_first": ["/api/*", "/", "/index.html", "/admin", "/admin.html", "/entrar", "/entrar.html", "/cadastro", "/cadastro.html"],
+    "run_worker_first": ["/api/*", "/mcp", "/", "/index.html", "/admin", "/admin.html", "/entrar", "/entrar.html", "/cadastro", "/cadastro.html"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },

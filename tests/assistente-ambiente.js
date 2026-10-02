@@ -13,7 +13,7 @@ const { criarSite, SITE, No } = require('./home-dom-falso.js');
 /* o DOM falso não tem `replaceWith` (o navegador tem; a mesa o usa para trocar só um pedaço da tela) */
 if (!No.prototype.replaceWith) No.prototype.replaceWith = function (novo) { this.parentNode.replaceChild(novo, this); };
 
-const TELAS = { saude: 'telaSaude', backup: 'telaBackup', custos: 'telaCustos', assistente: 'telaAssistente' };
+const TELAS = { saude: 'telaSaude', backup: 'telaBackup', custos: 'telaCustos', assistente: 'telaAssistente', mcp: 'telaMcp' };
 
 class LeitorFalso {
   readAsText(arquivo) { setImmediate(() => { this.result = arquivo.texto; this.onload && this.onload(); }); }
@@ -51,7 +51,7 @@ function abrirOperacao({ super: ehSuper = true, permissoes = [], rotas = {}, ser
     vm.runInContext(`AppI18n.instancia().definirCatalogo('${id}', __catalogo);`, ctx);
   }
   vm.runInContext(`AppI18n.instancia().definirIdioma('${idioma}');`, ctx);
-  for (const arquivo of ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js']) {
+  for (const arquivo of ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-mcp.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js']) {
     vm.runInContext(fs.readFileSync(path.join(SITE, arquivo), 'utf8'), ctx, { filename: arquivo });
   }
   const M = amb.janela.MESA;

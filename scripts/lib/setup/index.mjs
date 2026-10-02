@@ -18,8 +18,9 @@ import { syncAgents } from './cmd-agentes.mjs';
 import { turnstile } from './cmd-turnstile.mjs';
 import { scanSecrets } from './cmd-scan.mjs';
 import { goLive } from './cmd-golive.mjs';
+import { mcp } from './cmd-mcp.mjs';
 
-export const COMANDOS = Object.freeze([status, init, marca, acesso, turnstile, video, cloudflare, segredo, deploy, doctor, syncAgents, scanSecrets, goLive]);
+export const COMANDOS = Object.freeze([status, init, marca, acesso, turnstile, video, cloudflare, segredo, deploy, doctor, syncAgents, scanSecrets, goLive, mcp]);
 
 export function textoDeAjuda(comando) {
   if (comando) return `Uso: node scripts/setup.mjs ${comando.uso}\n\n${comando.resumo}\n\nOpções em todos os comandos: --json (saída para programas), --yes (aceita as confirmações), --dry-run (mostra o que faria, sem fazer), --help.\nCódigos de saída: 0 deu certo, 1 falhou, 2 uso incorreto, 3 falta uma ação sua.\n`;

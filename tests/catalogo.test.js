@@ -7359,7 +7359,7 @@ test('na mesa, o rascunho não derruba o player da ficha aberta', () => {
  * de ser definidos, sem nenhum teste reclamar. Este cobra que tudo o que a
  * mesa chama de si mesma exista em algum arquivo dela. */
 test('a mesa não chama nem escreve em nada que ela não define', () => {
-  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js'];
+  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa-mcp.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js'];
   const juntos = arquivos.map(a => semComentarios(lerTexto(path.join(SITE, a)))).join('\n');
   const definidos = new Set([...juntos.matchAll(/\bM\.([A-Za-z_]\w*)\s*=[^=]/g)].map(m => m[1]));
   /* O estado e os poucos objetos que a mesa preenche por dentro. */
@@ -8571,8 +8571,8 @@ test('ver o histórico é de todo admin; restaurar é que pede permissão', () =
  * o que garante que a publicação já está gravada quando o rastro falha. */
 test('o histórico é gravado depois do catálogo, e o erro dele fica contido', () => {
   const api = semComentarios(lerTexto(path.join(WORKER, 'api', 'catalogo.js')));
-  const put = api.match(/export async function onRequestPut\(([\s\S]*?)\n\}/);
-  assert.ok(put, 'não achei o PUT');
+  const put = api.match(/export async function gravarCatalogo\(([\s\S]*?)\n\}/);
+  assert.ok(put, 'não achei o caminho de gravação (gravarCatalogo, usado pelo PUT e pelo MCP)');
   const posGravacao = put[1].indexOf("env.CATALOGO.put(CHAVE, gravado)");
   const posRegistro = put[1].indexOf('registrarPublicacao(');
   assert.ok(posGravacao > 0 && posRegistro > posGravacao, 'o histórico passou a ser gravado antes do catálogo');

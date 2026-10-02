@@ -31,6 +31,8 @@ import * as espectadores from './api/espectadores.js';
 import * as minhaLista from './api/minha-lista.js';
 import * as saude from './api/saude.js';
 import * as backup from './api/backup.js';
+import * as mcpTokens from './api/mcp-tokens.js';
+import * as mcp from './mcp.js';
 
 const MODULOS = {
   '/api/login': login,
@@ -58,7 +60,10 @@ const MODULOS = {
   '/api/espectadores': espectadores,
   '/api/minha-lista': minhaLista,
   '/api/saude': saude,
-  '/api/backup': backup
+  '/api/backup': backup,
+  '/api/mcp-tokens': mcpTokens,
+  /* O MCP (M10) mora fora de api/ porque não é a API da mesa: tem protocolo e autenticação próprios (token `mcp_…`). */
+  '/mcp': mcp
 };
 
 /* Método HTTP -> função exportada. HEAD cai no GET do handler. */

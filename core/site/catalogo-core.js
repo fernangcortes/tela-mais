@@ -625,7 +625,7 @@
 
     var ts = mapaSimples(cru.textos);
     Object.keys(ts).sort().forEach(function (chave) {
-      if (!(chave in TEXTOS_PADRAO)) return;
+      if (!temTexto(chave)) return;
       var texto = textoAparado(ts[chave]);
       if (texto) saida.textos[chave] = texto;
     });
@@ -917,8 +917,11 @@
 
   /* Texto vazio é o PADRÃO, não o silêncio: um campo limpo sem querer não pode
    * apagar da tela o aviso que explica o que houve. */
+  function temTexto(chave) {
+    return Object.prototype.hasOwnProperty.call(TEXTOS_PADRAO, chave);
+  }
   function textoDoSite(site, chave) {
-    if (!(chave in TEXTOS_PADRAO)) return '';
+    if (!temTexto(chave)) return '';
     return siteSaneado(site).textos[chave] || TEXTOS_PADRAO[chave];
   }
 
@@ -958,7 +961,7 @@
   function comTexto(site, chave, valor) {
     var novo = siteSaneado(site);
     delete novo.textos[chave];
-    if (chave in TEXTOS_PADRAO) {
+    if (temTexto(chave)) {
       var texto = textoAparado(valor);
       if (texto) novo.textos[chave] = texto;
     }
