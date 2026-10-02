@@ -2,8 +2,8 @@
  *
  * Um título só entra se passar nas TRÊS condições:
  *   1. não tem pendência registrada (duplicata, material bruto, direitos…);
- *   2. tem `fonte.videoId` — senão a ficha abre com o player vazio;
- *   3. o encoding terminou no Bunny (status 4) — vídeo em fila embeda e não toca,
+ *   2. tem vídeo no provedor (`fonte.id`) — senão a ficha abre com o player vazio;
+ *   3. o encoding terminou no provedor (estado 'pronto') — vídeo em fila embeda e não toca,
  *      e o usuário culpa o site.
  *
  * IDEMPOTENTE e feito para rodar várias vezes: enquanto uma carga grande sobe,
@@ -17,8 +17,8 @@
  *
  * Trabalha sobre o KV (a fonte da verdade da grade), não sobre o arquivo local.
  */
-import { criarCliente, STATUS } from './lib/bunny.mjs';
 import { argumentos, erroFatal } from './lib/catalogo.mjs';
+import { videoDoItem, statusDoItem, exigirConfigurado, provedorDoAmbiente } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const site = (typeof op.site === 'string' ? op.site : process.env.APP_SITE_URL || '').replace(/\/+$/, '');
@@ -55,24 +55,26 @@ try {
     process.exit(0);
   }
 
-  const bunny = criarCliente();
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
   const candidatos = catalogo.itens.filter(i => !i.publicar);
   const entram = [];
   const barrados = { pendencia: [], semVideo: [], codificando: [] };
 
   for (const item of candidatos) {
     if (item.pendencia && !op['com-pendencia']) { barrados.pendencia.push(item); continue; }
-    if (!(item.fonte && item.fonte.videoId)) { barrados.semVideo.push(item); continue; }
+    if (!videoDoItem(provedor, item)) { barrados.semVideo.push(item); continue; }
 
     let v;
     try {
-      v = await bunny.consultar(item.fonte.videoId);
+      v = await statusDoItem(provedor, item);
     } catch {
       barrados.codificando.push(item);
       continue;
     }
-    if (v.status !== 4) {
-      barrados.codificando.push([item, STATUS[v.status] || v.status, v.encodeProgress]);
+    /* Só 'pronto' vai ao ar: 'enviando', 'processando' e 'erro' ficam de fora. */
+    if (v.estado !== 'pronto') {
+      barrados.codificando.push([item, v.estado, v.progresso]);
       continue;
     }
     entram.push(item);
@@ -82,7 +84,7 @@ try {
   console.log(`entram agora: ${entram.length}`);
   entram.forEach(i => console.log('   + ' + i.titulo));
 
-  if (barrados.semVideo.length) console.log(`\nsem vídeo no Bunny (aguardando upload): ${barrados.semVideo.length}`);
+  if (barrados.semVideo.length) console.log(`\nsem vídeo no provedor (aguardando upload): ${barrados.semVideo.length}`);
   if (barrados.codificando.length) {
     console.log(`ainda codificando: ${barrados.codificando.length}`);
     barrados.codificando.forEach(b => {

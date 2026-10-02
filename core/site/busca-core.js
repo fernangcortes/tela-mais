@@ -238,7 +238,7 @@
       });
       /* A fala do VÍDEO do título, pela `videoId`: é essa a chave do índice
        * da fala, e não o id do título. */
-      var videoId = item.fonte && item.fonte.videoId;
+      var videoId = App.idDoVideo(item);
       var blocos = (fala && videoId && fala[videoId]) || [];
       var falas = blocos.map(function (b) {
         var palavrasDoBloco = conjunto(b[1]);
@@ -631,7 +631,7 @@
     if (!sentido || !sentido.length) return literal;
     var porVideo = Object.create(null);
     ind.docs.forEach(function (d) {
-      var v = d.item.fonte && d.item.fonte.videoId;
+      var v = App.idDoVideo(d.item);
       if (v) porVideo[v] = d;
     });
 

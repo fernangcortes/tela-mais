@@ -1,0 +1,62 @@
+{
+  "descricao": "state error (ERR_MALFORMED_VIDEO).",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a$",
+      "cabecalhos": {
+        "Authorization": "Bearer chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "result": {
+            "uid": "ea95132c15732412d22c1476fa83f27a",
+            "creator": null,
+            "thumbnail": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/thumbnails/thumbnail.jpg",
+            "thumbnailTimestampPct": 0,
+            "readyToStream": false,
+            "status": {
+              "state": "error",
+              "pctComplete": "39",
+              "step": "encoding",
+              "errorReasonCode": "ERR_MALFORMED_VIDEO",
+              "errorReasonText": "The video was deemed to be corrupted or malformed."
+            },
+            "meta": {
+              "name": "Aula 1"
+            },
+            "created": "2026-09-20T14:03:11.123456Z",
+            "modified": "2026-09-20T14:03:11.123456Z",
+            "size": 4190963,
+            "preview": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/watch",
+            "allowedOrigins": [],
+            "requireSignedURLs": false,
+            "uploaded": "2026-09-20T14:03:11.123456Z",
+            "uploadExpiry": null,
+            "maxSizeBytes": null,
+            "maxDurationSeconds": null,
+            "duration": 611,
+            "input": {
+              "width": 1920,
+              "height": 1080
+            },
+            "playback": {
+              "hls": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/manifest/video.m3u8",
+              "dash": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/manifest/video.mpd"
+            },
+            "watermark": null
+          },
+          "success": true,
+          "errors": [],
+          "messages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "estado": "erro",
+    "progresso": 39,
+    "estadoBruto": "error"
+  }
+}

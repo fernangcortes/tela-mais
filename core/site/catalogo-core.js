@@ -33,8 +33,6 @@
    * isso vem sempre desta função. */
   function semSerie() { return tr('catalogo.semSerie'); }
 
-  var PLAYER_BASE = 'https://player.mediadelivery.net/embed';
-
   /* Rótulos de triagem — não são séries de verdade, vão para o fim da grade. */
   var SERIES_AO_FIM = ['A classificar', 'A identificar']; /* i18n-ignorar: nome de série (dado do acervo) */
 
@@ -270,68 +268,103 @@
 
   /* --------------------------------------------------------------- player */
 
-  /* O libraryId do item manda; o da config é só a rede de segurança para
-   * itens gravados antes de a library existir. */
-  function resolverFonte(item, config) {
-    var fonte = item && item.fonte;
-    if (!fonte || !fonte.videoId) return null;
-    var libraryId = fonte.libraryId || (config && config.libraryId) || null;
-    if (!libraryId) return null;
-    return {
-      tipo: fonte.tipo || 'bunny',
-      libraryId: String(libraryId),
-      videoId: String(fonte.videoId)
-    };
+  /* ------------------------------------------------ a fonte do vídeo (M4)
+   *
+   * O item guarda `fonte: { provedor, id, extras }`: o provedor (`bunny`,
+   * `cloudflare-stream`, `hls-generico`), o id do vídeo NO provedor e o que mais
+   * o provedor precisa que não é segredo (`extras`, ex.: `{ libraryId }` no
+   * Bunny). O formato de antes do M4 era `{ tipo, libraryId, videoId }`.
+   *
+   * `migrarFonte` é PURA, idempotente e a única que conhece os dois formatos;
+   * o Worker a roda ao LER o catálogo e ao GRAVAR (o KV migra aos poucos), e
+   * os scripts de carga a usam para ler KV e arquivo local sem se importar com
+   * a idade do dado. A ordem das chaves é fixa (provedor, id, extras, com as
+   * chaves de extras em ordem alfabética): comparar fonte por JSON, como o
+   * histórico faz, só funciona assim.
+   *
+   * O navegador NÃO monta URL nenhuma a partir disto: ele recebe `item.midia`
+   * pronto do servidor (ver provedores/contrato.js). */
+  var PROVEDOR_DO_FORMATO_ANTIGO = 'bunny';   /* o formato antigo só existia para o Bunny */
+
+  function textoOuNulo(v) { return v == null || v === '' ? null : String(v); }
+
+  function migrarFonte(fonte) {
+    var f = fonte && typeof fonte === 'object' && !Array.isArray(fonte) ? fonte : {};
+    var novo = 'provedor' in f || 'id' in f || 'extras' in f;
+    var extras = {};
+    if (novo) {
+      if (f.extras && typeof f.extras === 'object' && !Array.isArray(f.extras)) {
+        Object.keys(f.extras).forEach(function (k) { extras[k] = f.extras[k]; });
+      }
+    } else {
+      /* Formato antigo: libraryId vira extra; o que mais houver (campo que um
+       * script gravou) também, para nada se perder na migração. */
+      Object.keys(f).forEach(function (k) {
+        if (k === 'tipo' || k === 'videoId') return;
+        if (f[k] != null && f[k] !== '') extras[k] = f[k];
+      });
+    }
+    var ordenados = {};
+    Object.keys(extras).sort().forEach(function (k) { if (extras[k] !== undefined) ordenados[k] = extras[k]; });
+    var provedor = novo ? textoOuNulo(f.provedor) : (textoOuNulo(f.tipo) || PROVEDOR_DO_FORMATO_ANTIGO);
+    var id = novo ? f.id : f.videoId;
+    return { provedor: provedor, id: textoOuNulo(id), extras: ordenados };
   }
 
-  /* ARMADILHA CENTRAL DO PROJETO: autoplay do Bunny é `true` por padrão.
-   * Omitir o parâmetro faz o vídeo tocar sozinho — o que o produto proíbe.
-   * Os quatro parâmetros abaixo são obrigatórios; há teste cobrindo isso. */
-  function urlEmbed(fonte) {
-    if (!fonte || !fonte.libraryId || !fonte.videoId) return null;
-    if (fonte.tipo && fonte.tipo !== 'bunny') return null;
-    var p = new URLSearchParams({
-      autoplay: 'false',
-      loop: 'false',
-      preload: 'false',
-      rememberPosition: 'false'
-    });
-    return PLAYER_BASE + '/' + fonte.libraryId + '/' + fonte.videoId + '?' + p.toString();
+  /* O id do vídeo no provedor, ou null. Aceita o item, e lê os dois formatos. */
+  function idDoVideo(item) {
+    return item && item.fonte ? migrarFonte(item.fonte).id : null;
   }
 
-  function hostPullzone(config) {
-    var pullzone = config && config.pullzone;
-    if (!pullzone) return null;
-    return String(pullzone).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  /* O item com a `fonte` migrada (o mesmo objeto se já estava), sem `midia`:
+   * `midia` é calculada pelo servidor a cada resposta e nunca é gravada. */
+  function itemMigrado(item) {
+    if (!item || typeof item !== 'object') return item;
+    var copia = null;
+    var alvo = migrarFonte(item.fonte);
+    if (JSON.stringify(alvo) !== JSON.stringify(item.fonte)) { copia = Object.assign({}, item); copia.fonte = alvo; }
+    if ('midia' in item) { copia = copia || Object.assign({}, item); delete copia.midia; }
+    return copia || item;
   }
 
-  /* Capa servida pela pull zone do Bunny — evita carregar 55 JPGs no repositório.
+  function catalogoMigrado(catalogo) {
+    if (!catalogo || !Array.isArray(catalogo.itens)) return catalogo;
+    var mudou = false;
+    var itens = catalogo.itens.map(function (i) { var n = itemMigrado(i); if (n !== i) mudou = true; return n; });
+    return mudou ? Object.assign({}, catalogo, { itens: itens }) : catalogo;
+  }
+
+  /* --------------------------------------------------------------- player
    *
-   * ARMADILHA: o nome do arquivo NÃO é sempre `thumbnail.jpg`. Ao receber uma capa
-   * enviada por nós, o Bunny grava com um hash no nome (`thumbnail_2c504259.jpg`),
-   * e quem monta o caminho fixo pede um arquivo que não é a capa escolhida.
-   *
-   * Por isso `capa_arquivo` guarda o `thumbnailFileName` que o Bunny informa.
-   * `capa_versao` fica como reforço contra cache do navegador — a pull zone
-   * ignora a query no cache DELA, medido em 22/09.
-   *
-   * E O ARQUIVO ANTERIOR SOME DA ORIGEM depois de uma troca (22/09: a capa do
-   * *Bernardo Élis 2* e a capa antiga do piloto de 08/09, as duas em 404 com
-   * `CDN-Cache: MISS`). A borda da CDN ainda o serve do cache por um tempo, e
-   * por isso a falha aparece para uns e não para outros. Um `capa_arquivo`
-   * atrasado não mostra a capa velha: mostra NENHUMA. É a razão de a capa
-   * enviada pela mesa ir para o catálogo na mesma chamada (`comCapa`). */
-  function urlCapa(item, config) {
-    var fonte = resolverFonte(item, config);
-    var host = hostPullzone(config);
-    if (!fonte || !host) return null;
-    var arquivo = (item && item.capa_arquivo) || 'thumbnail.jpg';
-    var url = 'https://' + host + '/' + fonte.videoId + '/' + arquivo;
-    return item && item.capa_versao ? url + '?v=' + encodeURIComponent(item.capa_versao) : url;
+   * O servidor entrega `item.midia` (ver provedores/contrato.js):
+   *   { hls, mp4: { '240p', '360p', '720p' }, capa, previa, legendas: [{ idioma, rotulo, url }],
+   *     embed: { url, scriptUrl, controle }, expiraEm }
+   * Tudo aqui só LÊ esse objeto. Nenhum host de provedor existe no navegador. */
+
+  /* A mídia utilizável do item, ou null: sem `hls`, `mp4` nem `embed` não há o
+   * que tocar (vídeo ainda não enviado, ou provedor sem credencial). */
+  function midiaDe(item) {
+    var m = item && item.midia;
+    if (!m || typeof m !== 'object') return null;
+    return (m.hls || m.mp4 || (m.embed && m.embed.url)) ? m : null;
+  }
+
+  /* ARMADILHA CENTRAL DO PROJETO: o autoplay do player embutido pode ser `true`
+   * por padrão (é no Bunny). Quem monta a URL do embed é o ADAPTADOR do
+   * provedor, que desliga autoplay, loop, preload e rememberPosition; a suíte
+   * de contrato confere que nenhuma URL liga autoplay. */
+  function urlEmbed(midia) {
+    return midia && midia.embed && typeof midia.embed.url === 'string' ? midia.embed.url : null;
+  }
+
+  /* A capa já vem final do servidor (provedor, arquivo com hash e versão
+   * contra cache, tudo resolvido lá). */
+  function urlCapa(item) {
+    return item && item.midia && typeof item.midia.capa === 'string' && item.midia.capa ? item.midia.capa : null;
   }
 
   /* O catálogo com a capa nova de UM vídeo — a gravação que `/api/midia` faz
-   * logo depois de o Bunny aceitar a capa (22/09). Todo título com aquele
+   * logo depois de o provedor aceitar a capa (22/09). Todo título com aquele
    * `videoId` leva os dois campos, e só eles: é uma publicação de dois campos,
    * e vai pela mesma porta do PUT, com a mesma conferência e o mesmo rastro.
    *
@@ -341,41 +374,56 @@
     var itens = (catalogo && Array.isArray(catalogo.itens)) ? catalogo.itens : [];
     var achou = false;
     var novos = itens.map(function (i) {
-      if (!i || !i.fonte || i.fonte.videoId !== videoId) return i;
+      if (!i || idDoVideo(i) !== videoId) return i;
       achou = true;
       return Object.assign({}, i, { capa_arquivo: arquivo, capa_versao: versao });
     });
     return achou ? Object.assign({}, catalogo, { itens: novos }) : null;
   }
 
-  /* Trecho animado que o Bunny gera amostrando o vídeo inteiro (WebP animado).
-   * É o que a grade mostra no lugar da capa enquanto o ponteiro está sobre o
-   * cartão — sem um segundo player na página e sem decodificar vídeo.
+  /* Trecho animado que o provedor gera amostrando o vídeo (WebP animado, no
+   * Bunny). É o que a grade mostra no lugar da capa enquanto o ponteiro está
+   * sobre o cartão — sem um segundo player na página e sem decodificar vídeo.
    *
-   * ARMADILHA, com o número MEDIDO na pull zone em 14/09, nos 66 títulos: a
+   * ARMADILHA, com o número MEDIDO no Bunny em 14/09, nos 66 títulos: a
    * mediana é de **1,13 MB**, a menor 454 KB e a maior 3,1 MB, e os 66 somam
-   * **82,2 MB**. O "~450 KB" que este comentário dizia era o menor arquivo
-   * tomado pelo tamanho típico, e vinha de quando o catálogo tinha 33 títulos.
-   *
-   * Carregar os 66 junto com a chegada são 82 MB, e a tela morre no celular.
-   * Quem chama isto tem obrigação de pedir a imagem SÓ no `mouseenter` e
-   * descartá-la no `mouseleave`. Há teste cobrindo isso em
+   * **82,2 MB**. Carregar os 66 junto com a chegada são 82 MB, e a tela morre
+   * no celular. Quem chama isto tem obrigação de pedir a imagem SÓ no
+   * `mouseenter` e descartá-la no `mouseleave`. Há teste cobrindo isso em
    * tests/catalogo.test.js. */
-  function urlPreview(item, config) {
-    var fonte = resolverFonte(item, config);
-    var host = hostPullzone(config);
-    if (!fonte || !host) return null;
-    return 'https://' + host + '/' + fonte.videoId + '/preview.webp';
+  function urlPreview(item) {
+    return item && item.midia && typeof item.midia.previa === 'string' && item.midia.previa ? item.midia.previa : null;
   }
 
-  /* MP4 direto da pull zone, usado pelo seletor de capa da tela de admin.
-   * Depende de `hasMP4Fallback` ligado na library (está). A pull zone devolve
-   * Access-Control-Allow-Origin: *, o que permite capturar o quadro num canvas. */
-  function urlMp4(item, config, resolucao) {
-    var fonte = resolverFonte(item, config);
-    var host = hostPullzone(config);
-    if (!fonte || !host) return null;
-    return 'https://' + host + '/' + fonte.videoId + '/play_' + (resolucao || '720p') + '.mp4';
+  /* A faixa de legenda do item (a do idioma pedido; sem pedido, a primeira):
+   * { idioma, rotulo, url }, ou null. A URL é a que o provedor serve. */
+  function faixaDeLegenda(item, idioma) {
+    var lista = item && item.midia && Array.isArray(item.midia.legendas) ? item.midia.legendas : [];
+    var achada = idioma ? lista.filter(function (l) { return l && l.idioma === idioma; })[0] : lista[0];
+    return achada && typeof achada.url === 'string' && achada.url ? achada : null;
+  }
+
+  function urlLegenda(item, idioma) {
+    var f = faixaDeLegenda(item, idioma);
+    return f ? f.url : null;
+  }
+
+  /* MP4 direto, usado pelo seletor de capa da tela de admin e como rede de
+   * segurança do player. Sem a resolução pedida, cai na mais próxima que
+   * houver (o provedor pode não oferecer todas). */
+  var RESOLUCOES_MP4 = ['240p', '360p', '720p'];
+
+  function urlMp4(item, resolucao) {
+    var mp4 = item && item.midia && item.midia.mp4;
+    if (!mp4 || typeof mp4 !== 'object') return null;
+    var pedida = resolucao || '720p';
+    if (mp4[pedida]) return mp4[pedida];
+    var alvo = RESOLUCOES_MP4.indexOf(pedida);
+    var melhor = null;
+    RESOLUCOES_MP4.forEach(function (r, k) {
+      if (mp4[r] && (melhor === null || Math.abs(k - alvo) < Math.abs(melhor.k - alvo))) melhor = { k: k, url: mp4[r] };
+    });
+    return melhor ? melhor.url : null;
   }
 
   /* ------------------------------------------------------------- listagem */
@@ -447,7 +495,7 @@
      * nenhum é o vazio da regra 1, e nunca sobe acima de quem tem. */
     pendencia: function (i) {
       if (i.pendencia) return '0 ' + normalizar(rotuloPendencia(i.pendencia));
-      if (!(i.fonte && i.fonte.videoId)) return '1';
+      if (!idDoVideo(i)) return '1';
       return null;
     },
 
@@ -1641,8 +1689,9 @@
       Object.keys(velho).forEach(function (k) { campos[k] = true; });
       Object.keys(novo).forEach(function (k) { campos[k] = true; });
       Object.keys(campos).forEach(function (campo) {
-        if (campo === 'id') return;
-        if (mesmoValor(velho[campo], novo[campo])) return;
+        if (campo === 'id' || campo === 'midia') return;   /* `midia` é do servidor, nunca é mudança de ninguém */
+        /* O formato antigo e o novo de `fonte` são o mesmo dado: não é mudança. */
+        if (campo === 'fonte' ? mesmoValor(migrarFonte(velho.fonte), migrarFonte(novo.fonte)) : mesmoValor(velho[campo], novo[campo])) return;
         saida.push({ alvo: novo.id, campo: campo, antes: velho[campo], depois: novo[campo], permissao: permissaoDoCampo(novo.id, campo) });
       });
     });
@@ -1756,11 +1805,9 @@
       nivel_evidencia: c.nivel_evidencia || 'SEM EVIDÊNCIA', /* i18n-ignorar: valor de dado, não texto de tela */
       registro: '',
       link_origem: '',
-      fonte: {
-        tipo: 'bunny',
-        libraryId: c.libraryId == null ? null : String(c.libraryId),
-        videoId: c.videoId == null ? null : String(c.videoId)
-      },
+      /* `campos.fonte` é o que o servidor devolveu no upload-token; `videoId` e
+       * `libraryId` são o formato de antes do M4, ainda aceito. */
+      fonte: migrarFonte(c.fonte || { tipo: 'bunny', libraryId: c.libraryId, videoId: c.videoId }),
       pendencia: c.pendencia || null,
       publicar: c.publicar === true,
       piloto: false,
@@ -1770,7 +1817,6 @@
 
   var App = {
     PREFIXO: PREFIXO,
-    PLAYER_BASE: PLAYER_BASE,
     normalizar: normalizar,
     formatarDuracao: formatarDuracao,
     rotuloEpisodio: rotuloEpisodio,
@@ -1784,11 +1830,17 @@
     capituloEm: capituloEm,
     rotaDaFicha: rotaDaFicha,
     linkDaFicha: linkDaFicha,
-    resolverFonte: resolverFonte,
+    migrarFonte: migrarFonte,
+    idDoVideo: idDoVideo,
+    itemMigrado: itemMigrado,
+    catalogoMigrado: catalogoMigrado,
+    midiaDe: midiaDe,
     urlEmbed: urlEmbed,
     urlCapa: urlCapa,
     comCapa: comCapa,
     urlPreview: urlPreview,
+    faixaDeLegenda: faixaDeLegenda,
+    urlLegenda: urlLegenda,
     urlMp4: urlMp4,
     publicaveis: publicaveis,
     ordenar: ordenar,

@@ -1,0 +1,23 @@
+{
+  "descricao": "O provedor recusa criar o vídeo (401).",
+  "entrada": {
+    "titulo": "Aula 1"
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos$",
+      "resposta": {
+        "status": 401,
+        "corpo": {
+          "HttpCode": 401,
+          "Message": "Authorization has been denied for this request."
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "codigo": "provedor-recusou-criacao",
+    "status": 401
+  }
+}

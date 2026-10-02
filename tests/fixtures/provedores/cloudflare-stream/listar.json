@@ -1,0 +1,98 @@
+{
+  "descricao": "limit=2 e a página veio cheia: há próxima (before = created do último).",
+  "entrada": {
+    "limite": 2
+  },
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?limit=2$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "result": [
+            {
+              "uid": "ea95132c15732412d22c1476fa83f27a",
+              "creator": null,
+              "thumbnail": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/thumbnails/thumbnail.jpg",
+              "thumbnailTimestampPct": 0,
+              "readyToStream": true,
+              "status": {
+                "state": "ready",
+                "pctComplete": "100"
+              },
+              "meta": {
+                "name": "Aula 1"
+              },
+              "created": "2026-09-20T14:03:11.123456Z",
+              "modified": "2026-09-20T14:03:11.123456Z",
+              "size": 4190963,
+              "preview": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/watch",
+              "allowedOrigins": [],
+              "requireSignedURLs": false,
+              "uploaded": "2026-09-20T14:03:11.123456Z",
+              "uploadExpiry": null,
+              "maxSizeBytes": null,
+              "maxDurationSeconds": null,
+              "duration": 611,
+              "input": {
+                "width": 1920,
+                "height": 1080
+              },
+              "playback": {
+                "hls": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/manifest/video.m3u8",
+                "dash": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/ea95132c15732412d22c1476fa83f27a/manifest/video.mpd"
+              },
+              "watermark": null
+            },
+            {
+              "uid": "bb95132c15732412d22c1476fa83f27b",
+              "creator": null,
+              "thumbnail": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/thumbnails/thumbnail.jpg",
+              "thumbnailTimestampPct": 0,
+              "readyToStream": true,
+              "status": {
+                "state": "ready",
+                "pctComplete": "100"
+              },
+              "meta": {
+                "name": "Aula 2"
+              },
+              "created": "2026-09-19T10:00:00.000000Z",
+              "modified": "2026-09-19T10:00:00.000000Z",
+              "size": 4190963,
+              "preview": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/watch",
+              "allowedOrigins": [],
+              "requireSignedURLs": false,
+              "uploaded": "2026-09-19T10:00:00.000000Z",
+              "uploadExpiry": null,
+              "maxSizeBytes": null,
+              "maxDurationSeconds": null,
+              "duration": 300,
+              "input": {
+                "width": 1920,
+                "height": 1080
+              },
+              "playback": {
+                "hls": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/manifest/video.m3u8",
+                "dash": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/manifest/video.mpd"
+              },
+              "watermark": null
+            }
+          ],
+          "success": true,
+          "errors": [],
+          "messages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "n": 2,
+    "proximo": "2026-09-19T10:00:00.000000Z",
+    "primeiro": {
+      "id": "ea95132c15732412d22c1476fa83f27a",
+      "estado": "pronto"
+    }
+  }
+}

@@ -52,8 +52,8 @@ import { spawn } from 'node:child_process';
 import { readFile, writeFile, unlink, mkdtemp, mkdir, rmdir } from 'node:fs/promises';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
-import { criarCliente } from './lib/bunny.mjs';
 import { argumentos, lerCatalogo, gravarCatalogo, CATALOGO_PADRAO, agora, erroFatal } from './lib/catalogo.mjs';
+import { videoDoItem, dadosDoItem, exigirCapacidade, exigirConfigurado, provedorDoAmbiente } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const site = (typeof op.site === 'string' ? op.site : process.env.APP_SITE_URL || '').replace(/\/+$/, '');
@@ -100,16 +100,17 @@ function reduzir(entrada, saida) {
 const kb = (n) => (n / 1024).toFixed(0) + ' KB';
 const mb = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-function urlCapa(item, config) {
-  return 'https://' + config.pullzone + '/' + item.fonte.videoId + '/' +
-    (item.capa_arquivo || 'thumbnail.jpg');
+/* A URL da capa atual, montada pelo ADAPTADOR (sem `versao`: é o arquivo, não o cache do navegador). */
+function urlCapa(provedor, item) {
+  const v = videoDoItem(provedor, item);
+  return provedor.urlCapa(v.id, { arquivo: item.capa_arquivo || undefined, extras: v.extras });
 }
 
 /* A pull zone é protegida por Allowed Referrers e responde 403 sem o cabeçalho.
  * É a mesma razão pela qual `no-referrer` quebrou as capas uma vez. */
 async function baixar(url) {
   const r = await fetch(url, { headers: { Referer: site + '/' } });
-  if (!r.ok) throw new Error('a pull zone respondeu ' + r.status);
+  if (!r.ok) throw new Error('o provedor respondeu ' + r.status);
   return Buffer.from(await r.arrayBuffer());
 }
 
@@ -131,15 +132,18 @@ try {
   const leitura = await fetch(site + '/api/catalogo?completo=1', { headers: auth });
   if (!leitura.ok) throw new Error('leitura do KV falhou (' + leitura.status + ')');
   const kv = await leitura.json();
-  const config = kv.config;
   delete kv.config;
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
+  /* Trocar a capa por upload é coisa do provedor que a recebe (Bunny); os outros guardam o instante ou o endereço. */
+  exigirCapacidade(provedor, 'capaPorUpload', 'trocar a capa por um arquivo menor');
 
   const pedidos = typeof op.item === 'string' ? new Set(op.item.split(',').map(s => s.trim())) : null;
 
   /* Só o que a grade mostra: capa de título não publicado não pesa na tela
    * inicial, e mexer nela seria trabalho sem ninguém do outro lado. */
   const alvos = (kv.itens || []).filter(i =>
-    i && i.publicar === true && i.fonte && i.fonte.videoId &&
+    i && i.publicar === true && videoDoItem(provedor, i) &&
     (!pedidos || pedidos.has(i.id)));
 
   if (!alvos.length) throw new Error('nenhum título publicado bate com o pedido.');
@@ -150,10 +154,9 @@ try {
   const pasta = await mkdtemp(join(tmpdir(), 'tm-capas-'));
   const feitos = [];
   let somaAntes = 0, somaDepois = 0, erros = 0, jaPequenas = 0, jaTrocadas = 0;
-  /* O Bunny é consultado também no ensaio: é a consulta que acha a capa que ele
+  /* O provedor é consultado também no ensaio: é a consulta que acha a capa que ele
    * já trocou, e o ensaio tem de mostrá-la antes de a troca de verdade tropeçar
    * nela. */
-  const bunny = criarCliente();
   if (!ensaio) await mkdir(guardarEm, { recursive: true });
 
   /* UMA GRAVAÇÃO POR CAPA, cada uma com a `rev` que a anterior devolveu. O KV
@@ -176,15 +179,15 @@ try {
 
   try {
     for (const item of alvos) {
-      const noBunny = (await bunny.consultar(item.fonte.videoId)).thumbnailFileName || 'thumbnail.jpg';
-      if (noBunny !== (item.capa_arquivo || 'thumbnail.jpg')) {
+      const noProvedor = (await dadosDoItem(provedor, item)).arquivoCapa || 'thumbnail.jpg';
+      if (noProvedor !== (item.capa_arquivo || 'thumbnail.jpg')) {
         jaTrocadas++;
-        console.log(agora() + '  ≠  ' + item.titulo + '  —  o Bunny já tem outra capa (' + noBunny +
+        console.log(agora() + '  ≠  ' + item.titulo + '  —  o provedor já tem outra capa (' + noProvedor +
           '): rode o sincronizar-capas.mjs antes');
         continue;
       }
 
-      const antes = await baixar(urlCapa(item, config));
+      const antes = await baixar(await urlCapa(provedor, item));
       const d = dimensoes(antes);
       somaAntes += antes.length;
 
@@ -208,7 +211,7 @@ try {
         console.log('        ' + d.w + '×' + d.h + ' ' + kb(antes.length) +
           '  ->  ' + dd.w + '×' + dd.h + ' ' + kb(depois.length));
       } else {
-        /* O original sai daqui ANTES do envio: depois dele, o Bunny apaga o
+        /* O original sai daqui ANTES do envio: depois dele, o provedor apaga o
          * arquivo, e este é o único caminho de volta. */
         const de = item.capa_arquivo || 'thumbnail.jpg';
         const original = join(guardarEm, item.id + '--' + de);
@@ -216,11 +219,12 @@ try {
 
         let enviada = false;
         try {
-          await bunny.enviarCapa(item.fonte.videoId, novo);
+          /* O adaptador troca a capa e já devolve o nome novo (relê o vídeo: o Bunny grava com hash). */
+          const troca = await provedor.definirCapa(videoDoItem(provedor, item).id, depois, 'image/jpeg');
           enviada = true;
-          const nome = (await bunny.consultar(item.fonte.videoId)).thumbnailFileName || 'thumbnail.jpg';
+          const nome = troca.arquivo || 'thumbnail.jpg';
           item.capa_arquivo = nome;
-          item.capa_versao = String(Date.now());
+          item.capa_versao = troca.versao || String(Date.now());
           const rev = await gravarKV();
           feitos.push({ item, de, para: nome });
           console.log(agora() + '  ✔  ' + item.titulo + '   rev ' + rev);
@@ -234,8 +238,8 @@ try {
             /* Entre o envio e a gravação a capa do catálogo deixou de existir:
              * o cartão está SEM CAPA no site agora. Parar é o certo — seguir
              * multiplicaria o estrago —, e o conserto é uma linha. */
-            console.error('\n⚠ A CAPA NOVA ESTÁ NO BUNNY, E O KV NÃO FOI GRAVADO.');
-            console.error('  O Bunny apaga a capa anterior: este título está sem capa no site agora.');
+            console.error('\n⚠ A CAPA NOVA ESTÁ NO PROVEDOR, E O KV NÃO FOI GRAVADO.');
+            console.error('  O provedor apaga a capa anterior: este título está sem capa no site agora.');
             console.error('  Conserte com:   node scripts/sincronizar-capas.mjs --item ' + item.id);
             console.error('  O original ficou em ' + original);
             throw e;
@@ -254,11 +258,11 @@ try {
     '   ·   poupa ' + mb(somaAntes - somaDepois) +
     ' (' + (100 - somaDepois / somaAntes * 100).toFixed(0) + '%)');
   if (jaPequenas) console.log('já estavam no tamanho: ' + jaPequenas);
-  if (jaTrocadas) console.log('o Bunny já tinha outra capa, e ficaram de fora: ' + jaTrocadas);
+  if (jaTrocadas) console.log('o provedor já tinha outra capa, e ficaram de fora: ' + jaTrocadas);
   if (erros) console.log('erros: ' + erros);
 
   if (ensaio) {
-    console.log('\nensaio: nada foi enviado ao Bunny nem gravado no KV.');
+    console.log('\nensaio: nada foi enviado ao provedor nem gravado no KV.');
     process.exit(0);
   }
   if (!feitos.length) { console.log('\nnada mudou.'); process.exit(0); }

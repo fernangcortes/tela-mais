@@ -20,8 +20,8 @@
  * A FONTE DA VERDADE É O KV, não o catálogo local — que costuma ficar
  * defasado. Mesmo caminho do capas-menores e do framerate.
  */
-import { criarCliente } from './lib/bunny.mjs';
 import { argumentos, lerCatalogo, gravarCatalogo, CATALOGO_PADRAO, erroFatal } from './lib/catalogo.mjs';
+import { videoDoItem, dadosDoItem, exigirCapacidade, exigirConfigurado, ehNaoEncontrado, provedorDoAmbiente } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const site = (typeof op.site === 'string' ? op.site : process.env.APP_SITE_URL || '').replace(/\/+$/, '');
@@ -45,40 +45,43 @@ try {
   const leitura = await fetch(site + '/api/catalogo?completo=1', { headers: auth });
   if (!leitura.ok) throw new Error('leitura do KV falhou (' + leitura.status + ')');
   const kv = await leitura.json();
-  const config = kv.config;
-
   /* SÓ o `config` sai: ele vem do ambiente e o PUT o descarta de qualquer
    * jeito. O que veio no GET volta no PUT, menos ele — a regra do framerate.mjs
    * (apagar o `ajustes` também perderia os ajustes do player). */
   delete kv.config;
 
   const pedidos = typeof op.item === 'string' ? new Set(op.item.split(',').map(s => s.trim())) : null;
+  /* O provedor sai de `video.provedor`; só quem troca capa por upload tem nome de arquivo para sincronizar. */
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
+  exigirCapacidade(provedor, 'capaPorUpload', 'sincronizar o nome do arquivo de capa');
+
   const alvos = (kv.itens || []).filter(i =>
-    i && i.fonte && i.fonte.videoId && (!pedidos || pedidos.has(i.id)));
+    i && videoDoItem(provedor, i) && (!pedidos || pedidos.has(i.id)));
   if (!alvos.length) throw new Error('nenhum título com videoId bate com o pedido.');
 
   console.log('KV rev ' + kv.rev + '  ·  ' + alvos.length + ' título(s) com vídeo\n');
 
   /* A pull zone é protegida por Allowed Referrers e responde 403 sem o
    * cabeçalho — a mesma razão pela qual `no-referrer` quebrou as capas uma vez. */
-  const status = async (nome, videoId) => {
-    const r = await fetch('https://' + config.pullzone + '/' + videoId + '/' + nome,
+  const status = async (nome, item) => {
+    const v = videoDoItem(provedor, item);
+    const r = await fetch(await provedor.urlCapa(v.id, { arquivo: nome, extras: v.extras }),
       { method: 'HEAD', headers: { Referer: site + '/' } });
     return r.status;
   };
 
-  const bunny = criarCliente();
   const mudados = [];
   let iguais = 0, sumidos = 0, recusados = 0, erros = 0;
 
   for (const item of alvos) {
     let v;
     try {
-      v = await bunny.consultar(item.fonte.videoId);
+      v = await dadosDoItem(provedor, item);
     } catch (e) {
-      if (/\b404\b/.test(e.message)) {
+      if (ehNaoEncontrado(e)) {
         sumidos++;
-        console.log('  ⌀ ' + item.titulo + (item.publicar ? '' : '  (fora do ar)') + '  —  não existe mais no Bunny');
+        console.log('  ⌀ ' + item.titulo + (item.publicar ? '' : '  (fora do ar)') + '  —  não existe mais no provedor');
       } else {
         erros++;
         console.error('  ✖ ' + item.titulo + ': ' + e.message);
@@ -86,21 +89,21 @@ try {
       continue;
     }
 
-    const nome = v.thumbnailFileName || 'thumbnail.jpg';
+    const nome = v.arquivoCapa || 'thumbnail.jpg';
     if (item.capa_arquivo === nome) { iguais++; continue; }
 
     /* As duas pontas, conferidas na pull zone. A de antes diz o que a grade
      * mostra hoje (404 é o cartão sem capa); a nova tem de responder 200 antes
      * de ir para o catálogo — gravar um nome que a pull zone não serve só
      * trocaria uma capa quebrada por outra. */
-    const antes = item.capa_arquivo ? await status(item.capa_arquivo, item.fonte.videoId) : null;
-    const depois = await status(nome, item.fonte.videoId);
+    const antes = item.capa_arquivo ? await status(item.capa_arquivo, item) : null;
+    const depois = await status(nome, item);
     console.log('  ' + (item.capa_arquivo ? '~' : '+') + ' ' + item.titulo + (item.publicar ? '' : '  (fora do ar)'));
     console.log('      ' + (item.capa_arquivo ? item.capa_arquivo + ' (' + antes + ')' : '(sem registro)') +
       '  ->  ' + nome + ' (' + depois + ')');
     if (depois !== 200) {
       recusados++;
-      console.error('      ✖ a pull zone não serve o arquivo que o Bunny informa: nada gravado');
+      console.error('      ✖ a CDN não serve o arquivo que o provedor informa: nada gravado');
       continue;
     }
     if (!ensaio) {
@@ -111,7 +114,7 @@ try {
   }
 
   const resumo = mudados.length + ' a gravar  ·  ' + iguais + ' já corretos  ·  ' +
-    sumidos + ' fora do Bunny  ·  ' + recusados + ' recusado(s)  ·  ' + erros + ' erro(s)';
+    sumidos + ' fora do provedor  ·  ' + recusados + ' recusado(s)  ·  ' + erros + ' erro(s)';
 
   if (ensaio) {
     console.log('\n--simular: nada foi gravado.  ' + resumo);

@@ -48,8 +48,8 @@
      Na mesa (`?mesa=1`) o catálogo vem por postMessage e este pedido sobra;
      é um pedido a mais para quem edita, contra uma espera a menos para todo
      mundo. -->
-<!-- A pré-conexão com a pull zone de vídeo (BUNNY_PULLZONE) é acrescentada
-     por core/worker/home.js, junto do preload da capa. -->
+<!-- A pré-conexão com o host de mídia do provedor de vídeo é acrescentada
+     por core/worker/home.js (o adaptador diz qual é), junto do preload da capa. -->
 <link rel="preload" href="/api/catalogo" as="fetch" crossorigin>
 <!-- A ABERTURA: a marca que acende, uma vez por
      sessão, só na chegada. Quem decide é ESTE script, e ele mora aqui, antes

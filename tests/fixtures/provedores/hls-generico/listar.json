@@ -1,0 +1,11 @@
+{
+  "descricao": "Não há inventário do outro lado: lista vazia, sem rede.",
+  "rotas": [],
+  "entrada": {
+    "limite": 10
+  },
+  "esperado": {
+    "n": 0,
+    "proximo": null
+  }
+}

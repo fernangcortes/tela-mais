@@ -32,6 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argumentos, lerCatalogo } from './lib/catalogo.mjs';
 import { carregarEnv } from './lib/env.mjs';
+import { provedorDoAmbiente, comMidia, idiomasDeLegendaPadrao } from './lib/provedores/index.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SITE = path.resolve(AQUI, '..', 'core', 'site');
@@ -40,6 +41,11 @@ const op = argumentos();
 const porta = Number(op.porta) || 8790;
 
 await carregarEnv().catch(() => {});
+
+/* O adaptador de vídeo da config + .env: a `midia` de cada título sai dele, como no Worker. */
+const { provedor, config: configDoSite } = await provedorDoAmbiente();
+const opcoesDeMidia = { idiomasDeLegenda: idiomasDeLegendaPadrao(configDoSite) };
+const comMidias = (itens) => Promise.all(itens.map((i) => comMidia(provedor, i, opcoesDeMidia)));
 
 /* O documento vive aqui dentro enquanto o processo estiver de pé. `rev` começa
  * em 1 porque a barra da mesa mostra o número, e `undefined` na tela assusta
@@ -111,25 +117,22 @@ async function api(req, res, url) {
   }
 
   if (caminho === '/api/catalogo' && req.method === 'GET') {
-    const config = {
-      libraryId: process.env.BUNNY_LIBRARY_ID || null,
-      pullzone: process.env.BUNNY_PULLZONE || null
-    };
     if (url.searchParams.get('completo') === '1') {
-      return responder(res, 200, Object.assign({}, catalogo, { config }));
+      return responder(res, 200, Object.assign({}, catalogo, { itens: await comMidias(catalogo.itens) }));
     }
     return responder(res, 200, {
-      itens: App.publicaveis(catalogo.itens),
+      itens: await comMidias(App.publicaveis(catalogo.itens)),
       ajustes: catalogo.ajustes,
       site: App.siteSaneado(catalogo.site),
-      config, rev: catalogo.rev
+      rev: catalogo.rev
     });
   }
 
   if (caminho === '/api/catalogo' && req.method === 'PUT') {
     const corpo = await corpoDoPedido(req);
     if (!corpo || !Array.isArray(corpo.itens)) return responder(res, 400, { erro: 'corpo inválido' });
-    catalogo.itens = corpo.itens;
+    /* `fonte` no formato novo e nunca `midia`: o servidor a recalcula a cada resposta (como o Worker). */
+    catalogo.itens = corpo.itens.map(App.itemMigrado);
     if (corpo.ajustes) catalogo.ajustes = corpo.ajustes;
     if (corpo.site) catalogo.site = corpo.site;
     catalogo.rev = (catalogo.rev || 1) + 1;

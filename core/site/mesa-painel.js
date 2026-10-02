@@ -156,7 +156,7 @@
 
     var atencao = [];
     if (c.vazias) atencao.push(['erro', tr('painel.noArSemSinopse', { n: c.vazias }), 'vazia']);
-    var semVideo = cat.itens.filter(function (i) { return !(i.fonte && i.fonte.videoId); }).length;
+    var semVideo = cat.itens.filter(function (i) { return !App.idDoVideo(i); }).length;
     if (semVideo) atencao.push(['erro', tr('painel.semVideoNoProvedor', { n: semVideo }), 'semvideo']);
     var pend = cat.itens.filter(function (i) { return i.pendencia; });
     if (pend.length) atencao.push(['alerta', tr('painel.comPendencia', { n: pend.length, noAr: pend.filter(function (i) { return i.publicar; }).length }), 'pendencia']);
@@ -197,8 +197,8 @@
      * recusa continua sendo o servidor (M2). */
     var podeConteudo = M.pode('conteudo'), podeNoAr = M.pode('no-ar'), podeEstrutura = M.pode('estrutura');
     if (!podeConteudo) f.appendChild(h('p', { class: 'aviso-conta', text: tr('painel.estaContaNaoEditaConteudo') }));
-    var capa = App.urlCapa(it, cat.config);
-    var temVideo = !!(it.fonte && it.fonte.videoId);
+    var capa = App.urlCapa(it);
+    var temVideo = !!App.idDoVideo(it);
 
     f.appendChild(h('div', { class: 'capa-linha' },
       h('div', { class: 'capa-mini' }, capa ? h('img', { src: capa, alt: '', loading: 'lazy', width: '640', height: '360' }) : h('span', { text: temVideo ? tr('site.semCapa') : tr('painel.semVideo') })),
@@ -278,8 +278,8 @@
   function dados(cat, it) {
     var dl = h('dl', { class: 'p-dados' });
     var caps = App.capitulos(it);
-    var midia = (M.st.midia || {})[it.fonte && it.fonte.videoId];
-    var estadoVideo = !(it.fonte && it.fonte.videoId) ? h('span', { class: 'chip chip-erro', text: tr('painel.semVideo') })
+    var midia = (M.st.midia || {})[App.idDoVideo(it)];
+    var estadoVideo = !App.idDoVideo(it) ? h('span', { class: 'chip chip-erro', text: tr('painel.semVideo') })
       : !midia ? h('span', { class: 'fraco', text: tr('painel.consultando') })
       : midia.erro ? h('span', { class: 'chip chip-erro', text: midia.erro })
       : midia.pronto ? h('span', { class: 'chip chip-ok', text: tr('painel.pronto') })
@@ -297,7 +297,7 @@
       [tr('painel.arquivoDeOrigem'), it.arquivo || '—'],
       [tr('painel.tamanhoDoMaster'), it.tamanho_mb ? it.tamanho_mb + ' MB' : '—'],
       [tr('painel.idNoCatalogo'), h('span', { class: 'mono quebra', text: it.id })],
-      [tr('painel.idDoVideo'), h('span', { class: 'mono quebra', text: (it.fonte && it.fonte.videoId) || '—' })]
+      [tr('painel.idDoVideo'), h('span', { class: 'mono quebra', text: App.idDoVideo(it) || '—' })]
     ].forEach(function (par) { dl.appendChild(h('dt', { text: par[0] })); dl.appendChild(h('dd', null, par[1])); });
     return h('div', { class: 'p-form' }, dl);
   }

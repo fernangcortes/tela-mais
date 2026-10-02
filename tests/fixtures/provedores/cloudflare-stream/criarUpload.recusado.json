@@ -1,0 +1,31 @@
+{
+  "descricao": "A conta não assina o Stream (ou excedeu o plano): 403.",
+  "entrada": {
+    "titulo": "Aula 1",
+    "tamanhoBytes": 1048576
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?direct_user=true$",
+      "resposta": {
+        "status": 403,
+        "corpo": {
+          "success": false,
+          "errors": [
+            {
+              "code": 10005,
+              "message": "Stream is not enabled for this account"
+            }
+          ],
+          "messages": [],
+          "result": null
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "codigo": "provedor-recusou-criacao",
+    "status": 403
+  }
+}

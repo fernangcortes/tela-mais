@@ -1,0 +1,47 @@
+{
+  "descricao": "Vídeo que não existe: 404.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a$",
+      "cabecalhos": {
+        "Authorization": "Bearer chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 404,
+        "corpo": {
+          "success": false,
+          "errors": [
+            {
+              "code": 10003,
+              "message": "Video not found"
+            }
+          ],
+          "messages": [],
+          "result": null
+        }
+      }
+    },
+    {
+      "metodo": "DELETE",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a$",
+      "resposta": {
+        "status": 404,
+        "corpo": {
+          "success": false,
+          "errors": [
+            {
+              "code": 10003,
+              "message": "Video not found"
+            }
+          ],
+          "messages": [],
+          "result": null
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "status": 404
+  }
+}

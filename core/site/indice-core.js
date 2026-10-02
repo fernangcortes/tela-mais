@@ -253,11 +253,21 @@
     return saida.join('\n');
   }
 
-  /* Os `videoId` dos títulos no ar, pelo catálogo como está no KV. */
+  /* O id do vídeo no provedor, nos dois formatos de `fonte` (ver `migrarFonte`
+   * em catalogo-core.js, que é quem manda; esta é a mesma leitura, sem trazer o
+   * arquivo inteiro para cá). */
+  function idDoVideo(item) {
+    var f = item && item.fonte;
+    if (!f) return null;
+    var id = 'id' in f || 'provedor' in f || 'extras' in f ? f.id : f.videoId;
+    return id == null || id === '' ? null : String(id);
+  }
+
+  /* Os ids de vídeo dos títulos no ar, pelo catálogo como está no KV. */
   function videosNoAr(catalogo) {
     var mapa = Object.create(null);
     ((catalogo && catalogo.itens) || []).forEach(function (i) {
-      if (i && i.publicar === true && i.fonte && i.fonte.videoId) mapa[String(i.fonte.videoId)] = true;
+      if (i && i.publicar === true && idDoVideo(i)) mapa[idDoVideo(i)] = true;
     });
     return mapa;
   }
@@ -319,10 +329,14 @@
     return '';
   }
 
-  function validarPedido(corpo) {
+  /* O formato do id vem do ADAPTADOR do provedor (`padraoId`); sem ele vale o
+   * padrão antigo, que aceita o guid do Bunny e recusa o que muda um caminho. */
+  var PADRAO_ID_ANTIGO = /^[A-Za-z0-9-]{8,64}$/;
+
+  function validarPedido(corpo, padraoId) {
     if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) return { erro: 'esperado um objeto JSON' };
     var videoId = typeof corpo.videoId === 'string' ? corpo.videoId : '';
-    if (!/^[A-Za-z0-9-]{8,64}$/.test(videoId)) return { erro: 'informe um `videoId` válido' };
+    if (!(padraoId || PADRAO_ID_ANTIGO).test(videoId)) return { erro: 'informe um `videoId` válido' };
     var pedido = { videoId: videoId, vetores: [], fim: corpo.fim === true, sentido: corpo.sentido === true };
 
     if (corpo.vetores != null) {
@@ -433,7 +447,7 @@
     var desatualizados = [];
     (itens || []).forEach(function (item) {
       if (!item || item.publicar !== true) return;
-      var v = item.fonte && item.fonte.videoId;
+      var v = idDoVideo(item);
       if (!v) return;
       var m = videos[v];
       if (!m || !m.fala) { semFala.push(item); return; }
@@ -577,6 +591,7 @@
     videosNoAr: videosNoAr,
     linhasNoAr: linhasNoAr,
     validarPedido: validarPedido,
+    idDoVideo: idDoVideo,
     idDoVetor: idDoVetor,
     manifestoNovo: manifestoNovo,
     foraDaBusca: foraDaBusca,

@@ -31,9 +31,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": null,
       "publicar": true,
@@ -68,9 +68,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": null,
       "publicar": true,
@@ -105,9 +105,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": null,
       "publicar": true,
@@ -142,9 +142,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": null,
       "publicar": true,
@@ -179,9 +179,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": null,
       "publicar": true,
@@ -213,9 +213,9 @@
       "registro": "",
       "link_origem": "",
       "fonte": {
-        "tipo": "bunny",
-        "libraryId": null,
-        "videoId": null
+        "provedor": "bunny",
+        "id": null,
+        "extras": {}
       },
       "pendencia": "material_bruto",
       "publicar": false,

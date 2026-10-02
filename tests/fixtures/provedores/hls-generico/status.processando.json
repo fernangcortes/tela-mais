@@ -1,0 +1,21 @@
+{
+  "descricao": "Playlist de mídia sem EXT-X-ENDLIST nem PLAYLIST-TYPE:VOD: o encoder ainda está escrevendo.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://videos\\.exemplo\\.test/acervo/aula-1/master\\.m3u8$",
+      "resposta": {
+        "status": 200,
+        "texto": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:6.000,\nseg0.ts\n#EXTINF:6.000,\nseg1.ts\n",
+        "cabecalhos": {
+          "content-type": "application/vnd.apple.mpegurl"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "estado": "processando",
+    "progresso": null,
+    "estadoBruto": "sem-endlist"
+  }
+}

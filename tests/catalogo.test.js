@@ -32,24 +32,35 @@ const WORKER = path.join(__dirname, '..', 'core', 'worker');
  * há teste varrendo o arquivo atrás disso. */
 const lerTexto = (caminho) => fs.readFileSync(caminho, 'utf8').split('\r\n').join('\n');
 
+/* `fonte` no formato de ANTES do M4 ({ tipo, libraryId, videoId }): o catálogo gravado e os
+ * scripts ainda o trazem, e tudo tem de continuar funcionando (migrarFonte). */
 const fonte = { tipo: 'bunny', libraryId: '123456', videoId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' };
+
+/* A `midia` que o servidor entrega, calculada pelo adaptador do Bunny — é o ÚNICO jeito de o
+ * navegador chegar ao vídeo (D-2). Sem rede: o adaptador só monta URL. */
+const PULLZONE_DE_TESTE = 'vz-abc123-4f5.b-cdn.net';
+async function midiaDoBunny(item, env) {
+  const registro = await import('../core/worker/_lib/provedores/index.js');
+  const provedor = registro.criarProvedor(null, Object.assign({ BUNNY_LIBRARY_ID: '123456', BUNNY_API_KEY: 'chave-de-teste', BUNNY_PULLZONE: PULLZONE_DE_TESTE }, env || {}));
+  return registro.montarMidia(provedor, item);
+}
 
 /* ============================ as três restrições inegociáveis ============ */
 
-test('o embed desliga autoplay — o padrão do Bunny é true', () => {
-  const p = new URL(App.urlEmbed(fonte)).searchParams;
+test('o embed desliga autoplay — o padrão do Bunny é true', async () => {
+  const p = new URL(App.urlEmbed(await midiaDoBunny({ fonte }))).searchParams;
   assert.equal(p.get('autoplay'), 'false');
 });
 
-test('o embed desliga loop, preload e rememberPosition', () => {
-  const p = new URL(App.urlEmbed(fonte)).searchParams;
+test('o embed desliga loop, preload e rememberPosition', async () => {
+  const p = new URL(App.urlEmbed(await midiaDoBunny({ fonte }))).searchParams;
   assert.equal(p.get('loop'), 'false');
   assert.equal(p.get('preload'), 'false');
   assert.equal(p.get('rememberPosition'), 'false');
 });
 
-test('nenhum dos quatro parâmetros pode faltar na URL do player', () => {
-  const url = App.urlEmbed(fonte);
+test('nenhum dos quatro parâmetros pode faltar na URL do player', async () => {
+  const url = App.urlEmbed(await midiaDoBunny({ fonte }));
   for (const par of ['autoplay', 'loop', 'preload', 'rememberPosition']) {
     assert.ok(url.includes(par + '=false'), 'faltou ' + par + '=false em ' + url);
   }
@@ -112,39 +123,48 @@ test('o iframe não recebe permissão de autoplay na permission policy', () => {
 
 /* ============================ player e capa ============================== */
 
-test('embed sem videoId ou sem libraryId não vira URL', () => {
+test('sem embed na mídia não há URL de player — o navegador só lê `midia.embed`', async () => {
   assert.equal(App.urlEmbed(null), null);
-  assert.equal(App.urlEmbed({ libraryId: '1' }), null);
-  assert.equal(App.urlEmbed({ videoId: 'x' }), null);
+  assert.equal(App.urlEmbed({}), null);
+  assert.equal(App.urlEmbed({ embed: null }), null);
+  /* Sem videoId não há mídia; sem a library, o Bunny não monta embed (mas monta o HLS). */
+  assert.equal(await midiaDoBunny({ fonte: { tipo: 'bunny', libraryId: '1', videoId: null } }), null);
+  const semLibrary = await midiaDoBunny({ fonte: { tipo: 'bunny', videoId: fonte.videoId } }, { BUNNY_LIBRARY_ID: '' });
+  assert.equal(semLibrary.embed, null);
+  assert.ok(semLibrary.hls);
 });
 
-test('embed recusa fonte que não seja bunny — o app decide o player pelo campo `fonte`', () => {
-  assert.equal(App.urlEmbed({ tipo: 'hls', libraryId: '1', videoId: 'x' }), null);
+test('um vídeo de outro provedor não toca neste: sem `midia`, em vez de URL errada', async () => {
+  assert.equal(await midiaDoBunny({ fonte: { provedor: 'cloudflare-stream', id: fonte.videoId, extras: {} } }), null);
+  assert.equal(await midiaDoBunny({ fonte: { tipo: 'hls', libraryId: '1', videoId: 'x'.repeat(10) } }), null);
 });
 
-test('resolverFonte usa o libraryId do item e, na falta, o do ambiente', () => {
-  const item = { fonte: { tipo: 'bunny', libraryId: null, videoId: 'abc' } };
-  assert.equal(App.resolverFonte(item, { libraryId: '999' }).libraryId, '999');
-  assert.equal(App.resolverFonte({ fonte: { videoId: null } }, { libraryId: '999' }), null);
+test('o libraryId do item manda no embed; o do ambiente é a rede de segurança', async () => {
+  const proprio = await midiaDoBunny({ fonte: { tipo: 'bunny', libraryId: '777', videoId: 'abcdefgh-1' } });
+  assert.match(proprio.embed.url, /\/embed\/777\/abcdefgh-1\?/);
+  const emprestado = await midiaDoBunny({ fonte: { tipo: 'bunny', libraryId: null, videoId: 'abcdefgh-1' } });
+  assert.match(emprestado.embed.url, /\/embed\/123456\/abcdefgh-1\?/);
 });
 
-test('a capa vem da pull zone, não do repositório', () => {
-  const item = { fonte };
-  assert.equal(
-    App.urlCapa(item, { pullzone: 'vz-abc123-4f5.b-cdn.net' }),
-    'https://vz-abc123-4f5.b-cdn.net/' + fonte.videoId + '/thumbnail.jpg'
-  );
-  assert.equal(App.urlCapa(item, {}), null);
+test('a capa vem do provedor (URL pronta em midia.capa), não do repositório', async () => {
+  const midia = await midiaDoBunny({ fonte });
+  assert.equal(App.urlCapa({ midia }), 'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/thumbnail.jpg');
+  assert.equal(App.urlCapa({}), null);
+  assert.equal(App.urlCapa({ midia: { capa: null } }), null);
+  /* Sem pull zone o Bunny não tem de onde montar a capa. */
+  assert.equal((await midiaDoBunny({ fonte }, { BUNNY_PULLZONE: '' })).capa, null);
+  /* O nome com hash e a versão (contra o cache do navegador) entram na URL. */
+  const trocada = await midiaDoBunny({ fonte, capa_arquivo: 'thumbnail_2c504259.jpg', capa_versao: 1700000000000 });
+  assert.equal(trocada.capa, 'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/thumbnail_2c504259.jpg?v=1700000000000');
+  /* Nome de arquivo que mudaria o caminho é ignorado (o dado vem do catálogo). */
+  assert.equal((await midiaDoBunny({ fonte, capa_arquivo: '../x.jpg' })).capa, 'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/thumbnail.jpg');
 });
 
-test('o trecho animado do hover vem do preview.webp da pull zone', () => {
-  const item = { fonte };
-  assert.equal(
-    App.urlPreview(item, { pullzone: 'vz-abc123-4f5.b-cdn.net' }),
-    'https://vz-abc123-4f5.b-cdn.net/' + fonte.videoId + '/preview.webp'
-  );
-  assert.equal(App.urlPreview(item, {}), null);
-  assert.equal(App.urlPreview({ fonte: { videoId: null } }, { pullzone: 'x.b-cdn.net' }), null);
+test('o trecho animado do hover vem de midia.previa', async () => {
+  const midia = await midiaDoBunny({ fonte });
+  assert.equal(App.urlPreview({ midia }), 'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/preview.webp');
+  assert.equal(App.urlPreview({}), null);
+  assert.equal(await midiaDoBunny({ fonte: { videoId: null } }), null);
 });
 
 /* O preview.webp vai de 454 KB a 3,1 MB, com 1,13 MB de mediana, e os 66 somam
@@ -880,8 +900,11 @@ test('a "outra versão" de uma duplicata é achada pelo sufixo do id, não por u
 test('item novo nasce não publicado e no esquema do catálogo', () => {
   const item = App.itemNovo({ titulo: 'Teste', videoId: 'abc', libraryId: '1' });
   assert.equal(item.publicar, false);
-  assert.equal(item.fonte.tipo, 'bunny');
-  assert.equal(item.fonte.videoId, 'abc');
+  /* O formato de antes do M4 (videoId/libraryId) ainda entra, e sai migrado. */
+  assert.deepEqual(item.fonte, { provedor: 'bunny', id: 'abc', extras: { libraryId: '1' } });
+  /* O que o servidor devolve no upload-token (`fonte`) entra como veio. */
+  const novo = App.itemNovo({ titulo: 'Teste', fonte: { provedor: 'cloudflare-stream', id: 'f'.repeat(32), extras: {} } });
+  assert.deepEqual(novo.fonte, { provedor: 'cloudflare-stream', id: 'f'.repeat(32), extras: {} });
   for (const campo of ['id', 'titulo', 'serie', 'temporada', 'episodio', 'sinopse',
     'tema', 'publico_alvo', 'tags', 'titularidade', 'nivel_evidencia', 'pendencia',
     'publicar', 'sinopse_origem', 'fonte']) {
@@ -1352,7 +1375,8 @@ test('o Player.js é carregado sob demanda, não junto com a página', () => {
   const html = lerTexto(path.join(SITE, 'index.html'));
   assert.ok(!/playerjs/i.test(html), 'index.html carrega o Player.js de saída');
   const app = lerTexto(path.join(SITE, 'app.js'));
-  assert.match(app, /function carregarPlayerjs\(\)/);
+  assert.match(app, /function carregarPlayerjs\(url\)/);
+  assert.ok(!/mediadelivery/.test(app), 'o endereço do Player.js voltou para o navegador: ele vem de `midia.embed.scriptUrl`');
   assert.match(app, /iframe\.isConnected/,
     'voltar para a grade destrói a ficha; o Player.js só pode se ligar a um iframe ainda vivo');
 });
@@ -1567,9 +1591,9 @@ test('o player nosso é o padrão, e o embed continua a uma URL de distância', 
    * `urlEmbed()` continua existindo para isso. */
   const app = lerTexto(path.join(SITE, 'app.js'));
   assert.match(app, /typeof AppPlayer !== 'undefined' && AppPlayer\.pedido\(\)/);
-  assert.match(app, /if \(fonte && !alvoCapitulos\) \{/,
+  assert.match(app, /if \(midia && !alvoCapitulos && App\.urlEmbed\(midia\)\) \{/,
     'sem este bloco, quem cair fora do player novo fica sem vídeo nenhum');
-  assert.match(app, /iframe\.src = App\.urlEmbed\(fonte\)/);
+  assert.match(app, /iframe\.src = App\.urlEmbed\(midia\)/);
   assert.equal(typeof App.urlEmbed, 'function',
     'urlEmbed é o plano B: ele não sai enquanto for a rede de segurança');
 });
@@ -1813,25 +1837,30 @@ test('sair da ficha destrói o hls.js, não só o elemento', () => {
   }
 });
 
-test('o HLS sai da pull zone, e só de fonte do Bunny', () => {
-  const config = { pullzone: 'vz-teste.b-cdn.net' };
-  assert.equal(AppPlayerCore.urlHls(fonte, config),
-    'https://vz-teste.b-cdn.net/' + fonte.videoId + '/playlist.m3u8');
-  assert.equal(AppPlayerCore.urlHls(fonte, {}), null, 'sem pullzone não há URL');
-  assert.equal(AppPlayerCore.urlHls(null, config), null);
-  assert.equal(AppPlayerCore.urlHls({ tipo: 'vimeo', videoId: 'x' }, config), null);
-  /* `https://` na frente do pullzone é erro de digitação frequente no .env */
-  assert.match(AppPlayerCore.urlHls(fonte, { pullzone: 'https://vz-teste.b-cdn.net/' }),
-    /^https:\/\/vz-teste\.b-cdn\.net\//);
+test('o HLS vem pronto em midia.hls — o navegador só o lê', async () => {
+  const midia = await midiaDoBunny({ fonte });
+  assert.equal(AppPlayerCore.urlHls(midia),
+    'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/playlist.m3u8');
+  assert.equal(AppPlayerCore.urlHls({}), null, 'sem midia.hls não há URL');
+  assert.equal(AppPlayerCore.urlHls(null), null);
+  assert.equal(AppPlayerCore.urlHls({ hls: 42 }), null);
+  /* `https://` na frente do host é erro de digitação frequente no .env: o adaptador normaliza. */
+  const digitado = await midiaDoBunny({ fonte }, { BUNNY_PULLZONE: 'https://vz-teste.b-cdn.net/' });
+  assert.match(AppPlayerCore.urlHls(digitado), /^https:\/\/vz-teste\.b-cdn\.net\/aaaaaaaa/);
 });
 
 /* O MP4 é rede de segurança, não caminho principal: sem qualidade adaptativa,
  * o 720p de um vídeo de 10 minutos tem 130 MB . Numa rede
  * limitada o padrão TEM que ser modesto. */
-test('o fallback de MP4 é 360p por padrão, não a melhor resolução', () => {
-  assert.match(AppPlayerCore.urlMp4(fonte, { pullzone: 'vz-teste.b-cdn.net' }), /play_360p\.mp4$/);
-  assert.match(PLAYER_JS, /urlMp4\(fonte, config, '360p'\)/,
+test('o fallback de MP4 é 360p por padrão, não a melhor resolução', async () => {
+  const midia = await midiaDoBunny({ fonte });
+  assert.match(AppPlayerCore.urlMp4(midia), /play_360p\.mp4$/);
+  assert.match(PLAYER_JS, /urlMp4\(midia, '360p'\)/,
     'player.js pediu outra resolução de fallback');
+  /* Sem a resolução pedida, a mais próxima que o provedor oferece. */
+  assert.equal(AppPlayerCore.urlMp4({ mp4: { '720p': 'https://x/720.mp4' } }, '240p'), 'https://x/720.mp4');
+  assert.equal(AppPlayerCore.urlMp4({ mp4: null }), null);
+  assert.equal(App.urlMp4({ midia }, '720p'), 'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/play_720p.mp4');
 });
 
 /* ARMADILHA medida em 01/09, num Chromium 148 no Windows: `canPlayType(
@@ -2786,13 +2815,19 @@ test('o corpo da legenda anda pelos degraus e para nas pontas', () => {
   assert.equal(AppPlayerCore.proximoTamanhoLegenda(0.75, -1), 0.75, 'não desce do menor');
 });
 
-test('a legenda sai da pull zone, e só de fonte do Bunny', () => {
-  const config = { pullzone: 'vz-teste.b-cdn.net' };
-  assert.equal(AppPlayerCore.urlLegenda(fonte, config),
-    'https://vz-teste.b-cdn.net/' + fonte.videoId + '/captions/pt.vtt');
-  assert.equal(AppPlayerCore.urlLegenda(fonte, {}), null);
-  assert.equal(AppPlayerCore.urlLegenda(null, config), null);
-  assert.equal(AppPlayerCore.urlLegenda({ tipo: 'vimeo', videoId: 'x' }, config), null);
+test('a legenda vem de midia.legendas, na URL que o provedor serve', async () => {
+  const midia = await midiaDoBunny({ fonte });
+  assert.equal(AppPlayerCore.urlLegenda(midia),
+    'https://' + PULLZONE_DE_TESTE + '/' + fonte.videoId + '/captions/pt.vtt');
+  assert.equal(AppPlayerCore.urlLegenda(midia, 'pt'), AppPlayerCore.urlLegenda(midia));
+  assert.equal(AppPlayerCore.urlLegenda(midia, 'en'), null, 'um idioma que o título não tem não vira URL');
+  assert.equal(AppPlayerCore.urlLegenda({ legendas: [] }), null);
+  assert.equal(AppPlayerCore.urlLegenda(null), null);
+  assert.equal(App.urlLegenda({ midia }), AppPlayerCore.urlLegenda(midia));
+  /* Os idiomas que o título declara viram uma faixa cada. */
+  const duas = await midiaDoBunny({ fonte, legendas_idiomas: ['pt', 'en'] });
+  assert.deepEqual(duas.legendas.map(l => l.idioma), ['pt', 'en']);
+  assert.equal(AppPlayerCore.faixaDeLegenda(duas, 'en').rotulo, 'English');
 });
 
 /* A ARMADILHA QUE OBRIGOU O PARSER A EXISTIR: a pull zone serve o .vtt com
@@ -4699,7 +4734,7 @@ test('no celular o relógio sobe junto com a barra, e não sozinho', () => {
  * o `play_240p.mp4` que já está no ar, com `Accept-Ranges` e CORS: o caminho
  * "barato", zero infraestrutura nova. */
 test('a prévia do arrasto sai do 240p, e nada é baixado antes de alguém arrastar', () => {
-  assert.match(PLAYER_CODIGO, /AppPlayerCore\.urlMp4\(fonte, config, '240p'\)/,
+  assert.match(PLAYER_CODIGO, /AppPlayerCore\.urlMp4\(midia, '240p'\)/,
     'a prévia tem que sair da menor resolução — o arquivo inteiro tem 51 MB');
 
   /* O `src` só entra em `ligarPrevia`, e `ligarPrevia` só é chamada de
@@ -8985,7 +9020,7 @@ test('a mesa põe na busca no envio, depois do Publicar, e pelo botão da visão
   /* O PUBLICAR: só o texto que o sentido compara — título e sinopse. */
   const publicado = base.match(/function atualizarBuscaDoPublicado\(mexidos\) \{([\s\S]*?)\n  \}/);
   assert.ok(publicado, 'não achei atualizarBuscaDoPublicado em mesa-base.js');
-  assert.match(publicado[1], /M\.indexarBusca\(item\.fonte\.videoId, \{ capitulos: conj\.capitulos, sinopse: conj\.sinopse \}\)/,
+  assert.match(publicado[1], /M\.indexarBusca\(App\.idDoVideo\(item\), \{ capitulos: conj\.capitulos, sinopse: conj\.sinopse \}\)/,
     'o Publicar passou a mandar a fala também — ela vem da legenda, que ele não toca');
   assert.match(base, /m\.campo !== 'titulo' && m\.campo !== 'sinopse'/, 'o Publicar deixou de olhar quem mudou de texto');
 
@@ -8999,8 +9034,9 @@ test('a mesa põe na busca no envio, depois do Publicar, e pelo botão da visão
   assert.equal(AppIndice.LIMITES.vetores, 10, 'o lote mudou sem medida nova — meça de novo');
   assert.match(fila[1], /setTimeout\(pronto, 1100\)/, 'a fila não espera o segundo entre um vídeo e o seguinte');
 
-  /* A LEGENDA VEM DA PULL ZONE, que responde a qualquer origem. */
-  assert.match(base, /\/captions\/pt\.vtt/);
+  /* A LEGENDA VEM DO PROVEDOR (a URL é a de `midia.legendas`, que responde a qualquer origem). */
+  assert.match(base, /App\.urlLegenda\(item\)/);
+  assert.doesNotMatch(base, /captions/, 'a mesa voltou a montar URL de legenda de provedor');
   assert.match(base, /if \(r\.status === 404\) return null;/, 'vídeo sem legenda tem de ser caso previsto');
 
   /* A VISÃO GERAL mostra quem ficou fora, e o botão só aparece para quem pode. */
@@ -9247,7 +9283,7 @@ test('o capas-menores.mjs grava o KV depois de CADA envio, e guarda o original a
   const src = lerTexto(path.join(__dirname, '..', 'scripts', 'capas-menores.mjs'));
   assert.equal((src.match(/method:\s*'PUT'/g) || []).length, 1, 'uma gravação só no arquivo, a do gravarKV');
   const laco = src.slice(src.indexOf('for (const item of alvos)'), src.indexOf('} finally {'));
-  const envio = laco.indexOf('bunny.enviarCapa(');
+  const envio = laco.indexOf('provedor.definirCapa(');   /* o adaptador troca a capa (M4); antes era o cliente do Bunny */
   assert.ok(envio > 0, 'não achei o envio da capa dentro do laço');
   assert.ok(laco.indexOf('await gravarKV()', envio) > envio, 'o KV não é gravado logo depois de cada envio');
   assert.ok(laco.indexOf('writeFile(original, antes)') < envio, 'o original não é guardado antes do envio');
@@ -9339,7 +9375,7 @@ test('o GET do catálogo guarda a capa do destaque, e só regrava quando ela mud
 
   const r = await pedir(env, { caminho: '/api/catalogo' });
   assert.equal(r.status, 200);
-  const esperada = App.urlCapa(App.destaque(r.corpo.itens, r.corpo.site), r.corpo.config);
+  const esperada = App.urlCapa(App.destaque(r.corpo.itens, r.corpo.site));
   assert.equal(esperada, 'https://vz-teste.b-cdn.net/' + fonte.videoId + '/thumbnail_ab12.jpg?v=1700000000000');
   assert.equal(kv.dados['capa-destaque'], esperada, 'a chave não é a capa que a chegada vai pedir');
   assert.equal(escritas, 1);
@@ -9352,7 +9388,7 @@ test('o GET do catálogo guarda a capa do destaque, e só regrava quando ela mud
   cat.itens[1].publicar = false;
   kv.dados.catalogo = JSON.stringify(cat);
   await pedir(env, { caminho: '/api/catalogo' });
-  const agora = App.urlCapa(App.destaque([Object.assign({}, cat.itens[0])], {}), { pullzone: 'vz-teste.b-cdn.net', libraryId: '1' });
+  const agora = App.urlCapa({ midia: await midiaDoBunny(cat.itens[0], { BUNNY_PULLZONE: 'vz-teste.b-cdn.net' }) });
   assert.equal(kv.dados['capa-destaque'], agora, 'a chave não acompanhou o catálogo gravado por fora');
   assert.equal(escritas, 2);
 
@@ -9379,6 +9415,7 @@ test('a página inicial ganha o preload da capa, e sai intacta em todo erro', as
   const chamar = (valor, opcoes = {}) => idx.onRequestGet({
     modo: opcoes.modo || 'publico',
     request: new Request('https://exemplo.test/', { headers: { 'if-none-match': '"estatico"' } }),
+    /* Sem BUNNY_PULLZONE no ambiente: os hosts de imagem que valem são os que o ADAPTADOR declara. */
     env: {
       ASSETS: assets(opcoes.status),
       CATALOGO: { get: async () => { if (opcoes.falha) throw new Error('KV fora'); return valor; } }

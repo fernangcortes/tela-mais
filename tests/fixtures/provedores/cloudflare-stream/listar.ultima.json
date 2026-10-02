@@ -1,0 +1,64 @@
+{
+  "descricao": "Página com menos itens que o limite: acabou. O cursor vai em before.",
+  "entrada": {
+    "limite": 2,
+    "cursor": "2026-09-19T10:00:00.000000Z"
+  },
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?limit=2&before=2026-09-19T10%3A00%3A00\\.000000Z$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "result": [
+            {
+              "uid": "bb95132c15732412d22c1476fa83f27b",
+              "creator": null,
+              "thumbnail": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/thumbnails/thumbnail.jpg",
+              "thumbnailTimestampPct": 0,
+              "readyToStream": true,
+              "status": {
+                "state": "ready",
+                "pctComplete": "100"
+              },
+              "meta": {
+                "name": "Aula 2"
+              },
+              "created": "2026-09-19T10:00:00.000000Z",
+              "modified": "2026-09-19T10:00:00.000000Z",
+              "size": 4190963,
+              "preview": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/watch",
+              "allowedOrigins": [],
+              "requireSignedURLs": false,
+              "uploaded": "2026-09-19T10:00:00.000000Z",
+              "uploadExpiry": null,
+              "maxSizeBytes": null,
+              "maxDurationSeconds": null,
+              "duration": 300,
+              "input": {
+                "width": 1920,
+                "height": 1080
+              },
+              "playback": {
+                "hls": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/manifest/video.m3u8",
+                "dash": "https://customer-m033z5x00ks6nunl.cloudflarestream.com/bb95132c15732412d22c1476fa83f27b/manifest/video.mpd"
+              },
+              "watermark": null
+            }
+          ],
+          "success": true,
+          "errors": [],
+          "messages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "n": 1,
+    "proximo": null,
+    "primeiro": {
+      "id": "bb95132c15732412d22c1476fa83f27b"
+    }
+  }
+}

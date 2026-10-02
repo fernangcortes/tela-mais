@@ -1,0 +1,88 @@
+{
+  "descricao": "Duas por página, cinco no total: há próxima página.",
+  "entrada": {
+    "limite": 2
+  },
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos\\?page=1&itemsPerPage=2&orderBy=date$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "totalItems": 5,
+          "currentPage": 1,
+          "itemsPerPage": 2,
+          "items": [
+            {
+              "videoLibraryId": 123456,
+              "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              "title": "Aula 1",
+              "dateUploaded": "2026-09-20T14:03:11.123",
+              "views": 0,
+              "isPublic": false,
+              "length": 611,
+              "status": 4,
+              "framerate": 0,
+              "rotation": 0,
+              "width": 0,
+              "height": 0,
+              "availableResolutions": null,
+              "thumbnailCount": 0,
+              "encodeProgress": 100,
+              "storageSize": 0,
+              "captions": [],
+              "hasMP4Fallback": true,
+              "collectionId": "",
+              "thumbnailFileName": "thumbnail.jpg",
+              "averageWatchTime": 0,
+              "totalWatchTime": 0,
+              "category": "",
+              "chapters": [],
+              "moments": [],
+              "metaTags": [],
+              "transcodingMessages": []
+            },
+            {
+              "videoLibraryId": 123456,
+              "guid": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+              "title": "Aula 2",
+              "dateUploaded": "2026-09-20T14:03:11.123",
+              "views": 0,
+              "isPublic": false,
+              "length": 300,
+              "status": 4,
+              "framerate": 0,
+              "rotation": 0,
+              "width": 0,
+              "height": 0,
+              "availableResolutions": null,
+              "thumbnailCount": 0,
+              "encodeProgress": 100,
+              "storageSize": 0,
+              "captions": [],
+              "hasMP4Fallback": true,
+              "collectionId": "",
+              "thumbnailFileName": "thumbnail.jpg",
+              "averageWatchTime": 0,
+              "totalWatchTime": 0,
+              "category": "",
+              "chapters": [],
+              "moments": [],
+              "metaTags": [],
+              "transcodingMessages": []
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "n": 2,
+    "proximo": 2,
+    "primeiro": {
+      "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "estado": "pronto"
+    }
+  }
+}

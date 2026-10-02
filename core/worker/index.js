@@ -45,7 +45,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
 
     const { modo, config } = await modoDoAcesso(env, obterConfig);
     lugar.config = config;
-    const decisao = await autorizar({ request, env, caminho, metodo, modo });
+    const decisao = await autorizar({ request, env, caminho, metodo, modo, config });
     if (!decisao.permitido) return decisao.resposta;
 
     const { data } = decisao;
@@ -83,7 +83,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
         resposta = erro(500, 'erro-interno');
       }
       if (ehApi) resposta = await localizarResposta(resposta, request, lugar.config);
-      return comCabecalhos(resposta, env, { api: ehApi });
+      return comCabecalhos(resposta, env, { api: ehApi, config: lugar.config });
     }
   };
 }

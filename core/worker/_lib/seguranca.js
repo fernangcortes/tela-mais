@@ -1,8 +1,9 @@
 /* _lib/seguranca.js — cabeçalhos de segurança de TODAS as respostas do Worker.
  *
- * A mesma política vai em `core/site/_headers`, para os arquivos estáticos que
- * o Cloudflare serve sem passar pelo Worker; um teste confere que os dois
- * dizem a mesma coisa. O que muda por requisição: `frame-ancestors`.
+ * `core/site/_headers` leva a mesma política SEM os hosts de provedor, para os
+ * arquivos estáticos que o Cloudflare serve sem passar pelo Worker (JS, CSS,
+ * imagens: nenhum carrega mídia); um teste confere que ele é essa política
+ * neutra. As páginas que carregam mídia passam pelo Worker. O que muda por requisição: `frame-ancestors`.
  *   - páginas e estáticos: 'self'. O /admin mostra o site dentro de um
  *     <iframe> da mesma origem (modo mesa, `?mesa=1`); ninguém de fora enquadra.
  *   - /api/*: 'none'. Resposta de API nunca é para ser exibida num quadro.
@@ -11,28 +12,36 @@
  * não por 'unsafe-inline'. Se alguém editar aquele bloco, o teste
  * `tests/worker-seguranca.test.js` falha e diz o hash novo. */
 
+import { hostsDeMidia } from './provedores/index.js';
+
 /* sha256 do conteúdo do <script> inline de core/site/index.html. */
 export const HASH_SCRIPT_INLINE = 'sha256-pC8lL4UeLJne9z7wZYaoWQLHpQbyzO358yhEUQELSYQ=';
 
-const HOST = /^[a-z0-9.-]+\.[a-z]{2,}$/i;
+/* Provedor de vídeo: capas, HLS, MP4, legendas, player embutido, Player.js e o
+ * envio TUS do /admin vêm de hosts que SÓ O ADAPTADOR sabe (provedores/*.js,
+ * `hostsMidia()`): a política não escreve nome de provedor nenhum. Os hosts
+ * dependem da config (`video.provedor`) e do ambiente (pull zone própria,
+ * subdomínio do cliente), por isso a CSP é calculada por resposta.
+ *
+ * `hosts` explícito (sem consultar o adaptador) serve a quem gera o arquivo
+ * estático `core/site/_headers`: ele é neutro (sem host de provedor), porque o
+ * HTML que carrega mídia (`/`, `/index.html`, `/admin`) passa SEMPRE pelo
+ * Worker (run_worker_first) e leva a política completa. */
+const SEM_HOSTS = { img: [], media: [], connect: [], frame: [], script: [] };
 
-/* Provedor de vídeo (Bunny, até o M4 ter adaptadores): capas, HLS, MP4 e
- * legendas vêm de *.b-cdn.net (ou do domínio próprio da pull zone, vindo de
- * BUNNY_PULLZONE); o player embutido, de player.mediadelivery.net; o Player.js
- * (capítulos), de assets.mediadelivery.net; o envio TUS do /admin, de
- * video.bunnycdn.com. */
-export function politicaDeConteudo(env, ancestrais) {
-  const pz = env && HOST.test(String(env.BUNNY_PULLZONE || '')) ? ' https://' + env.BUNNY_PULLZONE : '';
-  const cdn = 'https://*.b-cdn.net' + pz;
+export function politicaDeConteudo(env, ancestrais, { config = null, hosts = null } = {}) {
+  const h = hosts || hostsDeMidia(config, env);
+  const lista = (diretiva, base) => [base].concat(h[diretiva] || []).join(' ');
   return [
     "default-src 'self'",
-    "script-src 'self' '" + HASH_SCRIPT_INLINE + "' https://assets.mediadelivery.net",
+    'script-src ' + lista('script', "'self' '" + HASH_SCRIPT_INLINE + "'"),
     /* 'unsafe-inline' só em estilo: o app.js usa `style=` em elementos criados. */
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: " + cdn,
-    "media-src 'self' blob: " + cdn,
-    "connect-src 'self' " + cdn + ' https://video.bunnycdn.com',
-    'frame-src https://player.mediadelivery.net https://iframe.mediadelivery.net',
+    'img-src ' + lista('img', "'self' data: blob:"),
+    'media-src ' + lista('media', "'self' blob:"),
+    'connect-src ' + lista('connect', "'self'"),
+    /* 'self': o /admin mostra o próprio site num <iframe> (modo mesa). */
+    'frame-src ' + lista('frame', "'self'"),
     "font-src 'self' data:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
@@ -43,10 +52,10 @@ export function politicaDeConteudo(env, ancestrais) {
   ].join('; ');
 }
 
-export function cabecalhosDeSeguranca(env, { api = false } = {}) {
+export function cabecalhosDeSeguranca(env, { api = false, config = null, semProvedor = false } = {}) {
   const ancestrais = api ? "'none'" : "'self'";
   return {
-    'content-security-policy': politicaDeConteudo(env, ancestrais),
+    'content-security-policy': politicaDeConteudo(env, ancestrais, semProvedor ? { hosts: SEM_HOSTS } : { config }),
     'x-content-type-options': 'nosniff',
     'x-frame-options': api ? 'DENY' : 'SAMEORIGIN',
     'referrer-policy': 'no-referrer',

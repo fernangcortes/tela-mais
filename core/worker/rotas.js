@@ -2,7 +2,7 @@
  * permissoes.js. As duas tabelas têm que ter as mesmas chaves (teste de matriz).
  *
  * Os handlers mantêm a assinatura que tinham no Pages: `({ request, env, data,
- * waitUntil })`, com `data.conta`, `data.admin` e `data.bunny` preenchidos
+ * waitUntil })`, com `data.conta`, `data.admin` e `data.provedor` (o adaptador de vídeo) preenchidos
  * pelo middleware. Importação estática de tudo: o bundle é um arquivo só e não
  * há carga preguiçosa para dar errado em produção. */
 import * as login from './api/login.js';

@@ -60,9 +60,10 @@ test('a CSP não afrouxa o que não precisa: sem eval, sem script inline solto, 
   assert.ok(!/ \*( |$)/.test(csp), 'curinga solto na CSP');
   assert.match(csp, /object-src 'none'/);
   assert.match(csp, /base-uri 'self'/);
-  /* O que o site usa de verdade. */
+  /* O que o site usa de verdade: os hosts vêm do ADAPTADOR (padrão: bunny). */
   assert.match(csp, /media-src[^;]*https:\/\/\*\.b-cdn\.net/);
-  assert.match(csp, /frame-src https:\/\/player\.mediadelivery\.net/);
+  assert.match(csp, /frame-src 'self' https:\/\/player\.mediadelivery\.net/);
+  assert.match(csp, /connect-src[^;]*https:\/\/video\.bunnycdn\.com/);   /* o envio TUS do /admin */
   assert.match(csp, /worker-src 'self' blob:/);   /* hls.js */
 });
 
@@ -77,19 +78,41 @@ test('o hash do script inline da CSP é o do index.html — editar a abertura se
   assert.ok(!/<script>/.test(lerTexto(path.join(SITE, 'admin.html'))), 'admin.html ganhou script inline: a CSP o bloquearia');
 });
 
-test('core/site/_headers diz o mesmo que o Worker (estáticos não passam pelo Worker)', async () => {
+test('core/site/_headers é a política NEUTRA do Worker: estáticos não carregam mídia, e nenhum host de provedor mora ali', async () => {
   const { cabecalhosDeSeguranca } = await mod('_lib/seguranca.js');
   const arquivo = lerTexto(path.join(SITE, '_headers'));
   const bloco = arquivo.split('\n').filter(l => /^\s{2}\S/.test(l)).map(l => l.trim());
-  const esperado = Object.entries(cabecalhosDeSeguranca({}, { api: false })).map(([k, v]) => k + ': ' + v);
-  assert.deepEqual(bloco, esperado, 'regenere core/site/_headers a partir de cabecalhosDeSeguranca (api: false)');
+  const esperado = Object.entries(cabecalhosDeSeguranca({}, { api: false, semProvedor: true })).map(([k, v]) => k + ': ' + v);
+  assert.deepEqual(bloco, esperado, 'regenere core/site/_headers com: node scripts/gerar-headers.mjs');
+  assert.ok(!/b-cdn|bunnycdn|mediadelivery|cloudflarestream/.test(arquivo), 'host de provedor no _headers estático');
 });
 
-test('BUNNY_PULLZONE entra na CSP; valor que não parece host é ignorado', async () => {
+test('as páginas que carregam mídia passam pelo Worker, que é quem sabe os hosts do provedor', () => {
+  const w = lerJsonc(path.join(RAIZ, 'wrangler.jsonc'));
+  for (const rota of ['/', '/index.html', '/admin', '/admin.html']) {
+    assert.ok(w.assets.run_worker_first.includes(rota), rota + ' serviria a página com a CSP neutra, sem os hosts do vídeo');
+  }
+});
+
+test('a CSP segue o provedor da config: trocar `video.provedor` troca os hosts, sem editar código', async () => {
+  const { politicaDeConteudo } = await mod('_lib/seguranca.js');
+  const bunny = politicaDeConteudo({}, "'self'", { config: { video: { provedor: 'bunny' } } });
+  assert.match(bunny, /img-src[^;]*\*\.b-cdn\.net/);
+  const outro = politicaDeConteudo({}, "'self'", { config: { video: { provedor: 'cloudflare-stream' } } });
+  assert.ok(!/b-cdn|bunnycdn|mediadelivery/.test(outro), 'a CSP de outro provedor ainda libera o Bunny');
+  /* Config nula (falha de configuração) cai no padrão, e a política nunca fica sem 'self'. */
+  assert.match(politicaDeConteudo({}, "'self'", { config: null }), /default-src 'self'/);
+});
+
+test('o host próprio do provedor (pull zone) entra na CSP; valor que não parece host é ignorado', async () => {
   const { politicaDeConteudo } = await mod('_lib/seguranca.js');
   assert.match(politicaDeConteudo({ BUNNY_PULLZONE: 'videos.exemplo.com.br' }, "'self'"), /img-src[^;]*https:\/\/videos\.exemplo\.com\.br/);
+  assert.match(politicaDeConteudo({ BUNNY_PULLZONE: 'https://videos.exemplo.com.br/' }, "'self'"), /connect-src[^;]*https:\/\/videos\.exemplo\.com\.br/);
   const ruim = politicaDeConteudo({ BUNNY_PULLZONE: 'x; script-src *' }, "'self'");
   assert.ok(!ruim.includes('script-src *'));
+  /* O nome da variável vem da config: {"$env":"MINHA_PULLZONE"}. */
+  const cfg = { video: { provedor: 'bunny', bunny: { hostDaPullZone: { $env: 'MINHA_PULLZONE' } } } };
+  assert.match(politicaDeConteudo({ MINHA_PULLZONE: 'cdn.exemplo.org' }, "'self'", { config: cfg }), /media-src[^;]*https:\/\/cdn\.exemplo\.org/);
 });
 
 test('a API responde no-store', async () => {

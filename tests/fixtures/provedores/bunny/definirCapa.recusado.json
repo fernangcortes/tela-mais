@@ -1,0 +1,28 @@
+{
+  "descricao": "O provedor recusa a capa.",
+  "entrada": {
+    "bytes": [
+      255,
+      216,
+      255,
+      224
+    ],
+    "mime": "image/jpeg"
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "/thumbnail$",
+      "resposta": {
+        "status": 400,
+        "corpo": {
+          "Message": "invalid image"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "codigo": "provedor-recusou-capa",
+    "status": 400
+  }
+}

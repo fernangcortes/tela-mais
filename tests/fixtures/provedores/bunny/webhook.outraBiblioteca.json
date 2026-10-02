@@ -1,0 +1,9 @@
+{
+  "descricao": "Evento de outra biblioteca: ignorado.",
+  "pedido": {
+    "VideoLibraryId": 999,
+    "VideoGuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "Status": 3
+  },
+  "esperado": null
+}

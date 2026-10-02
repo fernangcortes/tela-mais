@@ -1,38 +1,46 @@
-/* POST /api/upload-token   { titulo, duracaoEstimadaSeg? } -> cria o vídeo e assina
+/* POST /api/upload-token   { titulo, tamanhoBytes?, duracaoEstimadaSeg? } -> cria o vídeo e devolve o plano de envio
  * POST /api/upload-token   { pedidoId }                    -> cria o vídeo de um pedido já aprovado
  * POST /api/upload-token   { videoId }                     -> só reassina (retomada)
  *
- * O arquivo de vídeo NÃO passa por aqui. Esta função só devolve uma assinatura
- * de uso único; o navegador envia os bytes direto para o Bunny via TUS. É o que
- * torna viável subir um arquivo de 3,9 GB sem esbarrar no limite de tamanho de
- * requisição das serverless.
+ * O arquivo de vídeo NÃO passa por aqui. Esta função devolve o PLANO DE UPLOAD
+ * do adaptador (provedores/contrato.js, `PlanoDeUpload`): endpoint, cabeçalhos de
+ * uso único e metadados; o navegador envia os bytes direto ao provedor (TUS). É
+ * o que torna viável subir um arquivo de 3,9 GB sem esbarrar no limite de
+ * tamanho de requisição das serverless, e é por isso que o navegador não
+ * escreve endereço de provedor nenhum: o endpoint vem daqui.
  *
- * A criação do vídeo precisa acontecer aqui, e não no navegador: só o endpoint
- * TUS tem CORS documentado para uso client-side.
+ * A criação do vídeo precisa acontecer aqui, e não no navegador: o provedor
+ * só aceita criar com a chave de API, e a chave nunca sai do servidor.
+ *
+ * Resposta: o plano (`id`, `protocolo`, `modo`, `url`, `cabecalhos`, `metadados`,
+ * `expiraEm`, `pedacoBytes`, `fonte`) mais `videoId` (o mesmo que `id`).
  *
  * LIMITE DE ENVIO (M2+, superadmin configura em /api/contas). Vale só para
  * vídeo NOVO — retomar (`videoId`) não cria vídeo, então não conta de novo:
  *   - `maxVideos`: confere o contador gravado na conta (registrarEnvio).
  *   - `maxDuracaoSeg`: confere contra a duração ESTIMADA que o navegador lê do
  *     arquivo local antes de enviar — o servidor só sabe a duração de verdade
- *     depois que o Bunny termina de codificar, tarde demais para recusar aqui.
+ *     depois que o provedor termina de codificar, tarde demais para recusar aqui.
  *   - `autorizacaoManual`: em vez de criar o vídeo, grava um pedido em
  *     /api/autorizacoes e devolve 202; o navegador manda de novo com
  *     `pedidoId` depois que o superadmin aprova.
  */
 import { json, erro, pode, semPermissao, lerContas, acharConta, registrarEnvio,
   lerAutorizacoes, gravarAutorizacoes, acharPedido, idPedido } from '../_lib/sessao.js';
+import { respostaDeErro } from '../_lib/provedores/index.js';
 
-const VALIDADE_S = 3600;   /* UNIX em SEGUNDOS. Milissegundos invalidam a assinatura. */
+const VALIDADE_S = 3600;   /* o plano vale 1 h; o adaptador devolve `expiraEm` em SEGUNDOS UNIX */
 
 export async function onRequestPost({ request, env, data }) {
-  /* Subir vídeo ocupa armazenamento pago no Bunny: é permissão à parte (M2). */
+  /* Subir vídeo ocupa armazenamento pago no provedor: é permissão à parte (M2). */
   if (!pode(data.conta, 'enviar')) return semPermissao('enviar');
 
-  const bunny = data.bunny;
-  if (!bunny.configurado) {
-    return erro(500, 'provedor-nao-configurado');
+  const provedor = data.provedor;
+  if (!provedor.configurado) {
+    return erro(500, 'provedor-nao-configurado', { provedor: provedor.id, faltando: (provedor.faltando || []).join(', ') });
   }
+  /* HLS genérico não recebe arquivo pela mesa: o cliente envia pelo painel do provedor dele. */
+  if (!provedor.capacidades().envio) return erro(501, 'recurso-indisponivel');
 
   let corpo;
   try {
@@ -41,7 +49,8 @@ export async function onRequestPost({ request, env, data }) {
     return erro(400, 'corpo-invalido');
   }
 
-  let videoId = corpo && corpo.videoId ? String(corpo.videoId) : '';
+  let videoId = corpo && (corpo.videoId || corpo.id) ? String(corpo.videoId || corpo.id) : '';
+  let plano = null;
   let pedidoAprovado = null;
   let contaCriando = false;
 
@@ -91,20 +100,18 @@ export async function onRequestPost({ request, env, data }) {
 
     if (!titulo) return erro(400, 'informe-titulo');
 
-    const criacao = await bunny.chamar('/videos', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: titulo })
-    });
-
-    if (!criacao.ok) {
-      const detalhe = await criacao.text();
-      return erro(502, 'provedor-recusou-criacao', null, { status: criacao.status, detalhe });
+    /* O tamanho do arquivo só serve a quem cria o upload já com o tamanho
+     * (o TUS do Cloudflare Stream); os outros adaptadores o ignoram. */
+    const tamanho = Number(corpo && corpo.tamanhoBytes);
+    try {
+      plano = await provedor.criarUpload({
+        titulo, validadeSeg: VALIDADE_S, tipo: corpo && typeof corpo.tipo === 'string' ? corpo.tipo : undefined,
+        tamanhoBytes: Number.isFinite(tamanho) && tamanho > 0 ? tamanho : undefined
+      });
+    } catch (e) {
+      return respostaDeErro(erro, e);
     }
-
-    const criado = await criacao.json();
-    videoId = criado.guid;
-    if (!videoId) return erro(502, 'provedor-sem-guid');
+    videoId = plano.id;
     contaCriando = true;
   }
 
@@ -115,13 +122,13 @@ export async function onRequestPost({ request, env, data }) {
   }
   if (contaCriando && data.conta.super !== true) await registrarEnvio(env, data.conta.usuario);
 
-  const expira = Math.floor(Date.now() / 1000) + VALIDADE_S;
-  const assinatura = await bunny.assinarUpload(videoId, expira);
+  if (!plano) {
+    try {
+      plano = await provedor.retomarUpload(videoId, { validadeSeg: VALIDADE_S });
+    } catch (e) {
+      return respostaDeErro(erro, e);
+    }
+  }
 
-  return json(200, {
-    libraryId: bunny.libraryId,
-    videoId,
-    signature: assinatura,
-    expire: expira
-  });
+  return json(200, Object.assign({}, plano, { videoId: plano.id }));
 }

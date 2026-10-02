@@ -2,9 +2,9 @@
  *
  * Vinha do `_middleware.js` do Pages; no Worker o middleware é `middleware.js`
  * (política de acesso) e isto aqui ficou só com o que as rotas compartilham:
- * resposta JSON, contas no KV, senha (PBKDF2), token de sessão e o cliente do
- * Bunny, único lugar do projeto onde a AccessKey existe. Ela nunca é devolvida
- * ao navegador.
+ * resposta JSON, contas no KV, senha (PBKDF2) e token de sessão. O provedor de
+ * vídeo (e a chave de API dele) mora em provedores/, e nunca é devolvido ao
+ * navegador.
  *
  * DOIS SEGREDOS, DE PROPÓSITO. `ADMIN_PASSWORD` é a senha que o superadmin
  * digita; `SESSION_SECRET` é a chave que assina os tokens de sessão. Antes a
@@ -128,8 +128,8 @@ export async function registrarEnvio(env, usuario) {
 /* --------------------------------------------------- pedidos de autorização
  *
  * Quando `limiteEnvio.autorizacaoManual` está ligado numa conta, o envio não
- * cria o vídeo no Bunny na hora: fica um pedido aqui, esperando o superadmin
- * aprovar ou recusar (/api/autorizacoes). Nada é gasto no Bunny sem aprovação.
+ * cria o vídeo no provedor na hora: fica um pedido aqui, esperando o superadmin
+ * aprovar ou recusar (/api/autorizacoes). Nada é gasto no provedor sem aprovação.
  */
 export async function lerAutorizacoes(env) {
   if (!env.CATALOGO) return { pedidos: [] };
@@ -242,30 +242,3 @@ export function pode(conta, permissao) {
 export function semPermissao(permissao) {
   return erro(403, 'sem-permissao', { permissao: App.ROTULO_PERMISSAO[permissao] || permissao }, { permissao });
 }
-
-/* --------------------------------------------------------------- o Bunny */
-
-export function criarClienteBunny(env) {
-  const libraryId = String(env.BUNNY_LIBRARY_ID || '');
-  const apiKey = String(env.BUNNY_API_KEY || '');
-  const base = 'https://video.bunnycdn.com/library/' + libraryId;
-
-  return {
-    libraryId,
-    configurado: Boolean(libraryId && apiKey),
-
-    /* A AccessKey entra aqui e não sai daqui. */
-    async chamar(caminho, init = {}) {
-      return fetch(base + caminho, Object.assign({}, init, {
-        headers: Object.assign({ AccessKey: apiKey, accept: 'application/json' }, init.headers || {})
-      }));
-    },
-
-    /* Assinatura de uso único do upload TUS.
-     * expire é UNIX em SEGUNDOS — milissegundos invalidam a assinatura. */
-    async assinarUpload(videoId, expira) {
-      return hex(await crypto.subtle.digest('SHA-256', enc.encode(libraryId + apiKey + expira + videoId)));
-    }
-  };
-}
-

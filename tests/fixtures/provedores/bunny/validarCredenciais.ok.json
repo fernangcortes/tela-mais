@@ -1,0 +1,21 @@
+{
+  "descricao": "GET leve e autenticado: 200.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos\\?page=1&itemsPerPage=1$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "totalItems": 0,
+          "currentPage": 1,
+          "itemsPerPage": 1,
+          "items": []
+        }
+      }
+    }
+  ]
+}

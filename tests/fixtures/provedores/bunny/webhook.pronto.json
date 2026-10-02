@@ -1,0 +1,12 @@
+{
+  "descricao": "Evento de encoding concluído (Status 3).",
+  "pedido": {
+    "VideoLibraryId": 123456,
+    "VideoGuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "Status": 3
+  },
+  "esperado": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "evento": "pronto"
+  }
+}

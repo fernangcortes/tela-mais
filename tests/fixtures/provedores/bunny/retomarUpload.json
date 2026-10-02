@@ -1,0 +1,9 @@
+{
+  "descricao": "Retomar só reassina: nenhuma chamada ao provedor.",
+  "rotas": [],
+  "esperado": {
+    "protocolo": "tus",
+    "modo": "endpoint",
+    "expiraEm": 1750003600
+  }
+}

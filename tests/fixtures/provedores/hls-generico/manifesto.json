@@ -1,0 +1,28 @@
+{
+  "provedor": "hls-generico",
+  "descricao": "Respostas gravadas à mão de um servidor HLS qualquer (o HLS genérico não tem API: o adaptador só lê o playlist). Nenhuma rede nos testes.",
+  "env": {
+    "HLS_BASE_URL": "https://videos.exemplo.test/acervo"
+  },
+  "segredos": [],
+  "agora": 1750000000000,
+  "idExemplo": "aula-1/master.m3u8",
+  "idsInvalidos": [
+    "",
+    "../x",
+    "a b",
+    "x?y=1",
+    "...",
+    "a//b",
+    "/abs.m3u8",
+    "aula-1/../outro.m3u8",
+    "aula/./x.m3u8",
+    "aula/",
+    "<script>alert(1)</script>"
+  ],
+  "estadosInalcancaveis": [
+    "enviando"
+  ],
+  "motivoDosEstadosInalcancaveis": "não há envio: o vídeo já existe no servidor de quem hospeda; 'enviando' não ocorre",
+  "tituloExemplo": "Aula 1"
+}

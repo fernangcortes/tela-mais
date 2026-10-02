@@ -20,7 +20,7 @@
     ['auto', tr('telas.sinopseAutomatica'), function (i) { return !!i.sinopse && i.sinopse_origem === 'auto'; }],
     ['vazia', tr('telas.semSinopse'), function (i) { return i.publicar === true && !i.sinopse; }],
     ['pendencia', tr('telas.comPendencia'), function (i) { return !!i.pendencia; }],
-    ['semvideo', tr('telas.semVideo'), function (i) { return !(i.fonte && i.fonte.videoId); }],
+    ['semvideo', tr('telas.semVideo'), function (i) { return !App.idDoVideo(i); }],
     ['triagem', tr('telas.serieDeTriagem'), function (i) { return i.serie === 'A classificar' || i.serie === 'A identificar' /* i18n-ignorar: nomes de série (dado do acervo) */; }]
   ];
   M.FILTROS = FILTROS;
@@ -45,7 +45,7 @@
     var lista = App.ordenarPor(App.buscar(cat.itens, st.busca).filter(regra), st.ordem, st.ordemDesc);
     var tbody = h('tbody', { id: 'cat-linhas' });
     lista.forEach(function (it) {
-      var capa = App.urlCapa(it, cat.config);
+      var capa = App.urlCapa(it);
       var mudou = st.rascunho.some(function (m) { return m.alvo === it.id; });
       tbody.appendChild(h('tr', { class: (st.sel === 'item:' + it.id ? 'sel' : '') + (it.publicar ? '' : ' fantasma'), 'data-alvo': 'item:' + it.id, tabindex: '0' },
         h('td', { class: 'col-marca' }, h('input', { type: 'checkbox', id: 'mc-' + it.id, 'data-acao': 'marcar', 'data-id': it.id, checked: !!st.marcados[it.id], 'aria-label': tr('telas.marcarTitulo', { titulo: it.titulo || it.id }) })),
@@ -56,7 +56,7 @@
         h('td', { class: 'mono', text: App.rotuloEpisodio(it) || '—' }),
         h('td', { class: 'mono num', text: App.formatarDuracao(it) || '—' }),
         h('td', null, !it.sinopse ? chip('vazia', 'chip-erro') : it.sinopse_origem === 'auto' ? chip(tr('telas.automatica'), 'chip-alerta') : chip('revisada', 'chip-ok')),
-        h('td', null, it.pendencia ? chip(App.rotuloPendencia(it.pendencia), 'chip-alerta') : !(it.fonte && it.fonte.videoId) ? chip(tr('telas.semVideo2'), 'chip-erro') : h('span', { class: 'fraco', text: '—' })),
+        h('td', null, it.pendencia ? chip(App.rotuloPendencia(it.pendencia), 'chip-alerta') : !App.idDoVideo(it) ? chip(tr('telas.semVideo2'), 'chip-erro') : h('span', { class: 'fraco', text: '—' })),
         h('td', null, h('label', { class: 'interruptor interruptor-so', for: 'pb-' + it.id },
           h('span', { class: 'so-leitor', text: tr(it.publicar ? 'telas.tirarDoArTitulo' : 'telas.porNoArTitulo', { titulo: it.titulo || it.id }) }),
           h('input', { type: 'checkbox', id: 'pb-' + it.id, 'data-acao': 'no-ar', 'data-id': it.id, checked: it.publicar === true, disabled: !M.pode('no-ar') }),
@@ -113,7 +113,20 @@
 
   var TAMANHO_PEDACO = 50 * 1024 * 1024;   /* 50 MB por PATCH: progresso fino e retomada barata */
 
-  M.envio = { upload: null, videoId: null, arquivo: null, titulo: '', fase: 'parado', enviados: 0, total: 0, registro: [], encoding: '', erro: '', pedidoId: null, duracaoEstimadaSeg: null };
+  M.envio = { upload: null, videoId: null, fonte: null, arquivo: null, titulo: '', fase: 'parado', enviados: 0, total: 0, registro: [], encoding: '', erro: '', pedidoId: null, duracaoEstimadaSeg: null };
+
+  /* O que o provedor desta instalação sabe fazer, lido uma vez do servidor. A tela decide por CAPACIDADE
+   * (enviar arquivo, ou colar o endereço de um vídeo que já está num servidor), nunca pelo nome do provedor.
+   * `undefined` = ainda não pedi; `null` = pedindo; falha vale "envia arquivo", o caminho de sempre. */
+  M.video = undefined;
+  function carregarCapacidades() {
+    if (M.video !== undefined) return;
+    M.video = null;
+    M.api('/api/midia?capacidades=1').then(function (c) { M.video = c || {}; }, function () { M.video = {}; }).then(function () {
+      if (M.st.tela === 'enviar') M.aoMudar({});
+    });
+  }
+  function cadastroPorEndereco() { return !!(M.video && M.video.fontePorUrl === true && M.video.envio !== true); }
 
   /* Estimativa lida no navegador, do arquivo local, ANTES de enviar — é o que
    * o limite de duração por conta confere: o servidor só sabe a duração real
@@ -146,7 +159,89 @@
     if (M.aoProgressoEnvio) M.aoProgressoEnvio();
   }
 
+  /* Cadastro por endereço: o vídeo já está no servidor do cliente (HLS). O servidor confere os endereços
+   * (https, host liberado na config, extensão) e lê o playlist; daí em diante é o mesmo painel de metadados. */
+  function telaEnviarPorEndereco() {
+    var e = M.envio, u = e.url = e.url || { hls: '', mp4: '', capa: '', legenda: '', idioma: 'pt' };
+    var ocupado = e.fase === 'verificando';
+    var campo = function (rotulo, id, valor, extra) {
+      return h('div', { class: 'campo' }, h('label', { for: id, text: rotulo }),
+        h('input', Object.assign({ type: 'text', id: id, value: valor, disabled: ocupado || e.fase === 'enviado', autocomplete: 'off', spellcheck: 'false' }, extra || {})));
+    };
+    return h('div', { class: 'a' },
+      topo(tr('telas.enviarTituloPorEndereco'), tr('telas.oVideoJaEstaNoSeuServidor')),
+      h('div', { class: 'envio' },
+        campo(tr('telas.tituloDeExibicao'), 'env-titulo', e.titulo, { placeholder: tr('telas.exTituloDoVideo') }),
+        campo(tr('telas.enderecoDoPlaylist'), 'env-url-hls', u.hls, { inputmode: 'url', placeholder: 'https://' }),
+        campo(tr('telas.enderecoDoMp4Opcional'), 'env-url-mp4', u.mp4, { inputmode: 'url' }),
+        campo(tr('telas.enderecoDaCapaOpcional'), 'env-url-capa', u.capa, { inputmode: 'url' }),
+        campo(tr('telas.enderecoDaLegendaOpcional'), 'env-url-legenda', u.legenda, { inputmode: 'url' }),
+        campo(tr('telas.idiomaDaLegenda'), 'env-url-idioma', u.idioma, { maxlength: '12' }),
+        h('div', { class: 'botoes-linha' },
+          e.fase === 'enviado' ? null : h('button', { type: 'button', class: 'botao botao-verde', id: 'env-validar-url', disabled: ocupado, text: tr('telas.verificarEContinuar') })),
+        e.erro ? h('p', { class: 'estado estado-erro', role: 'alert', text: e.erro }) : null,
+        e.encoding ? h('p', { class: 'estado', text: e.encoding }) : null,
+        h('pre', { class: 'registro', id: 'env-registro', text: e.registro.join('\n') })),
+      h('ol', { class: 'passos' }, [
+        tr('telas.passoColeOEndereco'),
+        tr('telas.passoOSiteConfereOPlaylist'),
+        tr('telas.passoMetadadosDoTitulo'),
+        tr('telas.porNoArPeloRascunho')
+      ].map(function (t, k) {
+        var passo = e.fase === 'enviado' ? 2 : 0;
+        return h('li', { class: k < passo ? 'feito' : k === passo ? 'agora' : '' }, h('span', { class: 'passo-n mono', text: String(k + 1) }), h('span', { text: t }));
+      })));
+  }
+
+  function mensagemDeEndereco(erro) {
+    var m = /^([a-z0-9]+):([a-z-]+)$/.exec((erro && erro.corpo && erro.corpo.detalhe) || '');
+    var campos = { hls: tr('telas.campoPlaylist'), mp4: tr('telas.campoMp4'), capa: tr('telas.campoCapa'), legenda: tr('telas.campoLegenda') };
+    var motivos = {
+      'invalida': tr('telas.motivoInvalida'), 'sem-https': tr('telas.motivoSemHttps'),
+      'host-nao-permitido': tr('telas.motivoHostNaoPermitido'), 'extensao': tr('telas.motivoExtensao')
+    };
+    if (!m || !campos[m[1]] || !motivos[m[2]]) return erro.message;
+    return tr('telas.enderecoRecusado', { campo: campos[m[1]], motivo: motivos[m[2]] });
+  }
+
+  M.cadastrarPorEndereco = function () {
+    var e = M.envio, u = e.url = e.url || {};
+    var lido = function (id) { var n = M.$(id); return n ? n.value.trim() : ''; };
+    u.hls = lido('env-url-hls'); u.mp4 = lido('env-url-mp4'); u.capa = lido('env-url-capa');
+    u.legenda = lido('env-url-legenda'); u.idioma = lido('env-url-idioma') || 'pt';
+    e.titulo = lido('env-titulo');
+    e.erro = '';
+    if (!u.hls) { e.erro = tr('telas.informeOEnderecoDoPlaylist'); return M.aoMudar({}); }
+    if (!e.titulo) { e.erro = tr('telas.informeOTitulo'); return M.aoMudar({}); }
+    e.fase = 'verificando';
+    e.encoding = tr('telas.verificandoOEndereco');
+    M.aoMudar({});
+    var corpo = { hls: u.hls };
+    if (u.mp4) corpo.mp4 = u.mp4;
+    if (u.capa) corpo.capa = u.capa;
+    if (u.legenda) corpo.legendas = [{ idioma: u.idioma, url: u.legenda }];
+    M.api('/api/midia?tipo=fonte', { method: 'POST', body: JSON.stringify(corpo) }).then(function (r) {
+      e.encoding = '';
+      if (r.falhou) { e.fase = 'parado'; e.erro = tr('telas.playlistInvalido'); return M.aoMudar({}); }
+      e.fonte = r.fonte;
+      e.videoId = r.fonte.id;
+      e.arquivo = null;
+      e.fase = 'enviado';
+      registrar(tr('telas.enderecoVerificadoRegistro', { id: r.fonte.id }));
+      /* Playlist sem a marca de fim: o encoder ainda escreve. O título entra fora do ar, e só se põe no ar pronto. */
+      e.encoding = r.pronto ? tr('telas.playlistVerificado') : tr('telas.playlistIncompleto');
+      M.aoMudar({});
+    }).catch(function (erro) {
+      e.fase = 'parado';
+      e.encoding = '';
+      e.erro = mensagemDeEndereco(erro);
+      M.aoMudar({});
+    });
+  };
+
   M.telaEnviar = function () {
+    carregarCapacidades();
+    if (cadastroPorEndereco()) return telaEnviarPorEndereco();
     var e = M.envio, pct = M.pctEnvio();
     var ocupado = e.fase === 'enviando' || e.fase === 'aguardando-autorizacao';
     return h('div', { class: 'a' },
@@ -233,7 +328,7 @@
     }
     e.fase = 'enviando';
     M.aoMudar({});
-    var corpoPedido = e.pedidoId ? { pedidoId: e.pedidoId } : { titulo: e.titulo.trim(), duracaoEstimadaSeg: e.duracaoEstimadaSeg };
+    var corpoPedido = e.pedidoId ? { pedidoId: e.pedidoId } : { titulo: e.titulo.trim(), duracaoEstimadaSeg: e.duracaoEstimadaSeg, tamanhoBytes: e.arquivo.size };
     M.api('/api/upload-token', { method: 'POST', body: JSON.stringify(corpoPedido) }).then(function (t) {
       if (t.aguardando) {
         e.fase = 'aguardando-autorizacao';
@@ -244,14 +339,23 @@
         return;
       }
       e.pedidoId = null;
-      e.videoId = t.videoId;
-      registrar(tr('telas.videoCriado', { id: t.videoId, ate: M.I18n.data(t.expire * 1000, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }));
-      var upload = new window.tus.Upload(e.arquivo, {
-        endpoint: 'https://video.bunnycdn.com/tusupload',
+      e.videoId = t.id;
+      e.fonte = t.fonte || null;
+      /* O PLANO DE UPLOAD vem do servidor (o adaptador do provedor o monta):
+       * endereço, cabeçalhos de uso único e metadados. O navegador não escreve
+       * endereço de provedor nenhum. */
+      if (t.protocolo !== 'tus') {
+        e.fase = 'erro';
+        e.erro = tr('telas.protocoloDeEnvioNaoSuportado', { protocolo: String(t.protocolo) });
+        M.aoMudar({});
+        return;
+      }
+      registrar(tr('telas.videoCriado', { id: t.id, ate: M.I18n.data(t.expiraEm * 1000, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }));
+      var upload = new window.tus.Upload(e.arquivo, Object.assign({
         retryDelays: [0, 3000, 5000, 10000, 20000, 60000, 60000],
-        chunkSize: TAMANHO_PEDACO,
-        headers: { AuthorizationSignature: t.signature, AuthorizationExpire: String(t.expire), VideoId: String(t.videoId), LibraryId: String(t.libraryId) },
-        metadata: { filetype: e.arquivo.type || 'video/mp4', title: e.titulo.trim() },
+        chunkSize: t.pedacoBytes || TAMANHO_PEDACO,
+        headers: t.cabecalhos || {},
+        metadata: Object.assign({ filetype: e.arquivo.type || 'video/mp4', title: e.titulo.trim() }, t.metadados || {}),
         onProgress: function (enviados, total) { e.enviados = enviados; e.total = total; atualizarProgresso(); },
         onError: function (erro) { e.fase = 'erro'; e.erro = tr('telas.falhaNoEnvio', { mensagem: erro.message }); registrar(tr('telas.erroNoRegistro', { mensagem: erro.message })); M.aoMudar({}); },
         onSuccess: function () {
@@ -262,7 +366,7 @@
           acompanharCodificacao(e.videoId);
           M.aoMudar({});
         }
-      });
+      }, t.modo === 'url-pronta' ? { uploadUrl: t.url } : { endpoint: t.url }));
       e.upload = upload;
       /* Se a conexão caiu num envio anterior, o TUS retoma de onde parou. */
       upload.findPreviousUploads().then(function (anteriores) {
@@ -306,7 +410,7 @@
     var e = M.envio;
     var cabecalho = h('div', { class: 'p-cab' }, h('span', { class: 'chip', text: tr('telas.tituloNovo') }), h('h2', { class: 'p-cab-titulo', text: tr('telas.metadados') }));
     if (e.fase !== 'enviado') {
-      return { cab: cabecalho, corpo: h('div', { class: 'p-corpo-in' }, h('p', { class: 'p-nota', text: tr('telas.osMetadadosAbremAquiQuando') })) };
+      return { cab: cabecalho, corpo: h('div', { class: 'p-corpo-in' }, h('p', { class: 'p-nota', text: cadastroPorEndereco() ? tr('telas.osMetadadosAbremAquiQuandoEndereco') : tr('telas.osMetadadosAbremAquiQuando') })) };
     }
     var campo = function (rot, id, entrada) { return h('div', { class: 'campo' }, h('label', { for: id, text: rot }), entrada); };
     return { cab: cabecalho, corpo: h('div', { class: 'p-corpo-in' }, h('div', { class: 'p-form' },
@@ -318,8 +422,9 @@
         campo(tr('telas.episodio'), 'n-episodio', h('input', { type: 'number', id: 'n-episodio', min: '1', step: '1' })),
         campo(tr('telas.ano'), 'n-ano', h('input', { type: 'text', id: 'n-ano', inputmode: 'numeric' }))),
       campo(tr('telas.sinopse'), 'n-sinopse', h('textarea', { id: 'n-sinopse', rows: '5', placeholder: tr('telas.2A3FrasesEm') })),
-      campo(tr('telas.capaJpgOpcional'), 'n-capa', h('input', { type: 'file', id: 'n-capa', accept: 'image/jpeg,image/png' })),
-      campo(tr('telas.legendaSrtOpcional'), 'n-legenda', h('input', { type: 'file', id: 'n-legenda', accept: '.srt,text/plain' })),
+      /* Capa e legenda por arquivo só onde o provedor as recebe; no cadastro por endereço elas já foram coladas. */
+      cadastroPorEndereco() ? null : campo(tr('telas.capaJpgOpcional'), 'n-capa', h('input', { type: 'file', id: 'n-capa', accept: 'image/jpeg,image/png' })),
+      cadastroPorEndereco() ? null : campo(tr('telas.legendaSrtOpcional'), 'n-legenda', h('input', { type: 'file', id: 'n-legenda', accept: '.srt,text/plain' })),
       h('p', { class: 'p-nota', text: tr('telas.oTituloEntraNoCatalogo') }),
       h('button', { type: 'button', class: 'botao botao-verde', id: 'n-salvar', text: tr('telas.salvarNoCatalogo') }),
       h('p', { class: 'estado', id: 'n-estado', role: 'status' }))) };
@@ -347,7 +452,7 @@
       temporada: val('n-temporada') ? Number(val('n-temporada')) : null, episodio: val('n-episodio') ? Number(val('n-episodio')) : null,
       ano: val('n-ano'), sinopse: val('n-sinopse'), publicar: false,
       arquivo: e.arquivo ? e.arquivo.name : '', tamanho_mb: e.arquivo ? Math.round(e.arquivo.size / 1048576) : null,
-      videoId: e.videoId, libraryId: (M.st.servidor.config || {}).libraryId || null
+      fonte: e.fonte || { provedor: null, id: e.videoId, extras: {} }
     };
     var tarefas = [];
     var capa = M.$('n-capa') && M.$('n-capa').files[0];
@@ -356,7 +461,7 @@
       return reduzida.arrayBuffer();
     }).then(function (bytes) {
       return M.api('/api/midia?tipo=capa&videoId=' + encodeURIComponent(e.videoId), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: bytes })
-        .then(function (r) { if (r.capa_arquivo) { campos.capa_arquivo = r.capa_arquivo; campos.capa_versao = String(Date.now()); } registrar(tr('telas.capaEnviadaRegistro')); });
+        .then(function (r) { if (r.capa_arquivo) { campos.capa_arquivo = r.capa_arquivo; campos.capa_versao = r.capa_versao || String(Date.now()); } registrar(tr('telas.capaEnviadaRegistro')); });
     }));
     /* A legenda que a mesa acabou de ler serve duas vezes: vai ao Bunny, e
      * vira a fala do título na busca. Os blocos
@@ -379,7 +484,7 @@
       return M.api('/api/catalogo', { method: 'PUT', body: JSON.stringify(copia) }).then(function () { return novo; });
     }).then(function (novo) {
       var videoId = e.videoId;
-      M.envio = { upload: null, videoId: null, arquivo: null, titulo: '', fase: 'parado', enviados: 0, total: 0, registro: [], encoding: '', erro: '', pedidoId: null, duracaoEstimadaSeg: null };
+      M.envio = { upload: null, videoId: null, fonte: null, arquivo: null, titulo: '', fase: 'parado', enviados: 0, total: 0, registro: [], encoding: '', erro: '', pedidoId: null, duracaoEstimadaSeg: null };
       /* A BUSCA, no mesmo envio: ninguém aperta nada. Se falhar, o título
        * entra no catálogo do mesmo jeito — e a visão geral mostra que ele
        * ficou fora da busca pela fala. */
@@ -669,16 +774,16 @@
    * (`pendente`) — e aí o aviso é alto, porque o site está sem aquela capa
    * até alguém publicar. */
   M.enviarCapa = function (item, arquivo) {
-    var fonte = App.resolverFonte(item, M.st.servidor.config);
-    if (!fonte) return Promise.reject(new Error(tr('telas.semVideoNoBunnyNao')));
+    var videoId = App.idDoVideo(item);
+    if (!videoId) return Promise.reject(new Error(tr('telas.semVideoNoBunnyNao')));
     return M.capaParaEnvio(arquivo).then(function (blob) {
       return blob.arrayBuffer();
     }).then(function (bytes) {
-      return M.api('/api/midia?tipo=capa&videoId=' + encodeURIComponent(fonte.videoId), {
+      return M.api('/api/midia?tipo=capa&videoId=' + encodeURIComponent(videoId), {
         method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: bytes
       });
     }).then(function (resposta) {
-      if (!resposta || !resposta.capa_arquivo) {
+      if (!resposta || !(resposta.capa_arquivo || resposta.capa)) {
         throw new Error(tr('telas.oBunnyNaoInformouO'));
       }
       if (resposta.rev) {
@@ -692,7 +797,12 @@
           return resposta;
         });
       }
-      M.mudarVarios(item.id, [['capa_arquivo', resposta.capa_arquivo], ['capa_versao', String(Date.now())]]);
+      M.mudarVarios(item.id, [['capa_arquivo', resposta.capa_arquivo || null], ['capa_versao', resposta.capa_versao || String(Date.now())]]);
+      /* A capa que aparece nas telas é `midia.capa`, calculada pelo servidor: a
+       * URL nova (que a resposta traz) entra na leitura do servidor que a mesa
+       * guarda, para o rascunho já mostrar a capa trocada. */
+      var base = M.item(item.id, true);
+      if (base && base.midia && resposta.capa) base.midia = Object.assign({}, base.midia, { capa: resposta.capa });
       M.toast(resposta.pendente
         ? tr('telas.capaPendente', { motivo: resposta.erro || tr('telas.semMotivo') })
         : tr('telas.capaEnviada'));
@@ -703,7 +813,7 @@
   M.telaCapa = function (cat) {
     var id = M.st.capaDe, it = id && App.porId(cat.itens, id);
     if (!it) return h('div', { class: 'a' }, topo(tr('telas.escolherCapa'), tr('telas.escolhaUmTituloPrimeiro')));
-    var mp4 = App.urlMp4(it, cat.config, '720p');
+    var mp4 = App.urlMp4(it, '720p');
     var video = h('video', { class: 'capa-video', id: 'capa-video', controls: true, preload: 'metadata', playsinline: true });
     video.crossOrigin = 'anonymous';   /* precisa vir ANTES do src */
     if (mp4) video.src = mp4;
@@ -750,8 +860,7 @@
      * uma miniatura — por isso é o embed do Bunny, grande, e não a capa. O
      * autoplay vem sempre falso do App.urlEmbed(): quem aperta o play é a
      * pessoa, nunca o código (mesma regra do player do site). */
-    var fonte = App.resolverFonte(it, cat.config);
-    var embed = fonte ? App.urlEmbed(fonte) : null;
+    var embed = App.urlEmbed(App.midiaDe(it));
     return h('div', { class: 'cartao-conta' },
       h('div', { class: 'embed-pendencia' }, embed
         ? h('iframe', { src: embed, allow: 'fullscreen', title: tr('telas.previaDe', { titulo: it.titulo || it.id }), loading: 'lazy' })

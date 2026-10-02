@@ -937,7 +937,7 @@
   function grupoDeTrechos(g, casadas) {
     var li = criar('li', 'trecho-grupo');
     var capa = criar('div', 'ep-capa');
-    var url = App.urlCapa(g.item, estado.config);
+    var url = App.urlCapa(g.item);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1101,7 +1101,7 @@
    * que abre na prateleira (15.2) ao abrir. As duas regras de cima valem
    * aqui dentro, e é por isso que ela é uma só. */
   function novaPrevia(capa, item) {
-    var url = App.urlPreview(item, estado.config);
+    var url = App.urlPreview(item);
     if (!url) return null;
 
     var img = null;
@@ -1156,7 +1156,7 @@
     marcarMesa(a, 'item:' + item.id);
 
     var capa = criar('div', 'card-capa');
-    var url = App.urlCapa(item, estado.config);
+    var url = App.urlCapa(item);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1190,7 +1190,7 @@
 
     if (porSentido) corpo.appendChild(criar('span', 'selo selo-sentido', tr('site.seloSentido')));
 
-    if (!App.resolverFonte(item, estado.config)) {
+    if (!App.midiaDe(item)) {
       corpo.appendChild(criar('span', 'selo selo-erro', frase('videoIndisponivel')));
     } else if (item.pendencia) {
       corpo.appendChild(criar('span', 'selo', App.rotuloPendencia(item.pendencia)));
@@ -1229,7 +1229,7 @@
      * `?width=` não redimensiona nada. Fica nítida em tela 1x, e custa zero
      * arquivo novo. */
     var molduraCapa = criar('div', 'destaque-capa');
-    var url = App.urlCapa(item, estado.config);
+    var url = App.urlCapa(item);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1433,7 +1433,7 @@
     var capaLink = criar('a', 'pop-capa');
     capaLink.href = href;
     capaLink.tabIndex = -1;
-    var url = App.urlCapa(item, estado.config);
+    var url = App.urlCapa(item);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1538,7 +1538,7 @@
     marcarMesa(a, 'item:' + item.id);
 
     var capa = criar('div', 'pcard-capa');
-    var url = App.urlCapa(item, estado.config);
+    var url = App.urlCapa(item);
     if (url) {
       var img = criar('img');
       img.alt = '';
@@ -1589,7 +1589,7 @@
     if (numero) partes.push(numero);
     if (partes.length) corpo.appendChild(criar('p', 'pcard-meta', partes.join(' · ')));
 
-    if (!App.resolverFonte(item, estado.config)) {
+    if (!App.midiaDe(item)) {
       corpo.appendChild(criar('span', 'selo selo-erro', frase('videoIndisponivel')));
     }
 
@@ -1787,7 +1787,7 @@
       : '#/ep/' + encodeURIComponent(s.itens[0].id);
 
     var capa = criar('div', 'pcard-capa');
-    var url = App.urlCapa(s.itens[0], estado.config);
+    var url = App.urlCapa(s.itens[0]);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1878,7 +1878,7 @@
     marcarMesa(linha, 'item:' + item.id);
 
     var capa = criar('div', 'ep-capa');
-    var url = App.urlCapa(item, estado.config);
+    var url = App.urlCapa(item);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -1905,7 +1905,7 @@
     if (atual) corpo.appendChild(criar('p', 'ep-aqui', tr('site.vocePareAqui')));
     var resumo = App.resumoSinopse(item);
     if (resumo) corpo.appendChild(criar('p', 'ep-sinopse', resumo));
-    if (!App.resolverFonte(item, estado.config)) {
+    if (!App.midiaDe(item)) {
       corpo.appendChild(criar('span', 'selo selo-erro', frase('videoIndisponivel')));
     }
     linha.appendChild(corpo);
@@ -2012,7 +2012,7 @@
      * tamanho declarado para reservar a caixa, e prioridade alta — é a maior
      * coisa da primeira tela, o LCP desta página. Nenhuma prévia. */
     var moldura = criar('div', 'destaque-capa');
-    var url = App.urlCapa(s.itens[0], estado.config);
+    var url = App.urlCapa(s.itens[0]);
     if (url) {
       var img = criar('img');
       img.src = url;
@@ -2346,29 +2346,31 @@
    *
    *   - na LINHA DO TEMPO. Com o embed, são os capítulos nativos do Bunny,
    *     gravados no vídeo por scripts/capitulos.mjs: o iframe é de outro
-   *     domínio (player.mediadelivery.net), a página não alcança o DOM dele e
+   *     domínio (o do provedor), a página não alcança o DOM dele e
    *     não desenha nada por cima. Com o player nosso, desde a fase 3, quem
    *     segmenta a barra e mostra o título sob o ponteiro é player.js.
    *   - na LISTA clicável abaixo do player, que é o que este trecho monta, e
    *     que funciona igual nos dois casos.
    *
    * Com o embed, a lista atravessa a fronteira do iframe pelo único caminho
-   * que existe: o Player.js do Bunny, que dá ao pai controle de reprodução por
+   * que existe: o Player.js do provedor (se o embed o declara), que dá ao pai controle de reprodução por
    * postMessage.
    *
    * REGRA DE PRODUTO: só chamamos `setCurrentTime`. NUNCA `play()`. Pular para
    * um capítulo posiciona o vídeo; quem decide tocar é quem aperta o play. */
-  var PLAYERJS_URL = 'https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js';
   var playerjsPromessa = null;
 
-  /* Carregado sob demanda, e só na ficha de quem tem capítulos: a tela inicial
-   * não paga por um script que ela não usa. */
-  function carregarPlayerjs() {
+  /* O endereço do script vem do SERVIDOR (`midia.embed.scriptUrl`, declarado
+   * pelo adaptador do provedor que tem esse controle): o navegador não sabe de
+   * qual host ele é. Carregado sob demanda, e só na ficha de quem tem
+   * capítulos: a tela inicial não paga por um script que ela não usa. */
+  function carregarPlayerjs(url) {
     if (playerjsPromessa) return playerjsPromessa;
     playerjsPromessa = new Promise(function (resolve, reject) {
       if (window.playerjs) { resolve(window.playerjs); return; }
+      if (!url) { reject(new Error(tr('site.erroCarregarPlayerJs'))); return; }
       var tag = document.createElement('script');
-      tag.src = PLAYERJS_URL;
+      tag.src = url;
       tag.async = true;
       tag.addEventListener('load', function () {
         if (window.playerjs) resolve(window.playerjs);
@@ -2394,7 +2396,7 @@
   function conversaComEmbed(iframe) {
     var guardada = conversasComEmbed && conversasComEmbed.get(iframe);
     if (guardada) return guardada;
-    var conversa = carregarPlayerjs().then(function (playerjs) {
+    var conversa = carregarPlayerjs(iframe.getAttribute('data-controle-url')).then(function (playerjs) {
       return new Promise(function (resolve, reject) {
         if (!iframe.isConnected) { reject(new Error(tr('site.fichaSaiu'))); return; }
         var p = new playerjs.Player(iframe);
@@ -2489,7 +2491,7 @@
       return secao;
     }
 
-    /* EMBED DO BUNNY. O iframe é de outro domínio; o Player.js é o único
+    /* EMBED DO PROVEDOR. O iframe é de outro domínio; o Player.js é o único
      * caminho que atravessa, e a conversa com ele é a mesma do momento do
      * endereço (`conversaComEmbed`). */
     conversaComEmbed(alvo).then(function (p) {
@@ -2648,7 +2650,7 @@
     /* ---- o vídeo ---- */
     var coluna = criar('div', 'ficha-video');
     var caixa = criar('div', 'player');
-    var fonte = App.resolverFonte(item, estado.config);
+    var midia = App.midiaDe(item);
 
     /* A quem a lista de capítulos vai falar: o player nosso ou o iframe. */
     var alvoCapitulos = null;
@@ -2666,7 +2668,7 @@
      *   - se `criar()` devolver null por QUALQUER motivo — ou se o `player.js`
      *     nem tiver carregado, e aí `AppPlayer` é `undefined` —, o bloco
      *     seguinte assume e ninguém fica sem vídeo. */
-    if (fonte && playerNovoLigado()) {
+    if (midia && playerNovoLigado()) {
       playerAtivo = AppPlayer.criar(item, estado.config, {
         anterior: viz.anterior, proximo: viz.proximo,
         /* O deslize ↓ da fase 7, em tela cheia deitada: o player pede para ser
@@ -2687,20 +2689,25 @@
       }
     }
 
-    if (fonte && !alvoCapitulos) {
+    if (midia && !alvoCapitulos && App.urlEmbed(midia)) {
       var iframe = document.createElement('iframe');
-      iframe.src = App.urlEmbed(fonte);
+      iframe.src = App.urlEmbed(midia);
       iframe.title = tr('site.tituloDoPlayer', { titulo: item.titulo || '' });
       iframe.loading = 'lazy';
       /* `autoplay` fica DE FORA da permission policy de propósito: é a segunda
        * tranca contra o vídeo tocar sozinho, caso o parâmetro do player falhe. */
       iframe.setAttribute('allow', 'fullscreen; picture-in-picture; encrypted-media');
       iframe.setAttribute('allowfullscreen', '');
+      /* Só o embed que declara controle por postMessage entrega o script; sem
+       * ele a lista de capítulos fica só como índice. */
+      if (midia.embed && midia.embed.controle === 'playerjs' && midia.embed.scriptUrl) {
+        iframe.setAttribute('data-controle-url', midia.embed.scriptUrl);
+      }
       caixa.appendChild(iframe);
       alvoCapitulos = iframe;
     }
 
-    if (!fonte) {
+    if (!midia) {
       caixa.appendChild(criar('div', 'player-ausente',
         tr('site.videoEmProcessamento')));
     }

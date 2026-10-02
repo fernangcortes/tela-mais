@@ -1,0 +1,17 @@
+{
+  "descricao": "A raiz da base responde (a raiz de um bucket costuma dar 403: ainda vale, o host existe).",
+  "rotas": [
+    {
+      "metodo": "HEAD",
+      "url": "^https://videos\\.exemplo\\.test/acervo/$",
+      "resposta": {
+        "status": 403,
+        "texto": ""
+      }
+    }
+  ],
+  "entrada": {},
+  "esperado": {
+    "ok": true
+  }
+}

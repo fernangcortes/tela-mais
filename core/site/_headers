@@ -1,8 +1,9 @@
 # Cabeçalhos de segurança dos arquivos estáticos (Static Assets).
-# A mesma política sai do Worker (core/worker/_lib/seguranca.js);
-# tests/worker-seguranca.test.js confere que as duas dizem o mesmo.
+# GERADO por scripts/gerar-headers.mjs a partir de core/worker/_lib/seguranca.js (política neutra,
+# sem host de provedor de vídeo: as páginas que carregam mídia passam pelo Worker).
+# tests/worker-seguranca.test.js confere que este arquivo é essa política.
 /*
-  content-security-policy: default-src 'self'; script-src 'self' 'sha256-pC8lL4UeLJne9z7wZYaoWQLHpQbyzO358yhEUQELSYQ=' https://assets.mediadelivery.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.b-cdn.net; media-src 'self' blob: https://*.b-cdn.net; connect-src 'self' https://*.b-cdn.net https://video.bunnycdn.com; frame-src https://player.mediadelivery.net https://iframe.mediadelivery.net; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+  content-security-policy: default-src 'self'; script-src 'self' 'sha256-pC8lL4UeLJne9z7wZYaoWQLHpQbyzO358yhEUQELSYQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; frame-src 'self'; font-src 'self' data:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
   x-content-type-options: nosniff
   x-frame-options: SAMEORIGIN
   referrer-policy: no-referrer

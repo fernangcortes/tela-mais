@@ -1,0 +1,19 @@
+{
+  "descricao": "DELETE /stream/{uid}.",
+  "rotas": [
+    {
+      "metodo": "DELETE",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a$",
+      "cabecalhos": {
+        "Authorization": "Bearer chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "texto": ""
+      }
+    }
+  ],
+  "esperado": {
+    "ok": true
+  }
+}

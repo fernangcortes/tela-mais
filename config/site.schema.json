@@ -943,7 +943,7 @@
           "additionalProperties": false
         },
         "cloudflareStream": {
-          "description": "Credenciais Cloudflare Stream.",
+          "description": "Cloudflare Stream: credenciais (sempre {\"$env\":...}) e opções.",
           "type": "object",
           "properties": {
             "accountId": {
@@ -954,16 +954,41 @@
             },
             "subdominioDeClientes": {
               "$ref": "#/$defs/segredo"
+            },
+            "chaveAssinaturaId": {
+              "$ref": "#/$defs/segredo"
+            },
+            "chaveAssinaturaJwk": {
+              "$ref": "#/$defs/segredo"
+            },
+            "segredoDoWebhook": {
+              "$ref": "#/$defs/segredo"
+            },
+            "exigirAssinatura": {
+              "description": "Vídeos novos nascem com requireSignedURLs (modo privado). Exige a chave de assinatura para tocar.",
+              "type": "boolean",
+              "default": false
             }
           },
           "additionalProperties": false
         },
         "hlsGenerico": {
-          "description": "HLS genérico.",
+          "description": "HLS genérico: o vídeo fica no servidor do cliente (qualquer m3u8 em https).",
           "type": "object",
           "properties": {
             "baseUrl": {
+              "description": "Endereço base dos vídeos (https, sem porta), ex.: https://videos.exemplo.com/acervo. O host dele é sempre liberado; o id do título é o caminho do .m3u8 sob esta base.",
               "$ref": "#/$defs/url"
+            },
+            "hostsPermitidos": {
+              "description": "Outros hosts de onde o site pode tocar vídeo, capa e legenda cadastrados por título (ex.: [\"cdn.exemplo.com\", \"*.exemplo.net\"]). Só entram na política de segurança os hosts listados aqui e o da baseUrl: endereço de outro host, colado num título, é recusado.",
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^(\\*\\.)?[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\\.[A-Za-z]{2,}$"
+              }
             }
           },
           "additionalProperties": false

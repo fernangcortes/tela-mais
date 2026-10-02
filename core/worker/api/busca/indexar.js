@@ -56,7 +56,7 @@ export async function onRequestPost({ request, env, data }) {
   } catch (e) {
     return erro(400, 'corpo-invalido');
   }
-  const pedido = AppIndice.validarPedido(corpo);
+  const pedido = AppIndice.validarPedido(corpo, data.provedor.padraoId);
   if (pedido.erro) return erro(400, 'pedido-de-indexacao-invalido', { detalhe: pedido.erro });
 
   /* OS VETORES (fase 4): até 10 textos por chamada viram vetor no `bge-m3` e

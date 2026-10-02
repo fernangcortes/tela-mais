@@ -43,6 +43,7 @@ import { argumentos, erroFatal } from './lib/catalogo.mjs';
 import { baixarTextoDaLegenda } from './lib/legenda.mjs';
 import AppIndice from '../core/site/indice-core.js';
 import App from '../core/site/catalogo-core.js';
+import { idDoVideo, provedorDoAmbiente, urlDaLegenda } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const site = (typeof op.site === 'string' ? op.site : process.env.APP_SITE_URL || '').replace(/\/+$/, '');
@@ -85,7 +86,7 @@ function quantil(notas, fracao) {
 }
 
 async function provar(api, itens) {
-  const noAr = itens.filter((i) => i.publicar === true && i.fonte && i.fonte.videoId);
+  const noAr = itens.filter((i) => i.publicar === true && idDoVideo(i));
   let perguntas = 0, top5 = 0, top1 = 0;
   const notasCertas = [], primeiras = [], semAcerto = [];
   for (const item of noAr) {
@@ -98,7 +99,7 @@ async function provar(api, itens) {
       perguntas++;
       /* O trecho certo: um bloco do MESMO vídeo cuja janela de 30 s cruza o
        * capítulo. */
-      const pos = brutos.findIndex((b) => b[0] === item.fonte.videoId && b[2] < fim && b[2] + 30 > ini);
+      const pos = brutos.findIndex((b) => b[0] === idDoVideo(item) && b[2] < fim && b[2] + 30 > ini);
       if (pos >= 0) { top5++; notasCertas.push(brutos[pos][3]); if (pos === 0) top1++; }
       else semAcerto.push(`${item.titulo.slice(0, 40)} · ${caps[i].titulo}`);
       if (brutos[0]) primeiras.push(brutos[0][3]);
@@ -134,7 +135,7 @@ async function provar(api, itens) {
 function titulosPorVideo(itens, escolhidos) {
   const porVideo = new Map();
   for (const item of itens) {
-    const v = item.fonte && item.fonte.videoId;
+    const v = idDoVideo(item);
     if (!v) continue;
     if (escolhidos && !escolhidos.has(item.id)) continue;
     const ja = porVideo.get(v);
@@ -149,8 +150,8 @@ try {
 
   const api = cliente(await entrar());
   const catalogo = await api('/api/catalogo?completo=1');
-  const pullzone = catalogo.config && catalogo.config.pullzone;
-  if (!pullzone) throw new Error('o catálogo não trouxe a pull zone (config.pullzone)');
+  /* As URLs de legenda saem do ADAPTADOR do provedor (video.provedor + variáveis do .env). */
+  const { provedor } = await provedorDoAmbiente();
 
   const escolhidos = typeof op.item === 'string' ? new Set(op.item.split(',').map((s) => s.trim())) : null;
   const titulos = titulosPorVideo(catalogo.itens || [], escolhidos);
@@ -165,9 +166,9 @@ try {
     let texto = '';
     let com = 0;
     for (const item of titulos) {
-      const legenda = await baixarTextoDaLegenda(pullzone, item.fonte.videoId, site + '/');
+      const legenda = await baixarTextoDaLegenda(await urlDaLegenda(provedor, item), site + '/');
       if (!legenda) continue;
-      texto = AppIndice.trocarLinha(texto, item.fonte.videoId, AppIndice.blocosDaLegenda(legenda));
+      texto = AppIndice.trocarLinha(texto, idDoVideo(item), AppIndice.blocosDaLegenda(legenda));
       com++;
     }
     await writeFile(path.resolve(op.salvar), texto + '\n', 'utf8');
@@ -193,9 +194,9 @@ try {
   const falhas = [];
 
   for (const item of titulos) {
-    const videoId = item.fonte.videoId;
+    const videoId = idDoVideo(item);
     const antes = (manifesto.videos || {})[videoId] || {};
-    const legenda = await baixarTextoDaLegenda(pullzone, videoId, site + '/');
+    const legenda = await baixarTextoDaLegenda(await urlDaLegenda(provedor, item), site + '/');
     const conj = Object.assign({ fala: legenda ? AppIndice.blocosDaLegenda(legenda) : [] }, AppIndice.conjuntosDoItem(item));
     if (!legenda) semLegenda++;
 

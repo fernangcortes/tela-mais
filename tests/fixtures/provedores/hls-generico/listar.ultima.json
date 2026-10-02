@@ -1,0 +1,12 @@
+{
+  "descricao": "Idem (não há páginas).",
+  "rotas": [],
+  "entrada": {
+    "cursor": "2",
+    "limite": 10
+  },
+  "esperado": {
+    "n": 0,
+    "proximo": null
+  }
+}

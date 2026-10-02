@@ -8,7 +8,9 @@
 // SEGREDOS NUNCA AQUI. Eles vão por `wrangler secret put` (ou .dev.vars local):
 //   ADMIN_PASSWORD   senha do superadmin
 //   SESSION_SECRET   chave que assina as sessões (>= 32 caracteres, DIFERENTE da senha)
-//   BUNNY_LIBRARY_ID, BUNNY_API_KEY, BUNNY_PULLZONE (host da pull zone) e afins
+//   as credenciais do provedor de vídeo escolhido em config/site.json (video.provedor),
+//   por ex. BUNNY_LIBRARY_ID, BUNNY_API_KEY, BUNNY_PULLZONE (host da pull zone) e afins;
+//   cada adaptador (core/worker/_lib/provedores/) declara os nomes que lê
 // Variáveis não secretas opcionais (`vars`): APP_SITE_URL, SENHA_ITERACOES.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -20,9 +22,12 @@
     "directory": "core/site",
     "binding": "ASSETS",
     // O Worker roda ANTES dos estáticos só nestes caminhos: a API (negado por
-    // padrão) e a home (injeção de preload/og:url, que depende do modo de
-    // acesso). Todo o resto é Static Assets puro.
-    "run_worker_first": ["/api/*", "/"],
+    // padrão), a home (injeção de preload/og:url, que depende do modo de
+    // acesso) e as páginas que carregam mídia (`/index.html`, `/admin`,
+    // `/admin.html`): a política de segurança delas (CSP) leva os hosts do
+    // provedor de vídeo escolhido em `video.provedor`, e só o Worker os conhece.
+    // Todo o resto é Static Assets puro.
+    "run_worker_first": ["/api/*", "/", "/index.html", "/admin", "/admin.html"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },
