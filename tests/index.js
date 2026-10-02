@@ -12,3 +12,8 @@ import('./provedores-worker.test.js');
 import('./provedores-bunny.test.js');
 import('./provedores-cloudflare-stream.test.js');
 import('./provedores-scripts.test.js');
+import('./contas-d1.test.js');
+import('./contas-acesso.test.js');
+import('./contas-midia-assinada.test.js');
+import('./contas-site.test.js');
+import('./contas-paginas.test.js');

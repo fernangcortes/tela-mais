@@ -18,7 +18,7 @@
  * Rota inteira exige admin: o middleware barra antes de chegar aqui.
  */
 import { json, erro, pode, semPermissao } from '../_lib/sessao.js';
-import { respostaDeErro, montarMidia } from '../_lib/provedores/index.js';
+import { respostaDeErro, montarMidia, opcoesDeAssinatura } from '../_lib/provedores/index.js';
 import AppI18n from '../../site/i18n.js';
 import { onRequestPut as publicarCatalogo } from './catalogo.js';
 import App from '../../site/catalogo-core.js';
@@ -59,7 +59,7 @@ export async function onRequestGet({ request, data }) {
   /* A `midia` do vídeo, para a mesa ligar o título novo ao player e ao seletor
    * de capa sem montar URL. Falha aqui não derruba a consulta de status. */
   let midia = null;
-  try { midia = await montarMidia(provedor, { fonte: { provedor: provedor.id, id: videoId } }); } catch (e) { /* o status vale sozinho */ }
+  try { midia = await montarMidia(provedor, { fonte: { provedor: provedor.id, id: videoId } }, opcoesDeAssinatura(data)); } catch (e) { /* o status vale sozinho */ }
 
   return json(200, {
     videoId,

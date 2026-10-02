@@ -56,14 +56,15 @@ test('o id do Bunny: guid (8 a 64, letras, números e hífen); nada que mude o c
   for (const ruim of ['', 'curto', 'a/b-12345678', 'a b c d e f g h', ID + '?x=1', '../' + ID]) assert.ok(!provedor.padraoId.test(ruim), ruim);
 });
 
-test('assinatura de URL (modo privado) é só capacidade/stub no M4: assinar é recusado, e a chave de token não vira URL', async () => {
-  const { provedor, chamadas } = await bunny({ BUNNY_TOKEN_KEY: 'chave-de-token-123' });
-  assert.equal(provedor.capacidades().assinatura, false);
+test('sem BUNNY_TOKEN_KEY (ou sem pull zone) o Bunny não assina: assinar é recusado, nunca devolve URL aberta (a assinatura de verdade está em provedores-assinatura.test.js)', async () => {
   const { ErroProvedor } = await registro();
-  await assert.rejects(() => provedor.urlReproducao(ID, { assinar: true, validadeSeg: 7200 }), (e) => e instanceof ErroProvedor && e.codigo === 'assinatura-indisponivel' && e.status === 501);
-  const aberta = await provedor.urlReproducao(ID, { assinar: false });
-  assert.ok(!JSON.stringify(aberta).includes('chave-de-token-123'));
-  assert.equal(chamadas.length, 0);
+  for (const env of [{}, { BUNNY_TOKEN_KEY: 'chave-de-token-123', BUNNY_PULLZONE: '' }]) {
+    const { provedor, chamadas } = await bunny(env);
+    assert.equal(provedor.capacidades().assinatura, false);
+    await assert.rejects(() => provedor.urlReproducao(ID, { assinar: true, validadeSeg: 7200 }), (e) => e instanceof ErroProvedor && e.codigo === 'assinatura-indisponivel' && e.status === 501);
+    assert.ok(!JSON.stringify(await provedor.urlReproducao(ID, { assinar: false })).includes('chave-de-token-123'));
+    assert.equal(chamadas.length, 0);
+  }
 });
 
 test('o embed do Bunny leva os quatro parâmetros que desligam autoplay, loop, preload e rememberPosition — o padrão do player é autoplay=true', async () => {

@@ -77,6 +77,7 @@
       I18n.aplicarNoDocumento(document);
       ligarSeletorIdioma(r);
       if (estado.carregado) pintarRodape();
+      pintarLinkDaConta();
       return r;
     });
   }
@@ -553,7 +554,28 @@
     no.textContent = novo;
   }
 
-  function carregar() {
+  function irParaEntrar() {
+    try {
+      location.replace('entrar.html?voltar=' + encodeURIComponent(location.pathname + location.search + location.hash));
+      return true;
+    } catch (e) { /* sem navegação: a mensagem de erro de baixo cobre */ }
+    return false;
+  }
+
+  /* "Minha conta" só existe onde há contas (modos `cadastro` e `privado`). */
+  function pintarLinkDaConta() {
+    var modo = CONFIG_PUBLICA && CONFIG_PUBLICA.acesso && CONFIG_PUBLICA.acesso.modo;
+    var a = document.getElementById('rodape-conta');
+    var ponto = document.getElementById('rodape-conta-ponto');
+    if (!a || mesa.ligada) return;
+    var ligado = modo === 'cadastro' || modo === 'privado';
+    a.hidden = !ligado;
+    if (ponto) ponto.hidden = !ligado;
+  }
+
+  /* `espera`: promessa do idioma/config pública. O modo de acesso vem de CONFIG_PUBLICA, que só
+   * é preenchida quando ela resolve; sem esperar, `modo` ficaria indefinido e o pré-check seria pulado. */
+  function carregar(espera) {
     /* Na mesa o catálogo vem dela, com o rascunho por cima — e com os títulos
      * fora do ar, que a API pública não devolve. A página avisa que está
      * pronta, e a mesa responde com o catálogo. */
@@ -563,8 +585,29 @@
         avisarMesa({ tipo: 'pronto' });
       });
     }
-    return fetch('/api/catalogo', { headers: { Accept: 'application/json' } })
+    /* Nos modos restritos, pedir o catálogo sem sessão volta 401 e o navegador o registra
+     * como erro no console de toda visita anônima. Antes se pergunta quem a pessoa é
+     * (/api/auth/estado, rota aberta): sem sessão, vai direto para a entrada. */
+    return Promise.resolve(espera).catch(function () { /* sem config pública: segue com o padrão */ }).then(function () {
+    var modo = CONFIG_PUBLICA && CONFIG_PUBLICA.acesso && CONFIG_PUBLICA.acesso.modo;
+    var antes = modo === 'cadastro' || modo === 'privado'
+      ? fetch('/api/auth/estado', { headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; })
+        .then(function (e) {
+          if (e && e.sessao && e.sessao.papel === 'anonimo') {
+            if (irParaEntrar()) return new Promise(function () { /* a página está saindo: não pede o catálogo */ });
+          }
+        })
+      : Promise.resolve();
+    return antes.then(function () {
+      return fetch('/api/catalogo', { headers: { Accept: 'application/json' } });
+    });
+    })
       .then(function (r) {
+        /* Nos modos `cadastro` e `privado` o catálogo exige sessão: sem ela, a pessoa vai
+         * para a página de entrada e volta para cá depois de entrar. */
+        if (r.status === 401) irParaEntrar();
         if (!r.ok) throw new Error(tr('site.erroResposta', { status: r.status }));
         return r.json();
       })
@@ -3055,7 +3098,7 @@
     var comecaNaFicha = !!App.rotaDaFicha(hash || '');
     if (comecaNaFicha) carregarPlayer();
 
-    Promise.all([idiomaPronto, carregar()]).then(function () {
+    Promise.all([idiomaPronto, carregar(idiomaPronto)]).then(function () {
       rotear();
       abrirChegada();
       if (!comecaNaFicha) depoisDaCapaPrincipal(carregarPlayer);

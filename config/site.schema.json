@@ -820,7 +820,7 @@
             "validadeDaAssinaturaSeg": {
               "description": "Validade da assinatura, em segundos.",
               "type": "integer",
-              "default": 14400,
+              "default": 3600,
               "minimum": 60,
               "maximum": 86400
             }
@@ -844,6 +844,13 @@
               "default": 8,
               "minimum": 1,
               "maximum": 168
+            },
+            "maximoSimultaneas": {
+              "description": "Sessões abertas ao mesmo tempo por espectador; ao passar do teto, a mais antiga cai.",
+              "type": "integer",
+              "default": 5,
+              "minimum": 1,
+              "maximum": 50
             },
             "cookie": {
               "description": "Cookie.",
@@ -938,6 +945,9 @@
             },
             "chaveDeToken": {
               "$ref": "#/$defs/segredo"
+            },
+            "chaveDoEmbed": {
+              "$ref": "#/$defs/segredo"
             }
           },
           "additionalProperties": false
@@ -959,6 +969,9 @@
               "$ref": "#/$defs/segredo"
             },
             "chaveAssinaturaJwk": {
+              "$ref": "#/$defs/segredo"
+            },
+            "chaveAssinaturaPem": {
               "$ref": "#/$defs/segredo"
             },
             "segredoDoWebhook": {

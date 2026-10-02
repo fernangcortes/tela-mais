@@ -16,6 +16,18 @@ import * as uploadToken from './api/upload-token.js';
 import * as fala from './api/busca/fala.js';
 import * as sentido from './api/busca/sentido.js';
 import * as indexar from './api/busca/indexar.js';
+import * as authEstado from './api/auth/estado.js';
+import * as authEntrar from './api/auth/entrar.js';
+import * as authCadastro from './api/auth/cadastro.js';
+import * as authLink from './api/auth/link.js';
+import * as authConvite from './api/auth/convite.js';
+import * as authSair from './api/auth/sair.js';
+import * as contaEu from './api/conta/eu.js';
+import * as contaExportar from './api/conta/exportar.js';
+import * as contaExcluir from './api/conta/excluir.js';
+import * as legal from './api/legal.js';
+import * as convites from './api/convites.js';
+import * as espectadores from './api/espectadores.js';
 
 const MODULOS = {
   '/api/login': login,
@@ -28,7 +40,19 @@ const MODULOS = {
   '/api/upload-token': uploadToken,
   '/api/busca/fala': fala,
   '/api/busca/sentido': sentido,
-  '/api/busca/indexar': indexar
+  '/api/busca/indexar': indexar,
+  '/api/auth/estado': authEstado,
+  '/api/auth/entrar': authEntrar,
+  '/api/auth/cadastro': authCadastro,
+  '/api/auth/link': authLink,
+  '/api/auth/convite': authConvite,
+  '/api/auth/sair': authSair,
+  '/api/conta/eu': contaEu,
+  '/api/conta/exportar': contaExportar,
+  '/api/conta/excluir': contaExcluir,
+  '/api/legal': legal,
+  '/api/convites': convites,
+  '/api/espectadores': espectadores
 };
 
 /* Método HTTP -> função exportada. HEAD cai no GET do handler. */

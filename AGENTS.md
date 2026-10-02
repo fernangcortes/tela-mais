@@ -71,6 +71,17 @@ de `capacidades()`). HLS genérico: a CSP libera só o host de `video.hlsGeneric
 nunca os endereços colados nos títulos. A CSP sai dos `hostsMidia()` do adaptador; `core/site/_headers` é gerado por
 `node scripts/gerar-headers.mjs` (política neutra).
 
+## Contas e acesso
+
+Guia para o cliente: `docs/modos-de-acesso.md` (leigo) e `docs/acesso.md` (técnico). Mídia assinada: `opcoesDeAssinatura(data)` (`_lib/provedores/index.js`) decide `assinar` só com modo ≠ publico, `assinarMidia` e sessão válida; catálogo e `/api/midia` a usam, provedor sem chave devolve 501 (nunca URL aberta); teste: `tests/contas-midia-assinada.test.js`. Modos `publico | cadastro | privado` (padrão: o mais fechado). Pessoas moram no **D1**
+(binding `DB`, migrações em `core/migrations/` com cópia em `indice.mjs`; criação preguiçosa no 1º acesso), nunca no KV.
+Espectador: cookie opaco `__Host-sessao` (só o SHA-256 no banco), convite com link copiável, link mágico de uso único (15 min,
+gasto por POST), cadastro com Turnstile obrigatório (falha fechada), limite de tentativas (`_lib/limite.js`), consentimento
+versionado, Minha conta (exportar/excluir) e cron de retenção. Equipe: token Bearer como antes, contas no D1 (importadas do
+KV). O superadmin é a variável `ADMIN_PASSWORD`. Quem é a pessoa: `sessaoDaRequisicao` (`_lib/sessoes.js`), já em
+`data.sessao` no handler. Toda consulta do caminho quente usa índice (`tests/contas-d1.test.js`, `EXPLAIN QUERY PLAN`):
+não adicione consulta por requisição sem índice. Nada de segredo, IP ou e-mail em claro em chave de limite ou log.
+
 ## Tema, cores e fontes
 
 Cor **não se escreve** em `core/site/*.css` nem em JS: use `var(--token)`. Só `theme.css` (gerado) e `tokens-fixos.css`

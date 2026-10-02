@@ -19,8 +19,24 @@
  *   - embed com os quatro parâmetros que desligam autoplay/loop/preload/
  *     rememberPosition (o padrão do Bunny é autoplay=true: ARMADILHA CENTRAL).
  *
- * Assinatura de URL (modo privado, Token Authentication) é do M5: aqui é só a
- * capacidade (`assinatura: false`) e o stub que recusa `assinar: true`.
+ * ASSINATURA (modo privado, M5). Token Authentication da pull zone, por DIRETÓRIO: um token só
+ * cobre /<videoId>/ inteiro (playlist.m3u8, segmentos, play_*.mp4, capa, preview.webp, captions).
+ *   token = "HS256-" + base64url( HMAC_SHA256( chaveDeToken, token_path + expires + signingData ) )
+ *   signingData = "token_ignore_params=true&token_path=/<id>/" (parâmetros em ordem alfabética, valor cru)
+ *   (base64 com + -> -, / -> _, sem "="; token_path = "/<id>/"; expires = UNIX em SEGUNDOS)
+ * Para o HLS funcionar, o token vai como PREFIXO DO CAMINHO (os segmentos relativos herdam o prefixo;
+ * com ?token= na query eles perderiam o token):
+ *   https://<zona>/bcdn_token=HS256-<t>&token_ignore_params=true&token_path=%2F<id>%2F&expires=<n>/<id>/playlist.m3u8
+ * token_ignore_params=true deixa a query fora da validação (a capa usa ?v=<versão> para furar cache).
+ * Formato da implementação de referência do próprio Bunny (github.com/BunnyWay/BunnyCDN.TokenAuthentication,
+ * nodejs/token.js, signUrl com isDirectory=true, pathAllowed=/<id>/, ignoreParams=true), conferido em 02/10/2026;
+ * a documentação em docs.bunny.net não abre deste ambiente. A PROVA é scripts/provar-assinatura.mjs contra a conta real.
+ * Capacidade `assinatura` = existe BUNNY_TOKEN_KEY (a "Security key" da pull zone, com Token Authentication ligado
+ * e, de preferência, "Directory token" permitido). Capas, prévia e legendas moram na MESMA zona e usam o MESMO
+ * token. Alternativa mais barata: capas numa zona separada e pública (sem token), o que deixa o catálogo cacheável.
+ * EMBED. O player do Bunny tem chave PRÓPRIA (Library > Security > Embed View Token Authentication):
+ *   token = SHA256_hex( chaveDoEmbed + videoId + expires ), URL .../embed/<lib>/<id>?token=<hex>&expires=<n>.
+ * Sem BUNNY_EMBED_KEY o embed é DESLIGADO (null) no modo assinado: o embed sem token ficaria aberto a quem soubesse o guid.
  */
 import {
   ErroProvedor, mensagemDe, hostsLimpos, hostSimples, base64Utf8, rotuloDoIdioma, detalheDe, mascarar, PADRAO_IDIOMA
@@ -32,7 +48,8 @@ export const CREDENCIAIS = Object.freeze({
   bibliotecaId: { env: 'BUNNY_LIBRARY_ID', obrigatoria: true, segredo: true },
   chaveApi: { env: 'BUNNY_API_KEY', obrigatoria: true, segredo: true },
   hostDaPullZone: { env: 'BUNNY_PULLZONE', obrigatoria: false, segredo: true },
-  chaveDeToken: { env: 'BUNNY_TOKEN_KEY', obrigatoria: false, segredo: true }   /* Token Authentication: M5 */
+  chaveDeToken: { env: 'BUNNY_TOKEN_KEY', obrigatoria: false, segredo: true },  /* Token Authentication da pull zone (M5) */
+  chaveDoEmbed: { env: 'BUNNY_EMBED_KEY', obrigatoria: false, segredo: true }     /* Embed View Token Authentication da library (M5) */
 });
 
 const HOST_API = 'https://video.bunnycdn.com';
@@ -74,6 +91,9 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
   const apiKey = String(credenciais.chaveApi || '');
   const host = hostSimples(credenciais.hostDaPullZone || '');
   const configurado = Boolean(libraryId && apiKey);
+  const chaveToken = String(credenciais.chaveDeToken || '');
+  const chaveEmbed = String(credenciais.chaveDoEmbed || '');
+  const podeAssinar = Boolean(chaveToken && host);
   const base = HOST_API + '/library/' + encodeURIComponent(libraryId);
   const pedacoBytes = ((config && config.envio && config.envio.tamanhoDoPedacoMb) || 50) * 1024 * 1024;
 
@@ -112,6 +132,45 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
     const dados = new TextEncoder().encode(libraryId + apiKey + expira + id);
     const resumo = await crypto.subtle.digest('SHA-256', dados);
     return [...new Uint8Array(resumo)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  const b64url = (buf) => {
+    let t = '';
+    for (const b of new Uint8Array(buf)) t += String.fromCharCode(b);
+    return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  const sha256 = (texto) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  async function hmacSha256(chave, texto) {
+    const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(chave), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return crypto.subtle.sign('HMAC', k, new TextEncoder().encode(texto));
+  }
+
+  function expiraDe(validadeSeg) {
+    return Math.floor(agora() / 1000) + (Number(validadeSeg) > 0 ? Math.floor(Number(validadeSeg)) : VALIDADE_PADRAO_S);
+  }
+
+  /* Token de DIRETÓRIO de /<id>/. Devolve o segmento de caminho que vai antes do id e o `expires`. */
+  async function prefixoAssinado(id, validadeSeg) {
+    if (!chaveToken || !host) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+    const expires = expiraDe(validadeSeg);
+    const tokenPath = '/' + id + '/';
+    const assinatura = 'token_ignore_params=true&token_path=' + tokenPath;
+    const token = 'HS256-' + b64url(await hmacSha256(chaveToken, tokenPath + expires + assinatura));
+    return {
+      prefixo: 'bcdn_token=' + token + '&token_ignore_params=true&token_path=' + encodeURIComponent(tokenPath) + '&expires=' + expires + '/',
+      expires
+    };
+  }
+
+  /* O token do player embutido (chave própria da library). */
+  async function embedAssinado(biblioteca, id, expires) {
+    if (!chaveEmbed) return null;
+    const hex = [...new Uint8Array(await sha256(chaveEmbed + id + expires))].map(b => b.toString(16).padStart(2, '0')).join('');
+    return {
+      url: HOST_PLAYER + '/embed/' + encodeURIComponent(biblioteca) + '/' + id + '?token=' + hex + '&expires=' + expires + '&' + PARAMETROS_DO_EMBED,
+      scriptUrl: URL_PLAYERJS,
+      controle: 'playerjs'
+    };
   }
 
   async function planoDe(id, validadeSeg) {
@@ -166,20 +225,20 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
     };
   }
 
-  function urlDaCapa(id, { arquivo, versao } = {}) {
+  function urlDaCapa(id, { arquivo, versao, prefixo = '' } = {}) {
     if (!host || typeof id !== 'string' || !PADRAO_ID.test(id)) return null;
     const nome = typeof arquivo === 'string' && PADRAO_ARQUIVO_CAPA.test(arquivo) ? arquivo : 'thumbnail.jpg';
-    const url = 'https://' + host + '/' + id + '/' + nome;
+    const url = 'https://' + host + '/' + prefixo + id + '/' + nome;
     return versao != null && versao !== '' ? url + '?v=' + encodeURIComponent(versao) : url;
   }
 
-  function reproducaoSemAssinatura(id, extras) {
+  function reproducaoSemAssinatura(id, extras, prefixo = '') {
     const saida = { hls: null, mp4: null, embed: null, expiraEm: null };
     if (typeof id !== 'string' || !PADRAO_ID.test(id)) return saida;
     if (host) {
-      saida.hls = 'https://' + host + '/' + id + '/playlist.m3u8';
-      const prefixo = 'https://' + host + '/' + id + '/play_';
-      saida.mp4 = { '240p': prefixo + '240p.mp4', '360p': prefixo + '360p.mp4', '720p': prefixo + '720p.mp4' };
+      saida.hls = 'https://' + host + '/' + prefixo + id + '/playlist.m3u8';
+      const mp4Base = 'https://' + host + '/' + prefixo + id + '/play_';
+      saida.mp4 = { '240p': mp4Base + '240p.mp4', '360p': mp4Base + '360p.mp4', '720p': mp4Base + '720p.mp4' };
     }
     /* O libraryId do item manda; o do ambiente é a rede de segurança para itens
      * gravados antes de a library existir. */
@@ -197,11 +256,11 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
     return saida;
   }
 
-  function legendasPorIdioma(id, idiomas) {
+  function legendasPorIdioma(id, idiomas, prefixo = '') {
     if (!host || typeof id !== 'string' || !PADRAO_ID.test(id)) return [];
     return idiomas.filter(i => typeof i === 'string' && PADRAO_IDIOMA.test(i)).map(idioma => ({
       idioma, rotulo: rotuloDoIdioma(idioma),
-      url: 'https://' + host + '/' + id + '/captions/' + idioma + '.vtt', origem: 'desconhecida'
+      url: 'https://' + host + '/' + prefixo + id + '/captions/' + idioma + '.vtt', origem: 'desconhecida'
     }));
   }
 
@@ -214,7 +273,7 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       return {
         uploadProtocolo: 'tus',
         envio: true,
-        assinatura: false,            /* Token Authentication: M5 */
+        assinatura: podeAssinar,      /* Token Authentication por diretório: precisa de BUNNY_TOKEN_KEY e da pull zone */
         drm: 'nenhum',                /* MediaCage existe no Bunny, mas não é ligado por aqui */
         embed: true,
         mp4: true,
@@ -289,9 +348,17 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       return estadoDe(await lerJson(r, 'provedor-recusou-consulta'));
     },
 
-    async urlReproducao(id, { assinar = false, extras } = {}) {
-      if (assinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
-      return reproducaoSemAssinatura(id, extras);
+    /* Com `assinar`: HLS e MP4 com token de diretório; `expiraEm` = o `expires` do token; embed só com BUNNY_EMBED_KEY. */
+    async urlReproducao(id, { assinar = false, validadeSeg, extras } = {}) {
+      if (!assinar) return reproducaoSemAssinatura(id, extras);
+      if (!podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+      if (typeof id !== 'string' || !PADRAO_ID.test(id)) return { hls: null, mp4: null, embed: null, expiraEm: null };
+      const { prefixo, expires } = await prefixoAssinado(id, validadeSeg);
+      const rep = reproducaoSemAssinatura(id, extras, prefixo);
+      const biblioteca = String((extras && extras.libraryId) || libraryId || '');
+      rep.embed = biblioteca ? await embedAssinado(biblioteca, id, expires) : null;
+      rep.expiraEm = expires;
+      return rep;
     },
 
     /* Atalho do catálogo (CPU do plano gratuito): a mesma `Midia` que `montarMidia` compõe
@@ -311,8 +378,13 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       };
     },
 
+    /* Extensão ao contrato (como no Stream): `assinar` põe o token de diretório na capa. */
     async urlCapa(id, opcoes) {
-      return urlDaCapa(id, opcoes || {});
+      const { assinar = false, validadeSeg, ...resto } = opcoes || {};
+      if (!assinar) return urlDaCapa(id, resto);
+      if (!podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+      if (typeof id !== 'string' || !PADRAO_ID.test(id)) return null;
+      return urlDaCapa(id, Object.assign({}, resto, { prefixo: (await prefixoAssinado(id, validadeSeg)).prefixo }));
     },
 
     async definirCapa(id, bytes, mime) {
@@ -336,21 +408,31 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       return { arquivo, versao, urlCapa: urlDaCapa(id, { arquivo, versao }) };
     },
 
-    async urlPreview(id) {
+    async urlPreview(id, { assinar = false, validadeSeg } = {}) {
       if (!host || typeof id !== 'string' || !PADRAO_ID.test(id)) return { animada: null, clipeHls: null, sprite: null };
+      if (assinar) {
+        if (!podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+        const { prefixo } = await prefixoAssinado(id, validadeSeg);
+        return { animada: 'https://' + host + '/' + prefixo + id + '/preview.webp', clipeHls: null, sprite: null };
+      }
       /* ARMADILHA medida: o preview.webp tem de 454 KB a 3,1 MB (mediana 1,13 MB).
        * Quem usa a URL só a pede no mouseenter e a solta no mouseleave. */
       return { animada: 'https://' + host + '/' + id + '/preview.webp', clipeHls: null, sprite: null };
     },
 
-    async legendas(id, { idiomas } = {}) {
+    async legendas(id, { idiomas, assinar = false, validadeSeg } = {}) {
       validarId(id);
-      if (Array.isArray(idiomas)) return legendasPorIdioma(id, idiomas);
+      let prefixo = '';
+      if (assinar) {
+        if (!podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+        prefixo = (await prefixoAssinado(id, validadeSeg)).prefixo;
+      }
+      if (Array.isArray(idiomas)) return legendasPorIdioma(id, idiomas, prefixo);
       const r = await exigir(await chamar('/videos/' + id), 'provedor-recusou-consulta');
       const v = await lerJson(r, 'provedor-recusou-consulta');
       return (v.captions || []).filter(c => c && PADRAO_IDIOMA.test(String(c.srclang))).map(c => ({
         idioma: String(c.srclang), rotulo: c.label ? String(c.label) : rotuloDoIdioma(String(c.srclang)),
-        url: host ? 'https://' + host + '/' + id + '/captions/' + c.srclang + '.vtt' : '', origem: 'desconhecida'
+        url: host ? 'https://' + host + '/' + prefixo + id + '/captions/' + c.srclang + '.vtt' : '', origem: 'desconhecida'
       }));
     },
 

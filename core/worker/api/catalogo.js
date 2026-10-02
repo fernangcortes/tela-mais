@@ -9,7 +9,7 @@ import { json, erro } from '../_lib/sessao.js';
 import AppI18n from '../../site/i18n.js';
 import { registrarPublicacao } from './historico.js';
 import App from '../../site/catalogo-core.js';
-import { comMidia, montarMidia, idiomasDeLegendaPadrao } from '../_lib/provedores/index.js';
+import { comMidia, montarMidia, idiomasDeLegendaPadrao, opcoesDeAssinatura, respostaDeErro } from '../_lib/provedores/index.js';
 
 const CHAVE = 'catalogo';
 
@@ -68,8 +68,8 @@ function paraPublico(item) {
 /* A `midia` de cada item, calculada pelo adaptador do provedor a cada resposta
  * (nunca gravada). `assinar` é do M5: no modo privado a URL passa a sair
  * assinada e com validade curta (`urlReproducao({ assinar, validadeSeg })`). */
-async function comMidias(provedor, itens, config) {
-  const opcoes = { idiomasDeLegenda: idiomasDeLegendaPadrao(config) };
+async function comMidias(provedor, itens, config, data) {
+  const opcoes = opcoesDeAssinatura(data, { idiomasDeLegenda: idiomasDeLegendaPadrao(config) });
   return Promise.all(itens.map(i => comMidia(provedor, i, opcoes)));
 }
 
@@ -176,23 +176,39 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
   const completo = new URL(request.url).searchParams.get('completo') === '1';
   if (completo) {
     if (!data.admin) return erro(401, 'nao-autorizado');
-    return json(200, Object.assign({}, guardado, {
-      itens: await comMidias(data.provedor, guardado.itens || [], config), ajustes: ajustes(guardado)
-    }));
+    try {
+      return json(200, Object.assign({}, guardado, {
+        itens: await comMidias(data.provedor, guardado.itens || [], config, data), ajustes: ajustes(guardado)
+      }));
+    } catch (e) {
+      return respostaDeErro(erro, e);
+    }
   }
 
   const publicados = (guardado.itens || []).filter(i => i && i.publicar === true);
   const sitePublico = site(guardado);
 
   /* A capa do destaque sai do MESMO `midia.capa` que a chegada vai ler. */
-  const opcoesMidia = { idiomasDeLegenda: idiomasDeLegendaPadrao(config) };
+  const opcoesMidia = opcoesDeAssinatura(data, { idiomasDeLegenda: idiomasDeLegendaPadrao(config) });
   /* A `midia` sai do item INTEIRO (extras, nome de capa, versão), que a projeção pública não carrega. */
-  const comUrls = await Promise.all(publicados.map(async i =>
-    Object.assign(paraPublico(i), { midia: await montarMidia(data.provedor, i, opcoesMidia) })));
+  let comUrls;
+  try {
+    comUrls = await Promise.all(publicados.map(async i =>
+      Object.assign(paraPublico(i), { midia: await montarMidia(data.provedor, i, opcoesMidia) })));
+  } catch (e) {
+    /* assinatura pedida e provedor sem chave: falha FECHADA (501), nunca URL aberta. */
+    return respostaDeErro(erro, e);
+  }
   const emDestaque = App.destaque(comUrls, sitePublico);
   const capa = emDestaque ? App.urlCapa(emDestaque) : null;
-  const guardar = guardarCapaDoDestaque(env, capa);
-  if (waitUntil) waitUntil(guardar);
+  /* SÓ no modo público (`assinar` falso). Nos restritos a URL da capa sai ASSINADA
+   * (Bunny: token de diretório; Stream: JWT) e muda a cada requisição: gravá-la
+   * custaria uma escrita de KV por visita (o plano grátis dá 1000 por dia) e deixaria
+   * credencial vigente em repouso. O preload da home também só roda no modo público. */
+  if (!opcoesMidia.assinar && data.modo === 'publico') {
+    const guardar = guardarCapaDoDestaque(env, capa);
+    if (waitUntil) waitUntil(guardar);
+  }
 
   return json(200, {
     versao: guardado.versao || 1,

@@ -340,6 +340,11 @@ export function validarSemantica(config) {
   if (modo === 'cadastro' && config.acesso?.cadastro?.turnstile === false) {
     erros.push({ caminho: 'acesso.cadastro.turnstile', mensagem: 'no modo "cadastro" a proteção anti-robô (Turnstile) é obrigatória. Use true, ou troque o modo para "privado".' });
   }
+  /* Mídia assinada exige provedor que assine: o HLS genérico não assina, e aceitar a combinação em silêncio
+   * deixaria o vídeo do modo restrito aberto a quem tiver o endereço. */
+  if (modo && modo !== 'publico' && config.acesso?.privado?.assinarMidia === true && config.video?.provedor === 'hls-generico') {
+    erros.push({ caminho: 'acesso.privado.assinarMidia', mensagem: 'o provedor "hls-generico" não assina endereços de vídeo, então com o acesso restrito o vídeo ficaria aberto a quem tiver o link. Troque o provedor (bunny ou cloudflare-stream) ou, sabendo que é INSEGURO, use assinarMidia: false.' });
+  }
   return erros;
 }
 

@@ -149,8 +149,14 @@ test('wrangler.jsonc: Worker + Static Assets, API e home primeiro no Worker, KV 
   assert.equal(w.observability.enabled, true);
   assert.match(w.compatibility_date, /^20\d\d-\d\d-\d\d$/);
   assert.ok(w.compatibility_date >= '2026-01-01', 'compatibility_date velha');
-  /* D1, AI e Vectorize são opcionais: só entram quando alguém descomenta. */
-  for (const k of ['d1_databases', 'ai', 'vectorize']) assert.ok(!(k in w), k + ' ligado por padrão');
+  /* O D1 (pessoas: equipe, espectadores, sessões) vem ligado desde o M5, com as migrações
+   * em core/migrations; AI e Vectorize continuam opcionais: só entram quando alguém descomenta. */
+  assert.ok(Array.isArray(w.d1_databases) && w.d1_databases.some(d => d.binding === 'DB' && d.migrations_dir === 'core/migrations'), 'o D1 (binding DB) precisa estar declarado');
+  for (const k of ['ai', 'vectorize']) assert.ok(!(k in w), k + ' ligado por padrão');
+  assert.ok(w.triggers && w.triggers.crons && w.triggers.crons.length >= 1, 'falta o cron de retenção');
+  for (const rota of ['/entrar', '/entrar.html', '/cadastro', '/cadastro.html']) {
+    assert.ok(w.assets.run_worker_first.includes(rota), rota + ' precisa passar pelo Worker: leva o Turnstile na CSP');
+  }
 });
 
 test('wrangler.jsonc não carrega segredo nem ID de conta; o código do Worker fica fora dos assets', () => {

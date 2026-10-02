@@ -55,7 +55,8 @@ Regras (a suíte `tests/provedores-contrato.test.js` confere todas):
 4. `urlReproducao`/`urlCapa`/`urlPreview`/`legendas(id, { idiomas })` **não fazem rede**.
 5. Nada de autoplay: o `embed.url` desliga autoplay/loop/preload quando o provedor aceita o parâmetro.
 6. `urlReproducao(id, { assinar: true })` **rejeita** com `assinatura-indisponivel` enquanto `capacidades().assinatura` for `false`
-   (nunca devolve URL aberta a quem pediu assinada). A assinatura real é do M5.
+   (nunca devolve URL aberta a quem pediu assinada). Com `assinar: true`, `urlCapa`, `urlPreview` e `legendas` também recebem `{ assinar, validadeSeg }`
+   e assinam; `montarMidia` os passa juntos. Bunny (token de diretório, `BUNNY_TOKEN_KEY`) e Cloudflare Stream (JWT RS256 local) assinam; hls-generico não.
 7. Status normalizado: `'enviando' | 'processando' | 'pronto' | 'erro'`; só `pronto` pode ir ao ar.
 
 ## O que o servidor entrega ao navegador: `item.midia`

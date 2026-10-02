@@ -93,6 +93,15 @@ export function comEndereco(html, siteUrl, hostMidia) {
   return saida;
 }
 
+/* O <link rel="preload"> do catálogo (index.html) só serve quem pode pedir /api/catalogo
+ * sem sessão: o modo público. Nos restritos o pedido volta 401 (erro no console de toda
+ * visita anônima) e, na mesa do /admin, o catálogo vem por postMessage e o preload sobra. */
+const PRELOAD_CATALOGO = /<link rel="preload" href="\/api\/catalogo" as="fetch" crossorigin>\n?/;
+
+export function semPreloadDoCatalogo(html) {
+  return html.replace(PRELOAD_CATALOGO, '');
+}
+
 export function comPreload(html, capa) {
   if (html.indexOf(MARCA) < 0) return null;
   return html.replace(MARCA,
@@ -115,7 +124,9 @@ export async function onRequestGet({ request, env, modo, config }) {
   const proprio = hosts.img.find((h) => !h.includes('*'));
   const hostMidia = proprio && hostValido(proprio.replace(/^https:\/\//, '')) ? proprio.replace(/^https:\/\//, '') : null;
   const comCapa = capaValida(capa, hosts.img);
-  if (!comCapa && !siteUrl && !hostMidia) return env.ASSETS.fetch(request);
+  const naMesa = /[?&]mesa=1(&|$)/.test(new URL(request.url).search);
+  const tiraPreload = modo !== 'publico' || naMesa;
+  if (!comCapa && !siteUrl && !hostMidia && !tiraPreload) return env.ASSETS.fetch(request);
 
   /* Sem as condições do pedido: um 304 devolveria ao navegador a página que
    * ele guardou, com a capa de ontem. */
@@ -126,11 +137,12 @@ export async function onRequestGet({ request, env, modo, config }) {
   if (pagina.status !== 200) return pagina;
 
   const html = await pagina.text();
-  let novo = comCapa ? comPreload(html, capa) : html;
+  const base = tiraPreload ? semPreloadDoCatalogo(html) : html;
+  let novo = comCapa ? comPreload(base, capa) : base;
   if (novo !== null && (siteUrl || hostMidia)) novo = comEndereco(novo, siteUrl, hostMidia) || novo;
   const saida = new Headers(pagina.headers);
   saida.delete('content-length');
-  if (novo === null) return new Response(html, { status: 200, headers: saida });
+  if (novo === null) return new Response(base, { status: 200, headers: saida });
 
   /* O ETag do arquivo estático não descreve mais esta página. */
   saida.delete('etag');

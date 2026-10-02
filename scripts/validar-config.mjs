@@ -28,6 +28,19 @@ export function avisosDe(config) {
   if (config.acesso?.modo === 'publico') {
     avisos.push('o acesso está "publico": qualquer pessoa com o endereço vê o catálogo. Para restringir, use "privado".');
   }
+  if (config.acesso?.modo === 'cadastro') {
+    avisos.push('modo "cadastro": o cadastro só abre com o secret TURNSTILE_SECRET e a variável TURNSTILE_SITE_KEY (chave pública do Turnstile) no Worker; sem eles fica fechado.');
+    const metodo = config.acesso.cadastro?.metodo ?? 'link-magico';
+    if (metodo === 'link-magico' && (config.acesso.email?.adaptador ?? 'nenhum') === 'nenhum') {
+      avisos.push('cadastro por link mágico precisa de envio de e-mail: escolha acesso.email.adaptador "resend" (ou use acesso.cadastro.metodo "email-e-senha"); senão o cadastro fica fechado.');
+    }
+  }
+  if (config.acesso?.modo !== 'publico' && config.acesso?.email?.adaptador === 'resend') {
+    avisos.push('e-mail por Resend: cadastre o secret RESEND_API_KEY e a variável EMAIL_REMETENTE (um remetente de domínio verificado no Resend).');
+  }
+  if (config.acesso?.modo !== 'publico') {
+    avisos.push('contas de espectador usam o banco D1 (binding DB, já declarado no wrangler.jsonc): sem ele, só a equipe entra.');
+  }
   return avisos;
 }
 

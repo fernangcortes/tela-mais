@@ -52,7 +52,7 @@ Observações:
 | Capa por instante do vídeo | Sim | Sim | Não |
 | Legenda por arquivo | Sim | Sim (SRT vira VTT) | Só por endereço |
 | Legenda por IA | Sim (US$ 0,10 por minuto por idioma) | Sim (sem custo extra, conferir idiomas) | Não |
-| Modo privado (URL assinada) | Previsto, implementação no marco M5 | Já implementada (chave de assinatura) | Não |
+| Modo privado (URL assinada) | Sim (Token Authentication por diretório) | Sim (JWT RS256 local) | Não |
 | MP4 para download | Sim | Só se habilitar no vídeo | Só por endereço |
 | Excluir pelo /admin | Sim | Sim | Não (o site só esquece o título) |
 
@@ -79,7 +79,7 @@ O `.env.example` lista todos os nomes.
 | ID da conta | `CLOUDFLARE_ACCOUNT_ID` | Painel da Cloudflare: 32 caracteres na barra lateral ou na URL |
 | Token de API | `CLOUDFLARE_STREAM_TOKEN` | Perfil, Tokens de API, criar token com a permissão **Stream: Edit** |
 | Subdomínio de clientes | `CLOUDFLARE_STREAM_SUBDOMINIO` | Painel, Stream: algo como `customer-xxxx`. Sem ele nenhuma URL de reprodução é montada. |
-| ID e JWK da chave de assinatura (opcionais) | `CLOUDFLARE_STREAM_KEY_ID`, `CLOUDFLARE_STREAM_KEY_JWK` | Criadas pela API (`POST /stream/keys`). Só para o modo privado |
+| ID e JWK (ou PEM) da chave de assinatura (opcionais) | `CLOUDFLARE_STREAM_KEY_ID`, `CLOUDFLARE_STREAM_KEY_JWK` ou `CLOUDFLARE_STREAM_KEY_PEM` | Criadas pela API (`POST /stream/keys`). Só para o modo privado |
 | Segredo do webhook (opcional) | `CLOUDFLARE_STREAM_WEBHOOK_SECRET` | Resposta de `PUT /stream/webhook` |
 
 Para exigir assinatura em vídeos novos: `video.cloudflareStream.exigirAssinatura: true`.
@@ -115,4 +115,24 @@ provedor continuam no catálogo, mas sem vídeo tocável até serem recadastrado
 - Os adaptadores foram escritos e testados com respostas **gravadas à mão a partir da
   documentação**, sem chamar as APIs reais. Faça um teste com uma conta real antes de lançar.
 - Nenhum provedor impede gravação de tela. Assinatura de URL só impede o link de ser copiado.
-- O modo privado com URL assinada do Bunny chega no marco M5.
+
+## Mídia assinada (modo privado e cadastro)
+
+O servidor assina as URLs quando `acesso.modo` não é `publico` e `acesso.privado.assinarMidia` é `true` (padrão), com validade
+`acesso.privado.validadeDaAssinaturaSeg` (nunca maior que a sessão). Vale para vídeo, capa, prévia e legendas. A validade padrão é de 1 hora; a URL já emitida vale até vencer mesmo se a sessão for revogada (veja `docs/acesso.md`).
+
+- **Prova com a conta real.** Os testes automáticos não falam com a CDN: "sem token = 403, token vencido = 403, token válido = 200" só se prova contra a sua pull zone ou conta do Stream, com `node scripts/provar-assinatura.mjs`. Faça isso antes de abrir o site.
+
+- **Bunny.** Ligue Token Authentication na pull zone (Security) e permita "Directory token"; copie a Security key para
+  `BUNNY_TOKEN_KEY`. Um token por diretório (`/<videoId>/`) cobre playlist, segmentos, MP4, capa, prévia e legendas; ele vai como
+  prefixo do caminho (`/bcdn_token=HS256-...&token_ignore_params=true&token_path=...&expires=.../<id>/playlist.m3u8`, formato da implementação de referência do Bunny) para os segmentos herdarem. Embed: o player
+  tem chave própria (Library > Security > Embed View Token Authentication) em `BUNNY_EMBED_KEY`; sem ela o embed é desligado no
+  modo assinado. Alternativa: capas numa pull zone separada e pública (sem token), mais barata de cachear.
+- **Cloudflare Stream.** Crie a chave de assinatura (`POST /accounts/{id}/stream/keys`), guarde `id` em
+  `CLOUDFLARE_STREAM_KEY_ID` e `jwk` em `CLOUDFLARE_STREAM_KEY_JWK` (ou `pem` em `CLOUDFLARE_STREAM_KEY_PEM`); marque os vídeos com
+  `requireSignedURLs` (`video.cloudflareStream.exigirAssinatura: true` para os novos). O Worker assina o JWT localmente, sem rede.
+  Alternativa sem chave local: `POST /stream/{uid}/token` (uma chamada de rede por vídeo; não usada aqui).
+- **HLS genérico.** Não assina. No modo restrito com `assinarMidia: true` a config é RECUSADA; `assinarMidia: false` deixa o vídeo
+  aberto a quem tiver o endereço (inseguro: só use se o seu servidor de vídeo tranca por outro meio).
+- **Prova.** `node scripts/provar-assinatura.mjs --video <id>` pede o HLS sem token (espera 403), com token válido (200) e com
+  token expirado (403). Rode antes de confiar no modo privado.

@@ -29,8 +29,19 @@ export const HASH_SCRIPT_INLINE = 'sha256-pC8lL4UeLJne9z7wZYaoWQLHpQbyzO358yhEUQ
  * Worker (run_worker_first) e leva a política completa. */
 const SEM_HOSTS = { img: [], media: [], connect: [], frame: [], script: [] };
 
-export function politicaDeConteudo(env, ancestrais, { config = null, hosts = null } = {}) {
-  const h = hosts || hostsDeMidia(config, env);
+/* O desafio anti-robô (Turnstile) das páginas de entrada e cadastro: o script e o
+ * quadro (e o que ele consulta) vêm da Cloudflare. Só essas páginas pedem (`turnstile: true`). */
+export const HOST_TURNSTILE = 'https://challenges.cloudflare.com';
+
+export function politicaDeConteudo(env, ancestrais, { config = null, hosts = null, turnstile = false } = {}) {
+  const base = hosts || hostsDeMidia(config, env);
+  const h = turnstile
+    ? Object.assign({}, base, {
+      script: (base.script || []).concat([HOST_TURNSTILE]),
+      frame: (base.frame || []).concat([HOST_TURNSTILE]),
+      connect: (base.connect || []).concat([HOST_TURNSTILE])
+    })
+    : base;
   const lista = (diretiva, base) => [base].concat(h[diretiva] || []).join(' ');
   return [
     "default-src 'self'",
@@ -52,10 +63,10 @@ export function politicaDeConteudo(env, ancestrais, { config = null, hosts = nul
   ].join('; ');
 }
 
-export function cabecalhosDeSeguranca(env, { api = false, config = null, semProvedor = false } = {}) {
+export function cabecalhosDeSeguranca(env, { api = false, config = null, semProvedor = false, turnstile = false } = {}) {
   const ancestrais = api ? "'none'" : "'self'";
   return {
-    'content-security-policy': politicaDeConteudo(env, ancestrais, semProvedor ? { hosts: SEM_HOSTS } : { config }),
+    'content-security-policy': politicaDeConteudo(env, ancestrais, semProvedor ? { hosts: SEM_HOSTS, turnstile } : { config, turnstile }),
     'x-content-type-options': 'nosniff',
     'x-frame-options': api ? 'DENY' : 'SAMEORIGIN',
     'referrer-policy': 'no-referrer',
