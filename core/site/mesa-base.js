@@ -10,6 +10,23 @@
   'use strict';
   var M = window.MESA = window.MESA || {};
 
+  /* A tradução. O `mesa-inicio.js` só carrega estes scripts DEPOIS de o catálogo
+   * do idioma chegar, então `tr()` vale também em constantes de módulo.
+   * `tr` é o AppI18n.t da mesa (o nome `t` é variável local em muitos pontos). */
+  var I18n = window.AppI18n;
+  function tr(chave, params) { return I18n.t(chave, params); }
+  M.tr = tr;
+  M.I18n = I18n;
+  /* "{n} campo(s)" e afins: o plural vem do catálogo, pela chave com {n}. */
+  M.plural = function (chave, n) { return tr(chave, { n: n }); };
+  /* O texto de um erro de API: pelo `codigo` no catálogo da mesa (que acompanha o
+   * idioma de quem edita), com `params`; sem código conhecido, a `mensagem` que o
+   * servidor mandou; sem nada, o status. */
+  M.mensagemDeErro = function (corpo, status) {
+    if (corpo && corpo.codigo && I18n.tem('api.' + corpo.codigo)) return tr('api.' + corpo.codigo, corpo.params);
+    return (corpo && (corpo.mensagem || corpo.erro)) || tr('mesa.erroHttp', { status: status });
+  };
+
   /* ------------------------------------------------------------ utilidades */
 
   M.$ = function (id) { return document.getElementById(id); };
@@ -82,7 +99,7 @@
    * outras contas trazem do login as permissões que o superadmin escolheu.
    * O usuário é parte da chave do rascunho: duas pessoas no mesmo navegador
    * não veem o rascunho uma da outra. */
-  M.sessao = { token: null, expira: 0, usuario: 'superadmin', nome: 'Superadmin', super: true, permissoes: [] };
+  M.sessao = { token: null, expira: 0, usuario: 'superadmin', nome: tr('mesa.superadmin'), super: true, permissoes: [] };
 
   M.guardarSessao = function (dados) {
     M.sessao.token = dados.token;
@@ -135,11 +152,11 @@
     return fetch(caminho, Object.assign({}, o, { headers: cabecalhos })).then(function (r) {
       if (r.status === 401 && M.sessao.token) {
         M.encerrarSessao();
-        throw new Error('A sessão expirou. Entre de novo; o rascunho continua guardado.');
+        throw new Error(tr('mesa.sessaoExpirou'));
       }
       return r.json().catch(function () { return {}; }).then(function (corpo) {
         if (!r.ok) {
-          var e = new Error(corpo.erro || ('erro ' + r.status));
+          var e = new Error(M.mensagemDeErro(corpo, r.status));
           e.status = r.status;
           e.corpo = corpo;
           throw e;
@@ -274,11 +291,11 @@
    * NO_QUADRO); 'fila-pendencias' é tela própria, porque pode mostrar duas
    * fichas lado a lado — não cabe no quadro de uma só. */
   M.FILAS = {
-    'fila-sinopses': { rotulo: 'Sinopses a revisar', icone: 'busca', permissao: 'conteudo',
+    'fila-sinopses': { rotulo: tr('mesa.sinopsesARevisar'), icone: 'busca', permissao: 'conteudo',
       itens: function (itens) { return App.filaSinopses(itens); } },
-    'fila-pendencias': { rotulo: 'Pendências', icone: 'alerta', permissao: 'conteudo',
+    'fila-pendencias': { rotulo: tr('mesa.pendencias'), icone: 'alerta', permissao: 'conteudo',
       itens: function (itens) { return App.filaPendencias(itens); } },
-    'fila-semsinopse': { rotulo: 'Sem sinopse', icone: 'imagem', permissao: 'conteudo',
+    'fila-semsinopse': { rotulo: tr('mesa.semSinopse'), icone: 'imagem', permissao: 'conteudo',
       itens: function (itens) { return App.filaSemSinopse(itens); } }
   };
 
@@ -352,11 +369,11 @@
    * tem legenda (404), que é caso previsto. */
   M.legendaDoVideo = function (videoId) {
     var pz = (M.st.servidor.config || {}).pullzone;
-    if (!pz) return Promise.reject(new Error('o catálogo não trouxe a pull zone'));
+    if (!pz) return Promise.reject(new Error(tr('mesa.oCatalogoNaoTrouxeA')));
     var host = String(pz).replace(/^https?:\/\//, '').replace(/\/+$/, '');
     return fetch('https://' + host + '/' + encodeURIComponent(videoId) + '/captions/pt.vtt').then(function (r) {
       if (r.status === 404) return null;
-      if (!r.ok) throw new Error('a legenda respondeu ' + r.status);
+      if (!r.ok) throw new Error(tr('mesa.legendaRespondeu', { status: r.status }));
       return r.text();
     });
   };
@@ -396,7 +413,7 @@
     if (M.busca.andando) return Promise.resolve(null);
     var conta = AppIndice.foraDaBusca(M.st.servidor.itens, M.busca.manifesto, M.busca.sentido);
     var lista = conta.semFala.concat(conta.desatualizados);
-    if (!lista.length) { M.toast('Nada fora da busca.'); return Promise.resolve(null); }
+    if (!lista.length) { M.toast(tr('mesa.nadaForaDaBusca')); return Promise.resolve(null); }
 
     var feitos = 0;
     var falhas = [];
@@ -404,7 +421,7 @@
       if (i >= lista.length) return Promise.resolve();
       var item = lista[i];
       var videoId = item.fonte.videoId;
-      M.busca.andando = 'Pondo na busca: ' + (i + 1) + ' de ' + lista.length;
+      M.busca.andando = tr('mesa.pondoNaBusca', { atual: i + 1, total: lista.length });
       if (M.aoMudar) M.aoMudar({ semCentro: true });
       var guardado = ((M.busca.manifesto && M.busca.manifesto.videos) || {})[videoId] || {};
       /* A fala só é relida quando falta, ou quando os vetores dela não
@@ -424,8 +441,8 @@
       M.busca.andando = '';
       return M.carregarBusca();
     }).then(function () {
-      M.toast(feitos + (feitos === 1 ? ' título entrou' : ' títulos entraram') + ' na busca' +
-        (falhas.length ? ' · ' + falhas.length + ' falharam: ' + falhas[0] : '.'));
+      M.toast(tr('mesa.entraramNaBusca', { n: feitos }) +
+        (falhas.length ? ' · ' + tr('mesa.falharamN', { n: falhas.length, primeira: falhas[0] }) : '.'));
     });
   };
 
@@ -619,9 +636,9 @@
    * pode ter mudado de novo, e é esse conflito que o Publicar tem de ver. */
   M.desfazerDoHistorico = function (dif) {
     var m = App.desfazerMudanca(dif);
-    if (!m) return M.toast('Esta mudança não se desfaz pela tela: título criado ou removido sai por script.');
+    if (!m) return M.toast(tr('mesa.estaMudancaNaoSeDesfaz'));
     M.mudar(m.alvo, m.campo, m.valor);
-    M.toast('Está no rascunho. Publique para valer no site.');
+    M.toast(tr('mesa.estaNoRascunhoPubliquePara'));
   };
 
   /* Restaurar é uma PUBLICAÇÃO nova, feita pelo servidor a partir da cópia — e
@@ -630,7 +647,7 @@
    * quinhentas linhas. Quem confere é o servidor, campo a campo, como sempre. */
   M.restaurarVersao = function (rev) {
     if (M.st.rascunho.length) {
-      return Promise.resolve(M.toast('Publique ou descarte o rascunho antes de restaurar: a volta é uma publicação.'));
+      return Promise.resolve(M.toast(tr('mesa.publiqueOuDescarteORascunho')));
     }
     return M.api('/api/historico', {
       method: 'POST',
@@ -641,15 +658,15 @@
       }).then(function () {
         M.hist.rev = null;
         M.hist.registro = null;
-        M.toast('Catálogo de volta à rev ' + rev + ' · agora é a rev ' + r.rev + ' · ' + r.mudancas + (r.mudancas === 1 ? ' campo' : ' campos'));
+        M.toast(tr('mesa.restaurado', { rev: rev, nova: r.rev, campos: tr('mesa.camposN', { n: r.mudancas }) }));
         if (M.aoMudar) M.aoMudar({});
       });
     }).catch(function (e) {
       var barradas = e.corpo && e.corpo.barradas;
       if (e.status === 403 && barradas && barradas.length) {
-        M.toast('Esta conta não pode restaurar: ' + barradas.slice(0, 2).map(function (d) {
-          return (M.CAMPO[d.campo] || d.campo) + ' pede "' + (App.ROTULO_PERMISSAO[d.permissao] || d.permissao) + '"';
-        }).join('; '));
+        M.toast(tr('mesa.naoPodeRestaurar', { quais: barradas.slice(0, 2).map(function (d) {
+          return tr('mesa.campoPedePermissao', { campo: M.CAMPO[d.campo] || d.campo, permissao: App.ROTULO_PERMISSAO[d.permissao] || d.permissao });
+        }).join('; ') }));
         return;
       }
       M.toast(e.message);
@@ -709,7 +726,7 @@
       if (r && r.conflitos) {
         M.st.conflitos = r.conflitos;
         M.st.verRascunho = true;
-        M.toast(r.conflitos.length === 1 ? 'Um campo mudou em outra tela. Escolha qual fica.' : r.conflitos.length + ' campos mudaram em outra tela. Escolha quais ficam.');
+        M.toast(tr('mesa.conflitosEmOutraTela', { n: r.conflitos.length }));
         return r;
       }
       M.st.rascunho = [];
@@ -717,7 +734,7 @@
       M.st.verRascunho = false;
       M.guardarRascunho();
       return M.carregarServidor().then(function () {
-        M.toast('Publicado no site · rev ' + M.st.servidor.rev + ' · ' + quantas + (quantas === 1 ? ' alteração' : ' alterações'));
+        M.toast(tr('mesa.publicado', { rev: M.st.servidor.rev, alteracoes: tr('mesa.alteracoesN', { n: quantas }) }));
         atualizarBuscaDoPublicado(mexidos);
         return r;
       });
@@ -729,15 +746,14 @@
       if (e.status === 403 && barradas && barradas.length) {
         var quais = barradas.slice(0, 3).map(function (d) {
           var nome = M.CAMPO[d.campo] || d.campo;
-          return nome + (d.permissao ? ' (precisa de “' + (App.ROTULO_PERMISSAO[d.permissao] || d.permissao) + '”)' : ' (só o superadmin)');
+          return nome + (d.permissao ? ' ' + tr('mesa.precisaDePermissao', { permissao: App.ROTULO_PERMISSAO[d.permissao] || d.permissao }) : ' ' + tr('mesa.soSuperadmin'));
         }).join('; ');
-        M.toast('Não publicou: ' + quais + (barradas.length > 3 ? ' e mais ' + (barradas.length - 3) : '') +
-          '. O que a sua conta pode continua no rascunho.');
+        M.toast(tr('mesa.naoPublicouPermissao', { quais: quais + (barradas.length > 3 ? ' ' + tr('mesa.eMaisN', { n: barradas.length - 3 }) : '') }));
         return null;
       }
       M.toast(e.status === 500
-        ? 'O servidor não gravou (' + e.message + '). Se foram dois Publicar colados, espere um segundo e tente de novo.'
-        : 'Não publicou: ' + e.message);
+        ? tr('mesa.servidorNaoGravou', { mensagem: e.message })
+        : tr('mesa.naoPublicou', { mensagem: e.message }));
       return null;
     }).then(function (r) {
       M.st.publicando = false;

@@ -192,106 +192,106 @@
       "additionalProperties": false
     },
     "tema": {
-      "description": "Aparência.",
+      "description": "Aparência: um tema pronto (preset), com as cores, as letras e as formas que você quiser trocar por cima.",
       "type": "object",
       "properties": {
+        "preset": {
+          "description": "Tema pronto de partida. Cada um traz paleta escura e clara, formas e letras; tudo pode ser trocado em cores, tipografia e forma. cinema (escuro, padrão), claro, alto-contraste, institucional, vibrante, aconchegante.",
+          "type": "string",
+          "enum": [
+            "cinema",
+            "claro",
+            "alto-contraste",
+            "institucional",
+            "vibrante",
+            "aconchegante"
+          ],
+          "default": "cinema"
+        },
         "modo": {
-          "description": "escuro, claro ou auto (segue o aparelho).",
+          "description": "escuro, claro ou auto (segue o aparelho). Sem este campo vale o modo de partida do preset (cinema e vibrante: escuro; os demais: claro).",
           "type": "string",
           "enum": [
             "escuro",
             "claro",
             "auto"
-          ],
-          "default": "escuro"
+          ]
         },
         "cores": {
-          "description": "Paleta. Cores em hexadecimal. O validador mede o contraste (WCAG).",
+          "description": "Troque só as cores que quiser: o resto vem do preset. Cores em hexadecimal (#rrggbb). O validador RECUSA a paleta sem contraste de 4,5:1 para texto e 3:1 para controles (WCAG), dizendo qual par falhou e sugerindo uma cor.",
           "type": "object",
           "properties": {
             "escuro": {
-              "description": "Tema escuro.",
+              "description": "Cores do modo escuro.",
               "type": "object",
               "properties": {
                 "marca": {
                   "$ref": "#/$defs/cor",
-                  "default": "#6aa6ff",
                   "description": "Cor principal da marca (botões, links, destaques)."
                 },
                 "marcaClara": {
                   "$ref": "#/$defs/cor",
-                  "default": "#8dbcff",
-                  "description": "Versão mais clara da marca (hover)."
+                  "description": "Variação da marca no hover do botão principal."
                 },
                 "marcaFraca": {
                   "$ref": "#/$defs/cor",
-                  "default": "#151d2b",
-                  "description": "Versão bem escura da marca (fundos de chip ligado)."
+                  "description": "Fundo discreto da marca (item selecionado, chip ligado)."
                 },
                 "marca2": {
                   "$ref": "#/$defs/cor",
-                  "default": "#4f8de0",
                   "description": "Segunda cor da marca."
                 },
                 "marca3": {
                   "$ref": "#/$defs/cor",
-                  "default": "#f5c542",
-                  "description": "Cor de destaque (selos, estrelas)."
+                  "description": "Cor de destaque (selos, estrelas, série do destaque)."
                 },
                 "textoSobreMarca": {
                   "$ref": "#/$defs/cor",
-                  "default": "#07101c",
-                  "description": "Cor do texto escrito em cima da cor da marca."
+                  "description": "Cor do texto escrito em cima da cor da marca (botão principal)."
+                },
+                "textoSobreDestaque": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor do texto escrito em cima da cor de destaque (marca3)."
                 },
                 "fundo": {
                   "$ref": "#/$defs/cor",
-                  "default": "#0f1115",
                   "description": "Fundo da página."
                 },
                 "superficie": {
                   "$ref": "#/$defs/cor",
-                  "default": "#171a1f",
-                  "description": "Fundo de cartões e painéis."
+                  "description": "Fundo de cartões, menus e cabeçalho."
                 },
                 "texto": {
                   "$ref": "#/$defs/cor",
-                  "default": "#eceff4",
                   "description": "Texto principal."
                 },
                 "textoFraco": {
                   "$ref": "#/$defs/cor",
-                  "default": "#98a2ad",
-                  "description": "Texto secundário."
+                  "description": "Texto secundário (legendas, datas)."
                 },
                 "borda": {
                   "$ref": "#/$defs/cor",
-                  "default": "#2a2f36",
-                  "description": "Separadores decorativos."
+                  "description": "Linhas decorativas de divisão (não exigem contraste)."
                 },
                 "contorno": {
                   "$ref": "#/$defs/cor",
-                  "default": "#656f78",
-                  "description": "Contorno de controles (campos, chips); precisa de contraste 3:1."
+                  "description": "Contorno de campos e botões (exige 3:1 sobre o fundo)."
                 },
                 "alerta": {
                   "$ref": "#/$defs/cor",
-                  "default": "#e0b356",
-                  "description": "Cor de aviso."
+                  "description": "Texto de aviso."
                 },
                 "alertaFundo": {
                   "$ref": "#/$defs/cor",
-                  "default": "#2a2415",
-                  "description": "Fundo da faixa de aviso."
+                  "description": "Fundo do aviso."
                 },
                 "erro": {
                   "$ref": "#/$defs/cor",
-                  "default": "#f08c86",
-                  "description": "Cor de erro."
+                  "description": "Texto de erro."
                 },
                 "erroFundo": {
                   "$ref": "#/$defs/cor",
-                  "default": "#2c1817",
-                  "description": "Fundo da faixa de erro."
+                  "description": "Fundo do erro."
                 },
                 "mesaFundo": {
                   "$ref": "#/$defs/cor",
@@ -299,17 +299,17 @@
                 },
                 "mesaPainel": {
                   "$ref": "#/$defs/cor",
-                  "description": "Painéis da mesa."
+                  "description": "Painel da mesa de curadoria."
                 },
                 "mesaPainelAlto": {
                   "$ref": "#/$defs/cor",
-                  "description": "Painéis elevados da mesa."
+                  "description": "Painel elevado da mesa de curadoria."
                 }
               },
               "additionalProperties": false
             },
             "claro": {
-              "description": "Tema claro (opcional; conferido pelo mesmo teste de contraste).",
+              "description": "Cores do modo claro.",
               "type": "object",
               "properties": {
                 "marca": {
@@ -318,11 +318,11 @@
                 },
                 "marcaClara": {
                   "$ref": "#/$defs/cor",
-                  "description": "Versão mais clara da marca (hover)."
+                  "description": "Variação da marca no hover do botão principal."
                 },
                 "marcaFraca": {
                   "$ref": "#/$defs/cor",
-                  "description": "Versão bem escura da marca (fundos de chip ligado)."
+                  "description": "Fundo discreto da marca (item selecionado, chip ligado)."
                 },
                 "marca2": {
                   "$ref": "#/$defs/cor",
@@ -330,11 +330,15 @@
                 },
                 "marca3": {
                   "$ref": "#/$defs/cor",
-                  "description": "Cor de destaque (selos, estrelas)."
+                  "description": "Cor de destaque (selos, estrelas, série do destaque)."
                 },
                 "textoSobreMarca": {
                   "$ref": "#/$defs/cor",
-                  "description": "Cor do texto escrito em cima da cor da marca."
+                  "description": "Cor do texto escrito em cima da cor da marca (botão principal)."
+                },
+                "textoSobreDestaque": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor do texto escrito em cima da cor de destaque (marca3)."
                 },
                 "fundo": {
                   "$ref": "#/$defs/cor",
@@ -342,7 +346,7 @@
                 },
                 "superficie": {
                   "$ref": "#/$defs/cor",
-                  "description": "Fundo de cartões e painéis."
+                  "description": "Fundo de cartões, menus e cabeçalho."
                 },
                 "texto": {
                   "$ref": "#/$defs/cor",
@@ -350,31 +354,31 @@
                 },
                 "textoFraco": {
                   "$ref": "#/$defs/cor",
-                  "description": "Texto secundário."
+                  "description": "Texto secundário (legendas, datas)."
                 },
                 "borda": {
                   "$ref": "#/$defs/cor",
-                  "description": "Separadores decorativos."
+                  "description": "Linhas decorativas de divisão (não exigem contraste)."
                 },
                 "contorno": {
                   "$ref": "#/$defs/cor",
-                  "description": "Contorno de controles (campos, chips); precisa de contraste 3:1."
+                  "description": "Contorno de campos e botões (exige 3:1 sobre o fundo)."
                 },
                 "alerta": {
                   "$ref": "#/$defs/cor",
-                  "description": "Cor de aviso."
+                  "description": "Texto de aviso."
                 },
                 "alertaFundo": {
                   "$ref": "#/$defs/cor",
-                  "description": "Fundo da faixa de aviso."
+                  "description": "Fundo do aviso."
                 },
                 "erro": {
                   "$ref": "#/$defs/cor",
-                  "description": "Cor de erro."
+                  "description": "Texto de erro."
                 },
                 "erroFundo": {
                   "$ref": "#/$defs/cor",
-                  "description": "Fundo da faixa de erro."
+                  "description": "Fundo do erro."
                 },
                 "mesaFundo": {
                   "$ref": "#/$defs/cor",
@@ -382,11 +386,11 @@
                 },
                 "mesaPainel": {
                   "$ref": "#/$defs/cor",
-                  "description": "Painéis da mesa."
+                  "description": "Painel da mesa de curadoria."
                 },
                 "mesaPainelAlto": {
                   "$ref": "#/$defs/cor",
-                  "description": "Painéis elevados da mesa."
+                  "description": "Painel elevado da mesa de curadoria."
                 }
               },
               "additionalProperties": false
@@ -395,38 +399,42 @@
           "additionalProperties": false
         },
         "tipografia": {
-          "description": "Letras.",
+          "description": "Letras. Origem \"sistema\" usa uma fonte já instalada no aparelho; \"arquivo\" usa woff2 que você coloca em config/fontes/ (nunca baixamos fonte de site de terceiros). Sempre há fonte de reserva.",
           "type": "object",
           "properties": {
             "titulo": {
-              "description": "Uma família de letra.",
+              "description": "Fonte do título.",
               "type": "object",
               "properties": {
                 "familia": {
-                  "description": "Nome da família (ex.: Inter).",
+                  "description": "Nome da família (ex.: Inter, Georgia).",
                   "type": "string",
-                  "maxLength": 80
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[A-Za-z0-9 _-]+$"
                 },
                 "origem": {
-                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "description": "De onde vem: \"sistema\" (já instalada no aparelho) ou \"arquivo\" (woff2 em config/fontes/).",
                   "type": "string",
                   "enum": [
-                    "arquivo",
                     "sistema",
-                    "google"
+                    "arquivo"
                   ]
                 },
                 "arquivos": {
-                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "description": "Nomes dos woff2 dentro de config/fontes/ (origem \"arquivo\"), ex.: [\"Inter-Regular.woff2\",\"Inter-Bold.woff2\"].",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z0-9._-]+\\.woff2$"
                   }
                 },
                 "pesos": {
-                  "description": "Pesos usados.",
+                  "description": "Peso de cada arquivo, na mesma ordem (ex.: [400, 700]). Com um arquivo só e sem pesos, vale como fonte variável (100 a 900).",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "integer",
                     "minimum": 100,
@@ -437,34 +445,38 @@
               "additionalProperties": false
             },
             "corpo": {
-              "description": "Uma família de letra.",
+              "description": "Fonte do texto corrido.",
               "type": "object",
               "properties": {
                 "familia": {
-                  "description": "Nome da família (ex.: Inter).",
+                  "description": "Nome da família (ex.: Inter, Georgia).",
                   "type": "string",
-                  "maxLength": 80
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[A-Za-z0-9 _-]+$"
                 },
                 "origem": {
-                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "description": "De onde vem: \"sistema\" (já instalada no aparelho) ou \"arquivo\" (woff2 em config/fontes/).",
                   "type": "string",
                   "enum": [
-                    "arquivo",
                     "sistema",
-                    "google"
+                    "arquivo"
                   ]
                 },
                 "arquivos": {
-                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "description": "Nomes dos woff2 dentro de config/fontes/ (origem \"arquivo\"), ex.: [\"Inter-Regular.woff2\",\"Inter-Bold.woff2\"].",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z0-9._-]+\\.woff2$"
                   }
                 },
                 "pesos": {
-                  "description": "Pesos usados.",
+                  "description": "Peso de cada arquivo, na mesma ordem (ex.: [400, 700]). Com um arquivo só e sem pesos, vale como fonte variável (100 a 900).",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "integer",
                     "minimum": 100,
@@ -475,34 +487,38 @@
               "additionalProperties": false
             },
             "mono": {
-              "description": "Uma família de letra.",
+              "description": "Fonte do texto de código e números.",
               "type": "object",
               "properties": {
                 "familia": {
-                  "description": "Nome da família (ex.: Inter).",
+                  "description": "Nome da família (ex.: Inter, Georgia).",
                   "type": "string",
-                  "maxLength": 80
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[A-Za-z0-9 _-]+$"
                 },
                 "origem": {
-                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "description": "De onde vem: \"sistema\" (já instalada no aparelho) ou \"arquivo\" (woff2 em config/fontes/).",
                   "type": "string",
                   "enum": [
-                    "arquivo",
                     "sistema",
-                    "google"
+                    "arquivo"
                   ]
                 },
                 "arquivos": {
-                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "description": "Nomes dos woff2 dentro de config/fontes/ (origem \"arquivo\"), ex.: [\"Inter-Regular.woff2\",\"Inter-Bold.woff2\"].",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z0-9._-]+\\.woff2$"
                   }
                 },
                 "pesos": {
-                  "description": "Pesos usados.",
+                  "description": "Peso de cada arquivo, na mesma ordem (ex.: [400, 700]). Com um arquivo só e sem pesos, vale como fonte variável (100 a 900).",
                   "type": "array",
+                  "maxItems": 8,
                   "items": {
                     "type": "integer",
                     "minimum": 100,
@@ -513,22 +529,70 @@
               "additionalProperties": false
             },
             "reserva": {
-              "description": "Lista de fontes de reserva (evita salto de layout).",
+              "description": "Fontes de reserva do texto (usadas enquanto a fonte carrega ou se falhar).",
               "type": "string",
-              "default": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9 ,'\"_-]+$"
+            },
+            "reservaTitulo": {
+              "description": "Fontes de reserva do título (sem isto vale a reserva do texto).",
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9 ,'\"_-]+$"
+            },
+            "reservaMono": {
+              "description": "Fontes de reserva do texto monoespaçado.",
+              "type": "string",
               "maxLength": 200,
               "pattern": "^[A-Za-z0-9 ,'\"_-]+$"
             },
             "tamanhoBasePx": {
-              "description": "Tamanho base do texto.",
+              "description": "Tamanho base do texto (16 é o padrão). A escala inteira acompanha.",
               "type": "integer",
-              "default": 16,
               "minimum": 12,
               "maximum": 22
             },
             "escala": {
-              "description": "Escala de tamanhos (micro, menor, corpo, base, maior, titulo, secao).",
-              "type": "object"
+              "description": "Tamanhos em px, para trocar degraus da escala um a um.",
+              "type": "object",
+              "properties": {
+                "micro": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "menor": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "corpo": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "base": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "maior": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "titulo": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                },
+                "secao": {
+                  "type": "integer",
+                  "minimum": 8,
+                  "maximum": 72
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -540,28 +604,24 @@
             "raioPx": {
               "description": "Arredondamento dos cantos.",
               "type": "integer",
-              "default": 10,
               "minimum": 0,
               "maximum": 40
             },
             "sombra": {
               "description": "Sombra dos cartões (valor CSS).",
               "type": "string",
-              "default": "none",
               "maxLength": 100,
               "pattern": "^[A-Za-z0-9 ,.()#%-]+$"
             },
             "larguraMaximaPx": {
               "description": "Largura máxima do conteúdo.",
               "type": "integer",
-              "default": 1400,
               "minimum": 600,
               "maximum": 3000
             },
             "espacoBasePx": {
               "description": "Unidade de espaçamento.",
               "type": "integer",
-              "default": 4,
               "minimum": 2,
               "maximum": 8
             }
@@ -587,19 +647,19 @@
           "additionalProperties": false
         },
         "validarContraste": {
-          "description": "Mínimos de contraste exigidos da paleta.",
+          "description": "Mínimos de contraste exigidos da paleta. Só dá para ficar MAIS exigente: abaixo de 4,5 (texto) e 3 (controles) a paleta é sempre recusada.",
           "type": "object",
           "properties": {
             "textoMinimo": {
               "type": "number",
               "default": 4.5,
-              "minimum": 3,
+              "minimum": 4.5,
               "maximum": 21
             },
             "controleMinimo": {
               "type": "number",
               "default": 3,
-              "minimum": 1,
+              "minimum": 3,
               "maximum": 21
             }
           },
@@ -609,11 +669,11 @@
       "additionalProperties": false
     },
     "idiomas": {
-      "description": "Idiomas da interface.",
+      "description": "Idiomas da interface. O produto traz pt-BR, en e es completos; outro idioma exige config/locales/<idioma>.json (o que faltar cai no idioma padrão).",
       "type": "object",
       "properties": {
         "padrao": {
-          "description": "Idioma padrão.",
+          "description": "Idioma padrão do site e idioma de reserva de qualquer texto que falte em outro idioma.",
           "type": "string",
           "default": "pt-BR",
           "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
@@ -630,24 +690,24 @@
           ]
         },
         "detectarDoNavegador": {
-          "description": "Escolher o idioma pelo navegador.",
+          "description": "Abrir o site no idioma do navegador da pessoa, entre os \"disponiveis\". Com false, abre no padrão (e só muda pelo seletor ou por ?idioma=).",
           "type": "boolean",
           "default": false
         },
         "seletorVisivel": {
-          "description": "Mostrar seletor de idioma.",
+          "description": "Mostrar o seletor de idioma no site quando há mais de um idioma em \"disponiveis\". Com false, o seletor fica escondido (o idioma sai do navegador ou do padrão).",
           "type": "boolean",
-          "default": false
+          "default": true
         },
         "legendas": {
-          "description": "Preferências de legenda.",
+          "description": "Preferências de legenda por idioma (reservado para o M6; ainda sem efeito).",
           "type": "object"
         }
       },
       "additionalProperties": false
     },
     "textos": {
-      "description": "Textos editáveis por idioma: {\"pt-BR\":{\"rodape\":\"...\"}}. Até 300 caracteres cada.",
+      "description": "Textos da interface que o cliente troca, por idioma: {\"pt-BR\":{\"site.rodape\":\"...\"}}. A chave é a do catálogo (core/locales/pt-BR.json; \"rodape\" vale como apelido de \"site.rodape\"); {marca}, {marcaCurta} e {organizacao} são preenchidos sozinhos. Até 300 caracteres cada. Chave que não existe é recusada.",
       "type": "object",
       "additionalProperties": false,
       "patternProperties": {
@@ -1506,9 +1566,9 @@
           "default": false
         },
         "titulo": {
-          "description": "Título da página; aceita {{marca.nome}}.",
+          "description": "Título da página; aceita {{marca.nome}}. Vazio = o texto de fábrica do idioma padrão (\"{marca} — catálogo\", \"{marca} — catalog\"...).",
           "type": "string",
-          "default": "{{marca.nome}} — catálogo",
+          "default": "",
           "maxLength": 120
         },
         "descricao": {

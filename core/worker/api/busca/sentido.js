@@ -27,7 +27,7 @@
  * do corte: sem o corte, sem o filtro do no ar, sem cache, com `tipo` e `k`.
  * Só com conta: ela mostra o que está fora do ar.
  */
-import { json } from '../../_lib/sessao.js';
+import { json, erro } from '../../_lib/sessao.js';
 import AppIndice from '../../../site/indice-core.js';
 
 const PROXIMOS = 50;
@@ -53,7 +53,7 @@ export async function onRequestGet({ request, env, data, waitUntil }) {
   const q = AppIndice.consultaDoSentido(url.searchParams.get('q'));
   const cru = url.searchParams.get('cru') === '1';
 
-  if (cru && !data.admin) return json(401, { erro: 'não autorizado' });
+  if (cru && !data.admin) return erro(401, 'nao-autorizado');
   if (!AppIndice.consultaValida(q)) return responder({ resultados: [] });
   if (!env.AI || !env.VETORES || !env.CATALOGO) return responder({ resultados: [], indisponivel: true });
 

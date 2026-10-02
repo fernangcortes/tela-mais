@@ -30,11 +30,11 @@
  *     juntar 500 KB de texto. A chave muda com o catálogo, então o título que
  *     sai do ar some da resposta guardada no mesmo instante.
  */
-import { json } from '../../_lib/sessao.js';
+import { json, erro } from '../../_lib/sessao.js';
 import AppIndice from '../../../site/indice-core.js';
 
 export async function onRequestGet({ env, request, waitUntil }) {
-  if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+  if (!env.CATALOGO) return erro(500, 'kv-nao-vinculado');
 
   const [catalogo, estado] = await Promise.all([
     env.CATALOGO.get('catalogo', 'json'),

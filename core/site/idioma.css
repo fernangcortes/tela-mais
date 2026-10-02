@@ -1,0 +1,20 @@
+/* idioma.css — o seletor de idioma do cabeçalho (e o da mesa).
+ *
+ * Só usa as variáveis do tema (theme.css): nenhuma cor escrita aqui, para o
+ * seletor acompanhar qualquer tema e modo. Arquivo à parte de propósito: o
+ * style.css é do tema, e este é da tradução. */
+.topo-idioma { display: flex; align-items: center; margin-inline-start: var(--esp-2); }
+.topo-idioma[hidden] { display: none; }
+.topo-idioma select,
+.idioma-seletor select {
+  font: inherit;
+  font-size: var(--tipo-menor);
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--contorno);
+  border-radius: var(--raio);
+  padding: var(--esp-1) var(--esp-2);
+  max-width: 9rem;
+}
+.topo-idioma select:focus-visible,
+.idioma-seletor select:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }

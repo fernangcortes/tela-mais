@@ -18,6 +18,9 @@ npm run config:validar        # valida config/site.json contra config/site.schem
 npm run config:aplicar        # gera theme.css, manifest, robots.txt, config.public.json e os trechos marcados do HTML (idempotente; --verificar só confere)
 npm run dev                   # wrangler dev: Worker + assets locais (segredos em .dev.vars)
 node scripts/anti-marca.mjs   # varredura anti-marca; precisa dar zero ocorrências
+node scripts/i18n-faltando.mjs # en e es completos em relação ao pt-BR (chaves, {parâmetros}, plurais); precisa dar 0
+node scripts/i18n-literais.mjs # conta texto de interface em português escrito no código (fora de core/locales); abaixo do limite
+node scripts/cores-literais.mjs # lista cor literal (#hex, rgb()...) fora de theme.css/tokens-fixos.css; precisa dar zero. Cor sempre via var(--token)
 ```
 
 Depois de editar `config/site.json`, rode `config:validar` e `config:aplicar` e versione os arquivos gerados. Config ausente ou inválida faz o Worker falhar fechado (modo `privado`). Precedência: KV > arquivo > padrão do schema. Tokens de sessão usam `SESSION_SECRET`, separado de `ADMIN_PASSWORD`.
@@ -40,6 +43,25 @@ Rode `npm test` e a varredura anti-marca antes de dar uma tarefa por concluída.
 5. O nome do produto "tela mAIs" aparece só em README, LICENSE, NOTICE, COMMERCIAL e
    nestes arquivos de agentes, nunca na interface do cliente.
 6. Não modifique o texto-base da licença em `LICENSE` (só os parâmetros do topo).
+
+## Textos da interface (i18n)
+
+Texto que a pessoa lê **não se escreve no código**: vai em `core/locales/{pt-BR,en,es}.json`
+(a chave nasce no pt-BR e é traduzida de verdade nos outros dois) e entra por `tr('namespace.chave', { parametros })`
+(`AppI18n.t`, de `core/site/i18n.js`, o mesmo no site, na mesa e no Worker). Plural: o valor vira
+`{ "one": "{n} título", "other": "{n} títulos" }` e a chamada passa `n`. Erro de API: `erro(status, 'codigo')`
+(`core/worker/_lib/sessao.js`) devolve `{ codigo, mensagem, erro }`, e o front traduz por `api.<codigo>`. Data, hora e
+duração saem do Intl pelo idioma (`AppI18n.data`, `.duracao`...), nunca com `'pt-BR'` escrito. O cliente troca textos em
+`config.textos[idioma]` ou acrescenta idioma em `config/locales/<idioma>.json`; `aplicar-config` gera `core/site/locales/*.json`.
+Dado que não é texto de tela (rótulo de legenda, valor de enum gravado) leva o marcador `i18n-ignorar` na linha.
+
+## Tema, cores e fontes
+
+Cor **não se escreve** em `core/site/*.css` nem em JS: use `var(--token)`. Só `theme.css` (gerado) e `tokens-fixos.css`
+têm cor literal; `node scripts/cores-literais.mjs` confere. Tema vem de `config/site.json`: `tema.preset` (`cinema`,
+`claro`, `alto-contraste`, `institucional`, `vibrante`, `aconchegante`), `tema.modo` (`auto|escuro|claro`) e
+`tema.cores.<modo>` para sobrescrever. Fonte: `tema.tipografia` com origem `sistema` ou `arquivo` (woff2 em `config/fontes/`).
+O validador recusa paleta abaixo de 4,5:1 (texto) ou 3:1 (controles). Depois de mudar, rode `node scripts/aplicar-config.mjs`.
 
 ## Estilo
 

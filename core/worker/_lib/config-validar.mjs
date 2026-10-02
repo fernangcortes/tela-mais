@@ -19,6 +19,10 @@
  * do campo, ex.: "tema.cores.escuro.marca") e O QUE fazer.
  */
 
+import { verificarPaleta } from './contraste.mjs';
+import { resolverTema } from './tema.mjs';
+import { validarIdiomas } from './i18n-validar.mjs';
+
 export const PALAVRAS_SUPORTADAS = new Set([
   '$schema', '$id', '$comment', '$defs', '$ref', 'title', 'description', 'examples',
   'type', 'enum', 'const', 'properties', 'required', 'additionalProperties',
@@ -267,23 +271,41 @@ export function acharSegredos(valor, caminho = '', chave = '') {
 
 /* ------------------------------------------------------------------ cores (WCAG 2.x) */
 
-export function luminancia(hex) {
-  const h = String(hex).replace('#', '');
-  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-  const canal = [0, 2, 4].map((i) => {
-    const c = parseInt(n.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * canal[0] + 0.7152 * canal[1] + 0.0722 * canal[2];
-}
+/* A conta mora em contraste.mjs (o /admin vai reutilizá-la); aqui só reexporta
+ * os nomes que o resto do código já importava deste arquivo. */
+export { luminancia, contraste } from './contraste.mjs';
 
-export function contraste(a, b) {
-  const la = luminancia(a), lb = luminancia(b);
-  const [alto, baixo] = la >= lb ? [la, lb] : [lb, la];
-  return (alto + 0.05) / (baixo + 0.05);
-}
+const REGEX_ARQUIVO_FONTE = /^[A-Za-z0-9._-]+\.woff2$/;
 
-const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+/* Tipografia: o que o schema não expressa (combinações entre campos). */
+function validarTipografia(tema, erros) {
+  for (const nome of ['titulo', 'corpo', 'mono']) {
+    const f = tema.tipografia?.[nome];
+    if (!f) continue;
+    const onde = `tema.tipografia.${nome}`;
+    if (!f.familia) {
+      erros.push({ caminho: `${onde}.familia`, mensagem: 'diga o nome da família (ex.: "Inter").' });
+      continue;
+    }
+    const arquivos = f.arquivos || [];
+    if (f.origem === 'arquivo') {
+      if (!arquivos.length) {
+        erros.push({ caminho: `${onde}.arquivos`, mensagem: 'com origem "arquivo" liste os woff2 que estão em config/fontes/ (ex.: ["Inter-Regular.woff2"]).' });
+      }
+      for (const a of arquivos) {
+        if (!REGEX_ARQUIVO_FONTE.test(a)) erros.push({ caminho: `${onde}.arquivos`, mensagem: `"${a}" não é um nome de arquivo woff2 válido (use só o nome, sem pasta, terminando em .woff2).` });
+      }
+      if (f.pesos && f.pesos.length !== arquivos.length) {
+        erros.push({ caminho: `${onde}.pesos`, mensagem: `informe um peso para cada arquivo (há ${arquivos.length} arquivo(s) e ${f.pesos.length} peso(s)).` });
+      }
+      if (!f.pesos && arquivos.length > 1) {
+        erros.push({ caminho: `${onde}.pesos`, mensagem: 'com mais de um arquivo, informe o peso de cada um (ex.: [400, 700]).' });
+      }
+    } else if (arquivos.length) {
+      erros.push({ caminho: `${onde}.arquivos`, mensagem: 'só a origem "arquivo" usa arquivos. Troque a origem para "arquivo" ou apague a lista.' });
+    }
+  }
+}
 
 /* Regras que o schema sozinho não expressa. `config` já com padrões aplicados. */
 export function validarSemantica(config) {
@@ -292,28 +314,28 @@ export function validarSemantica(config) {
   const minTexto = t.validarContraste?.textoMinimo ?? 4.5;
   const minControle = t.validarContraste?.controleMinimo ?? 3;
 
+  /* Contraste da paleta EFETIVA (preset + o que o cliente trocou), dos DOIS modos,
+   * mesmo que hoje só um apareça: quem muda tema.modo depois não deve descobrir a
+   * paleta ruim na tela, e o /admin vai poder alternar. Se quem falha é
+   * uma cor que o cliente não escreveu (veio do preset) mas ele trocou o fundo, o
+   * erro aponta para o fundo: é a mudança dele que quebrou o par. */
+  const tema = resolverTema(config);
   for (const esquema of ['escuro', 'claro']) {
-    const c = t.cores?.[esquema];
-    if (!c) continue;
-    const par = (a, b, minimo, descricao) => {
-      if (!HEX.test(c[a] || '') || !HEX.test(c[b] || '')) return;
-      const razao = contraste(c[a], c[b]);
-      if (razao < minimo) {
-        erros.push({ caminho: `tema.cores.${esquema}.${a}`, mensagem: `contraste insuficiente: ${descricao} dá ${razao.toFixed(2).replace('.', ',')}:1, e o mínimo é ${String(minimo).replace('.', ',')}:1. Escolha cores mais distantes em claridade.` });
-      }
-    };
-    par('texto', 'fundo', minTexto, 'o texto sobre o fundo');
-    par('texto', 'superficie', minTexto, 'o texto sobre a superfície');
-    par('textoFraco', 'fundo', minTexto, 'o texto fraco sobre o fundo');
-    par('marca', 'fundo', minControle, 'a cor da marca sobre o fundo');
-    par('contorno', 'fundo', minControle, 'o contorno dos controles sobre o fundo');
-    if (c.textoSobreMarca) par('textoSobreMarca', 'marca', minTexto, 'o texto sobre a cor da marca');
+    const falhas = verificarPaleta(tema.cores[esquema], {
+      textoMinimo: minTexto, controleMinimo: minControle, prefixo: `tema.cores.${esquema}`
+    });
+    for (const f of falhas) {
+      const meus = tema.sobrescritas[esquema];
+      const nomeFrente = f.campo.split('.').pop();
+      const nomeFundo = f.contra.split('.').pop();
+      const culpa = !meus.has(nomeFrente) && meus.has(nomeFundo) ? f.contra : f.campo;
+      erros.push({ caminho: culpa, mensagem: f.mensagem });
+    }
   }
+  validarTipografia(t, erros);
 
-  const idi = config.idiomas;
-  if (idi?.padrao && Array.isArray(idi.disponiveis) && !idi.disponiveis.includes(idi.padrao)) {
-    erros.push({ caminho: 'idiomas.padrao', mensagem: `o idioma padrão "${idi.padrao}" precisa estar na lista idiomas.disponiveis.` });
-  }
+  /* Idiomas e textos: o padrão está na lista, e toda chave de texto existe no catálogo. */
+  erros.push(...validarIdiomas(config));
   const modo = config.acesso?.modo;
   if (modo === 'cadastro' && config.acesso?.cadastro?.turnstile === false) {
     erros.push({ caminho: 'acesso.cadastro.turnstile', mensagem: 'no modo "cadastro" a proteção anti-robô (Turnstile) é obrigatória. Use true, ou troque o modo para "privado".' });

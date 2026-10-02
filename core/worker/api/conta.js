@@ -5,7 +5,7 @@
  * ambiente do Worker, e trocá-la é trocar a variável (o que também invalida
  * todos os tokens de uma vez, inclusive os das contas).
  */
-import { json, lerContas, gravarContas, acharConta, conferirSenha, hashSenha, iteracoesDe, emitirToken } from '../_lib/sessao.js';
+import { json, erro, lerContas, gravarContas, acharConta, conferirSenha, hashSenha, iteracoesDe, emitirToken } from '../_lib/sessao.js';
 import App from '../../site/catalogo-core.js';
 
 export async function onRequestGet({ data }) {
@@ -15,26 +15,26 @@ export async function onRequestGet({ data }) {
 
 export async function onRequestPut({ request, env, data }) {
   if (data.conta.super === true) {
-    return json(400, { erro: 'a senha do superadmin é a variável ADMIN_PASSWORD, no ambiente do Worker' });
+    return erro(400, 'senha-superadmin-ambiente');
   }
 
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   const senhaNova = corpo && corpo.senhaNova;
   if (!App.senhaValida(senhaNova)) {
-    return json(400, { erro: 'a senha nova precisa de pelo menos ' + App.SENHA_MINIMA + ' caracteres' });
+    return erro(400, 'senha-curta', { minimo: App.SENHA_MINIMA });
   }
 
   const dados = await lerContas(env);
   const conta = acharConta(dados, data.conta.usuario);
-  if (!conta) return json(404, { erro: 'conta não encontrada' });
+  if (!conta) return erro(404, 'conta-nao-encontrada');
   if (!await conferirSenha(corpo.senhaAtual, conta.senha)) {
-    return json(401, { erro: 'a senha atual não confere' });
+    return erro(401, 'senha-atual-errada');
   }
 
   conta.senha = await hashSenha(senhaNova, iteracoesDe(env));

@@ -10,20 +10,11 @@
     "prefixoDeArmazenamento": "tm"
   },
   "tema": {
-    "modo": "escuro",
-    "cores": {
-      "escuro": {
-        "marca": "#6aa6ff",
-        "fundo": "#0f1115",
-        "superficie": "#171a1f",
-        "texto": "#eceff4"
-      }
-    }
+    "preset": "cinema",
+    "modo": "escuro"
   },
   "idiomas": { "padrao": "pt-BR", "disponiveis": ["pt-BR"] },
-  "textos": {
-    "pt-BR": { "rodape": "Plataforma Exemplo." }
-  },
+  "textos": {},
   "acesso": { "modo": "publico" },
   "video": {
     "provedor": "bunny",

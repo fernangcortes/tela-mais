@@ -10,7 +10,8 @@
  *
  * Rota inteira exige admin: o middleware barra antes de chegar aqui.
  */
-import { json, pode, semPermissao } from '../_lib/sessao.js';
+import { json, erro, pode, semPermissao } from '../_lib/sessao.js';
+import AppI18n from '../../site/i18n.js';
 import { onRequestPut as publicarCatalogo } from './catalogo.js';
 import App from '../../site/catalogo-core.js';
 
@@ -34,11 +35,11 @@ function exigeVideoId(request) {
  * bug do site. A tela de admin usa isto para não publicar cedo demais. */
 export async function onRequestGet({ request, data }) {
   const videoId = exigeVideoId(request);
-  if (!videoId) return json(400, { erro: 'informe um `videoId` válido' });
+  if (!videoId) return erro(400, 'informe-video-id');
 
   const r = await data.bunny.chamar('/videos/' + videoId);
   if (!r.ok) {
-    return json(502, { erro: 'Bunny recusou a consulta', status: r.status, detalhe: await r.text() });
+    return erro(502, 'provedor-recusou-consulta', null, { status: r.status, detalhe: await r.text() });
   }
 
   const v = await r.json();
@@ -102,12 +103,12 @@ export async function onRequestPost({ request, env, data }) {
   const url = new URL(request.url);
   const videoId = exigeVideoId(request);
   const tipo = url.searchParams.get('tipo');
-  if (!videoId) return json(400, { erro: 'informe um `videoId` válido' });
+  if (!videoId) return erro(400, 'informe-video-id');
 
   if (tipo === 'capa') {
     const bytes = await request.arrayBuffer();
-    if (!bytes.byteLength) return json(400, { erro: 'corpo vazio' });
-    if (bytes.byteLength > LIMITE_CAPA) return json(413, { erro: 'capa acima de 8 MB' });
+    if (!bytes.byteLength) return erro(400, 'corpo-vazio');
+    if (bytes.byteLength > LIMITE_CAPA) return erro(413, 'capa-grande');
 
     /* O título já está no catálogo? Então a troca vai gravar nele — e a conta
      * precisa poder, conferido pela mesma regra do PUT, ANTES de tocar no
@@ -118,8 +119,7 @@ export async function onRequestPost({ request, env, data }) {
     if (hipotese && !data.conta.super) {
       const barradas = App.proibidas(data.conta, App.diferencasDoCatalogo(atual, hipotese));
       if (barradas.length) {
-        return json(403, {
-          erro: 'esta conta não pode trocar a capa de um título que já está no catálogo',
+        return erro(403, 'sem-permissao-capa-catalogo', null, {
           barradas: barradas.slice(0, 20).map(d => ({ alvo: d.alvo, campo: d.campo, permissao: d.permissao }))
         });
       }
@@ -131,7 +131,7 @@ export async function onRequestPost({ request, env, data }) {
       body: bytes
     });
     if (!r.ok) {
-      return json(502, { erro: 'Bunny recusou a capa', status: r.status, detalhe: await r.text() });
+      return erro(502, 'provedor-recusou-capa', null, { status: r.status, detalhe: await r.text() });
     }
 
     /* O Bunny grava a capa recebida com um hash no nome. Sem devolver o nome
@@ -153,7 +153,9 @@ export async function onRequestPost({ request, env, data }) {
     if (gravacao.status !== 200) {
       return json(200, {
         ok: true, videoId, capa_arquivo: capaArquivo, pendente: true,
-        erro: (gravacao.corpo && gravacao.corpo.erro) || ('o catálogo não foi gravado (' + gravacao.status + ')')
+        codigo: (gravacao.corpo && gravacao.corpo.codigo) || 'catalogo-nao-gravado',
+        params: (gravacao.corpo && gravacao.corpo.params) || { status: gravacao.status },
+        erro: (gravacao.corpo && gravacao.corpo.erro) || AppI18n.t('api.catalogo-nao-gravado', { status: gravacao.status })
       });
     }
     return json(200, {
@@ -167,15 +169,15 @@ export async function onRequestPost({ request, env, data }) {
     try {
       corpo = await request.json();
     } catch (e) {
-      return json(400, { erro: 'corpo inválido: esperado JSON com `srt`' });
+      return erro(400, 'esperado-srt');
     }
 
     const srt = corpo && typeof corpo.srt === 'string' ? corpo.srt : '';
-    if (!srt.trim()) return json(400, { erro: 'legenda vazia' });
-    if (srt.length > LIMITE_LEGENDA) return json(413, { erro: 'legenda acima de 4 MB' });
+    if (!srt.trim()) return erro(400, 'legenda-vazia');
+    if (srt.length > LIMITE_LEGENDA) return erro(413, 'legenda-grande');
 
     const srclang = (corpo.srclang || 'pt').toLowerCase().replace(/[^a-z-]/g, '') || 'pt';
-    const label = corpo.label || 'Português';
+    const label = corpo.label || 'Português'; /* i18n-ignorar: rótulo da faixa de legenda (a língua da fala, dado) */
 
     const r = await data.bunny.chamar('/videos/' + videoId + '/captions/' + srclang, {
       method: 'POST',
@@ -183,10 +185,10 @@ export async function onRequestPost({ request, env, data }) {
       body: JSON.stringify({ srclang, label, captionsFile: base64Utf8(srt) })
     });
     if (!r.ok) {
-      return json(502, { erro: 'Bunny recusou a legenda', status: r.status, detalhe: await r.text() });
+      return erro(502, 'provedor-recusou-legenda', null, { status: r.status, detalhe: await r.text() });
     }
     return json(200, { ok: true, videoId, srclang });
   }
 
-  return json(400, { erro: 'parâmetro `tipo` deve ser `capa` ou `legenda`' });
+  return erro(400, 'tipo-invalido');
 }

@@ -13,11 +13,11 @@
  * opcionais — `null`/ausente em cada campo é "sem limite". Quem confere de
  * verdade é /api/upload-token, no envio; esta rota só guarda a configuração.
  */
-import { json, lerContas, gravarContas, acharConta, hashSenha, iteracoesDe } from '../_lib/sessao.js';
+import { json, erro, lerContas, gravarContas, acharConta, hashSenha, iteracoesDe } from '../_lib/sessao.js';
 import App from '../../site/catalogo-core.js';
 
 function soSuper(data) {
-  return data.conta && data.conta.super === true ? null : json(403, { erro: 'só o superadmin gerencia contas' });
+  return data.conta && data.conta.super === true ? null : erro(403, 'so-superadmin-contas');
 }
 
 /* O que vai para a tela: tudo menos a senha. O hash não sai daqui nem para o
@@ -51,25 +51,25 @@ export async function onRequestPost({ request, env, data }) {
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   const usuario = String((corpo && corpo.usuario) || '').trim().toLowerCase();
   if (!App.usuarioValido(usuario)) {
-    return json(400, { erro: 'usuário: 3 a 32 caracteres, minúsculas, números, _ ou - ; “superadmin” e “admin” são reservados' });
+    return erro(400, 'usuario-invalido');
   }
   if (!App.senhaValida(corpo.senha)) {
-    return json(400, { erro: 'a senha precisa de pelo menos ' + App.SENHA_MINIMA + ' caracteres' });
+    return erro(400, 'senha-curta', { minimo: App.SENHA_MINIMA });
   }
   if (!App.permissoesValidas(corpo.permissoes)) {
-    return json(400, { erro: 'permissão desconhecida', permissoes: App.PERMISSOES });
+    return erro(400, 'permissao-desconhecida', null, { permissoes: App.PERMISSOES });
   }
   if (corpo.limiteEnvio != null && !App.limiteEnvioValido(corpo.limiteEnvio)) {
-    return json(400, { erro: 'limite de envio inválido' });
+    return erro(400, 'limite-envio-invalido');
   }
 
   const dados = await lerContas(env);
-  if (acharConta(dados, usuario)) return json(409, { erro: 'já existe uma conta com esse usuário' });
+  if (acharConta(dados, usuario)) return erro(409, 'conta-ja-existe');
 
   const conta = {
     usuario,
@@ -96,12 +96,12 @@ export async function onRequestPut({ request, env, data }) {
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   const dados = await lerContas(env);
   const conta = acharConta(dados, corpo && corpo.usuario);
-  if (!conta) return json(404, { erro: 'conta não encontrada' });
+  if (!conta) return erro(404, 'conta-nao-encontrada');
 
   let derruba = false;   /* mudança que precisa derrubar as sessões abertas */
 
@@ -109,7 +109,7 @@ export async function onRequestPut({ request, env, data }) {
 
   if (corpo.permissoes != null) {
     if (!App.permissoesValidas(corpo.permissoes)) {
-      return json(400, { erro: 'permissão desconhecida', permissoes: App.PERMISSOES });
+      return erro(400, 'permissao-desconhecida', null, { permissoes: App.PERMISSOES });
     }
     if (JSON.stringify(conta.permissoes || []) !== JSON.stringify(corpo.permissoes)) derruba = true;
     conta.permissoes = corpo.permissoes.slice();
@@ -123,7 +123,7 @@ export async function onRequestPut({ request, env, data }) {
 
   if (corpo.senha != null) {
     if (!App.senhaValida(corpo.senha)) {
-      return json(400, { erro: 'a senha precisa de pelo menos ' + App.SENHA_MINIMA + ' caracteres' });
+      return erro(400, 'senha-curta', { minimo: App.SENHA_MINIMA });
     }
     conta.senha = await hashSenha(corpo.senha, iteracoesDe(env));
     derruba = true;
@@ -133,7 +133,7 @@ export async function onRequestPut({ request, env, data }) {
    * campo ausente do corpo não mexe no que já está guardado. */
   if ('limiteEnvio' in corpo) {
     if (corpo.limiteEnvio != null && !App.limiteEnvioValido(corpo.limiteEnvio)) {
-      return json(400, { erro: 'limite de envio inválido' });
+      return erro(400, 'limite-envio-invalido');
     }
     if (JSON.stringify(conta.limiteEnvio || null) !== JSON.stringify(corpo.limiteEnvio || null)) derruba = true;
     conta.limiteEnvio = corpo.limiteEnvio || null;
@@ -151,7 +151,7 @@ export async function onRequestDelete({ request, env, data }) {
 
   const usuario = String(new URL(request.url).searchParams.get('usuario') || '').trim().toLowerCase();
   const dados = await lerContas(env);
-  if (!acharConta(dados, usuario)) return json(404, { erro: 'conta não encontrada' });
+  if (!acharConta(dados, usuario)) return erro(404, 'conta-nao-encontrada');
 
   dados.contas = (dados.contas || []).filter(c => c.usuario !== usuario);
   await gravarContas(env, dados);

@@ -20,7 +20,7 @@
  * diferentes, e cada chave aceita uma escrita por segundo: quem manda vários
  * vídeos espera um segundo entre um e o seguinte.
  */
-import { json, pode, semPermissao } from '../../_lib/sessao.js';
+import { json, erro, pode, semPermissao } from '../../_lib/sessao.js';
 import AppIndice from '../../../site/indice-core.js';
 
 async function lerManifesto(env) {
@@ -36,7 +36,7 @@ function temSentido(env) {
 }
 
 export async function onRequestGet({ env }) {
-  if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+  if (!env.CATALOGO) return erro(500, 'kv-nao-vinculado');
   const manifesto = await lerManifesto(env);
   return json(200, {
     versao: manifesto.versao || 0,
@@ -48,16 +48,16 @@ export async function onRequestGet({ env }) {
 
 export async function onRequestPost({ request, env, data }) {
   if (!pode(data.conta, 'conteudo') && !pode(data.conta, 'enviar')) return semPermissao('conteudo');
-  if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+  if (!env.CATALOGO) return erro(500, 'kv-nao-vinculado');
 
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
   const pedido = AppIndice.validarPedido(corpo);
-  if (pedido.erro) return json(400, { erro: pedido.erro });
+  if (pedido.erro) return erro(400, 'pedido-de-indexacao-invalido', { detalhe: pedido.erro });
 
   /* OS VETORES (fase 4): até 10 textos por chamada viram vetor no `bge-m3` e
    * vão ao Vectorize por `upsert`. O id é determinístico — `f:<videoId>:
@@ -71,7 +71,7 @@ export async function onRequestPost({ request, env, data }) {
   let vetores = 0;
   if (pedido.vetores.length) {
     if (!temSentido(env)) {
-      return json(503, { erro: 'a busca por sentido não está ligada neste ambiente', sentido: false });
+      return erro(503, 'busca-sentido-desligada', null, { sentido: false });
     }
     const valores = AppIndice.vetoresDaResposta(
       await env.AI.run(AppIndice.MODELO, { text: pedido.vetores.map((v) => v[2]) }), pedido.vetores.length);

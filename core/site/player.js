@@ -18,6 +18,11 @@
 (function (raiz) {
   'use strict';
 
+  /* A tradução: `tr` é o AppI18n.t deste arquivo. O catálogo do idioma já foi
+   * carregado pelo app.js antes de a ficha pedir o player. */
+  var I18n = raiz.AppI18n;
+  function tr(chave, params) { return I18n.t(chave, params); }
+
   var HLS_SRC = 'vendor/hls.light.min.js';
   var hlsPromessa = null;
 
@@ -182,7 +187,7 @@
         else reject(new Error('hls.js carregou sem expor Hls'));
       });
       tag.addEventListener('error', function () {
-        reject(new Error('não foi possível carregar o hls.js'));
+        reject(new Error(tr('player.erroCarregarHls')));
       });
       document.head.appendChild(tag);
     });
@@ -272,7 +277,7 @@
 
     var controles = criar('div', 'pl-controles');
 
-    var bPlay = botao('pl-b pl-play', 'Reproduzir');
+    var bPlay = botao('pl-b pl-play', tr('player.reproduzir'));
 
     /* As setas de capítulo (decisão de 08/09).
      *
@@ -284,19 +289,19 @@
      * Elas só existem quando o título TEM capítulo — 39 dos 66. Nos outros 27
      * a linha fica idêntica à de hoje, em vez de ganhar dois botões apagados
      * que só sabem dizer "este título não tem capítulos". */
-    var bCapAnt = caps.length ? botao('pl-b pl-cap-ant', 'Capítulo anterior') : null;
-    var bCapProx = caps.length ? botao('pl-b pl-cap-prox', 'Próximo capítulo') : null;
+    var bCapAnt = caps.length ? botao('pl-b pl-cap-ant', tr('player.capituloAnterior')) : null;
+    var bCapProx = caps.length ? botao('pl-b pl-cap-prox', tr('player.capituloProximo')) : null;
 
-    var bCC = botao('pl-b pl-cc', 'Legenda');
-    var bMudo = botao('pl-b pl-mudo', 'Silenciar');
-    var bCheia = botao('pl-b pl-cheia', 'Tela cheia');
+    var bCC = botao('pl-b pl-cc', tr('player.legenda'));
+    var bMudo = botao('pl-b pl-mudo', tr('player.silenciar'));
+    var bCheia = botao('pl-b pl-cheia', tr('player.telaCheia'));
 
     /* Bloqueio de tela (item 9, fase 5). Só aparece em tela cheia, e o CSS é
      * quem decide isso — a lição da fase 3 continua valendo: em 375 px os
      * quatro botões e o relógio já comem 317 dos 349 px da linha, e um quinto
      * botão a quebraria em três. Deitado em tela cheia sobra largura, e é
      * justamente ali que travar a tela serve para alguma coisa. */
-    var bTrava = botao('pl-b pl-trava', 'Bloquear a tela');
+    var bTrava = botao('pl-b pl-trava', tr('player.bloquearTela'));
     bTrava.setAttribute('aria-pressed', 'false');
 
     /* "CC" escrito, não desenhado: as duas letras num retângulo são o símbolo
@@ -364,7 +369,7 @@
     faixaVol.max = String(Math.round(AppPlayerCore.VOLUME_MAX_GANHO * 100));
     faixaVol.step = '5';
     faixaVol.value = '100';
-    faixaVol.setAttribute('aria-label', 'Volume');
+    faixaVol.setAttribute('aria-label', tr('player.volume'));
 
     var valorVol = criar('span', 'pl-som-valor', '100%');
 
@@ -372,8 +377,8 @@
      * abre o painel, e sem isto não sobraria como silenciar sem teclado.
      * É texto e não ícone de propósito — duplicar o alto-falante em SVG faria
      * dois lugares para manter o mesmo desenho. */
-    var bMudoPainel = botao('pl-som-mudo', 'Silenciar');
-    bMudoPainel.appendChild(criar('span', null, 'Mudo'));
+    var bMudoPainel = botao('pl-som-mudo', tr('player.silenciar'));
+    bMudoPainel.appendChild(criar('span', null, tr('player.mudo')));
     bMudoPainel.setAttribute('aria-pressed', 'false');
 
     var linhaVol = criar('div', 'pl-som-linha');
@@ -389,7 +394,7 @@
     caixaEstavel.type = 'checkbox';
     caixaEstavel.className = 'pl-som-caixinha';
     rotEstavel.appendChild(caixaEstavel);
-    rotEstavel.appendChild(document.createTextNode('Volume estável'));
+    rotEstavel.appendChild(document.createTextNode(tr('player.volumeEstavel')));
 
     /* Onde o painel diz a verdade quando não dá para mexer no volume — o
      * iPhone sem Web Audio, o contexto que não ligou. */
@@ -421,7 +426,7 @@
     var barra = criar('div', 'pl-barra');
     barra.setAttribute('role', 'slider');
     barra.setAttribute('tabindex', '0');
-    barra.setAttribute('aria-label', 'Linha do tempo');
+    barra.setAttribute('aria-label', tr('player.linhaDoTempo'));
     barra.setAttribute('aria-valuemin', '0');
     barra.setAttribute('aria-valuenow', '0');
 
@@ -747,8 +752,8 @@
 
     function sincronizarPlay() {
       var tocando = !video.paused && !video.ended;
-      bPlay.setAttribute('aria-label', tocando ? 'Pausar' : 'Reproduzir');
-      bPlay.title = tocando ? 'Pausar' : 'Reproduzir';
+      bPlay.setAttribute('aria-label', tocando ? tr('player.pausar') : tr('player.reproduzir'));
+      bPlay.title = tocando ? tr('player.pausar') : tr('player.reproduzir');
       caixa.classList.toggle('pl-tocando', tocando);
     }
 
@@ -1077,7 +1082,7 @@
     function montarFaixa(cues) {
       var Cue = raiz.VTTCue || raiz.TextTrackCue;
       if (!video.addTextTrack || !Cue) return null;
-      var faixa = video.addTextTrack('captions', 'Português', 'pt');
+      var faixa = video.addTextTrack('captions', 'Português', 'pt'); /* i18n-ignorar: rótulo da faixa de legenda, que é dado (a língua da fala), não da interface */
       faixa.mode = 'hidden';
       cues.forEach(function (c) {
         /* Uma cue torta não pode derrubar as outras 835. */
@@ -1090,11 +1095,11 @@
     function carregarLegenda() {
       if (legenda.cues) return Promise.resolve(legenda.cues);
       var url = AppPlayerCore.urlLegenda(fonte, config);
-      if (!url) return Promise.reject(new Error('sem URL de legenda'));
+      if (!url) return Promise.reject(new Error(tr('player.erroSemUrlLegenda')));
       return fetch(url).then(function (r) {
         /* 404 é caso REAL e esperado: o institucional não tem legenda nenhuma
          * (o áudio é só trilha), e 1 dos 33 no ar está nessa situação. */
-        if (!r.ok) throw new Error('legenda respondeu ' + r.status);
+        if (!r.ok) throw new Error(tr('player.erroLegendaStatus', { status: r.status }));
         return r.text();
       }).then(function (texto) {
         /* Dois passos com nomes próprios, e não um só: `analisarVtt` é fiel ao
@@ -1103,7 +1108,7 @@
          * subir empurrando a de cima. Em legenda normal o segundo passo não
          * encontra nada para fazer e devolve as cues intactas. */
         var cues = AppPlayerCore.desenrolarLegenda(AppPlayerCore.analisarVtt(texto));
-        if (!cues.length) throw new Error('legenda sem cues aproveitáveis');
+        if (!cues.length) throw new Error(tr('player.erroLegendaVazia'));
         legenda.cues = cues;
         legenda.faixa = montarFaixa(cues);
         if (!legenda.faixa) throw new Error('navegador sem TextTrack');
@@ -1114,7 +1119,7 @@
     function sincronizarCC() {
       var ligada = legenda.ligada;
       bCC.setAttribute('aria-pressed', String(ligada));
-      bCC.setAttribute('aria-label', ligada ? 'Desligar legenda' : 'Ligar legenda');
+      bCC.setAttribute('aria-label', ligada ? tr('player.desligarLegenda') : tr('player.ligarLegenda'));
       bCC.title = bCC.getAttribute('aria-label');
       caixa.classList.toggle('pl-legenda-ativa', ligada);
     }
@@ -1126,32 +1131,32 @@
     function ligarLegendaBaixando(calada) {
       if (legenda.carregando) return;
       legenda.carregando = true;
-      if (!calada) mostrarSelo('Carregando legenda…');
+      if (!calada) mostrarSelo(tr('player.carregandoLegenda'));
       carregarLegenda().then(function () {
         legenda.carregando = false;
         if (destruido) return;
         legenda.ligada = true;
         sincronizarCC();
         pintarLegenda();
-        if (!calada) mostrarSelo('Legenda ligada');
+        if (!calada) mostrarSelo(tr('player.legendaLigada'));
       }).catch(function () {
         legenda.carregando = false;
         if (destruido) return;
         legenda.indisponivel = true;
         bCC.disabled = true;
-        if (!calada) mostrarSelo('Este título não tem legenda');
+        if (!calada) mostrarSelo(tr('player.semLegenda'));
       });
     }
 
     function alternarLegenda() {
-      if (legenda.indisponivel) { mostrarSelo('Este título não tem legenda'); return; }
+      if (legenda.indisponivel) { mostrarSelo(tr('player.semLegenda')); return; }
 
       if (legenda.ligada || legenda.cues) {
         legenda.ligada = !legenda.ligada;
         gravarPreferenciaLegenda(legenda.ligada, legenda.escala);
         sincronizarCC();
         pintarLegenda();
-        mostrarSelo(legenda.ligada ? 'Legenda ligada' : 'Legenda desligada');
+        mostrarSelo(legenda.ligada ? tr('player.legendaLigada') : tr('player.legendaDesligada'));
         return;
       }
 
@@ -1162,11 +1167,11 @@
     }
 
     function ajustarCorpoLegenda(passo) {
-      if (!legenda.ligada) { mostrarSelo('Ligue a legenda primeiro (C)'); return; }
+      if (!legenda.ligada) { mostrarSelo(tr('player.ligueLegendaPrimeiro')); return; }
       legenda.escala = AppPlayerCore.proximoTamanhoLegenda(legenda.escala, passo);
       caixa.style.setProperty('--pl-leg', String(legenda.escala));
       gravarPreferenciaLegenda(true, legenda.escala);
-      mostrarSelo('Legenda ' + Math.round(legenda.escala * 100) + '%');
+      mostrarSelo(tr('player.legendaEscala', { pct: Math.round(legenda.escala * 100) }));
     }
 
     /* -------------------------------------------------- ações do teclado
@@ -1180,9 +1185,9 @@
       /* `muted` funciona no iPhone, ao contrário de `volume` — e continua
        * valendo com o grafo montado, porque ele silencia o ELEMENTO, antes de
        * qualquer nó nosso. Por isso o mudo não passou a depender do ganho. */
-      var rotulo = video.muted ? 'Ativar som' : 'Silenciar';
-      bMudo.setAttribute('aria-label', semHover ? 'Volume' : rotulo);
-      bMudo.title = semHover ? 'Volume' : rotulo;
+      var rotulo = video.muted ? tr('player.ativarSom') : tr('player.silenciar');
+      bMudo.setAttribute('aria-label', semHover ? tr('player.volume') : rotulo);
+      bMudo.title = semHover ? tr('player.volume') : rotulo;
       bMudoPainel.setAttribute('aria-label', rotulo);
       bMudoPainel.setAttribute('aria-pressed', video.muted ? 'true' : 'false');
       caixa.classList.toggle('pl-mudo-ativo', video.muted);
@@ -1313,7 +1318,7 @@
         if (destruido || !som.ctx) return;
         if (som.ctx.state === 'running') { dizerNoPainel(''); return; }
         acordarSom();
-        dizerNoPainel('O som ainda não começou. Toque no vídeo.');
+        dizerNoPainel(tr('player.somNaoComecou'));
       }, 500);
     }
 
@@ -1498,15 +1503,15 @@
       if (ligado && !som.ativo && !montarGrafo()) {
         som.estavel = false;
         sincronizarSom();
-        dizerNoPainel('Este navegador não processa o som.');
-        mostrarSelo('Volume estável indisponível');
+        dizerNoPainel(tr('player.navegadorSemSom'));
+        mostrarSelo(tr('player.volumeEstavelIndisponivel'));
         return;
       }
       som.estavel = !!ligado;
       aplicarSom();
       sincronizarSom();
       agendarGravacaoSom();
-      mostrarSelo(som.estavel ? 'Volume estável ligado' : 'Volume estável desligado');
+      mostrarSelo(som.estavel ? tr('player.volumeEstavelLigado') : tr('player.volumeEstavelDesligado'));
     }
 
     /* O painel é o espelho de `som` — nunca a fonte da verdade. */
@@ -1525,7 +1530,7 @@
       var semSaida = !som.obedece && !som.ativo && !som.possivel;
       faixaVol.disabled = semSaida;
       caixaEstavel.disabled = !som.ativo && !som.possivel;
-      if (semSaida) dizerNoPainel('Use os botões do aparelho.');
+      if (semSaida) dizerNoPainel(tr('player.useBotoesDoAparelho'));
     }
 
 
@@ -1540,7 +1545,7 @@
      * estreita depois de sair da ficha em modo teatro. */
     function alternarTeatro() {
       var ligado = document.body.classList.toggle('app-teatro');
-      mostrarSelo(ligado ? 'Modo teatro' : 'Modo normal');
+      mostrarSelo(ligado ? tr('player.modoTeatro') : tr('player.modoNormal'));
     }
 
     /* -------------------------------------------- gestos de toque (fase 5)
@@ -1828,7 +1833,7 @@
        * limiar, com o dedo ainda na tela. Dizer "solte" ensinaria o gesto
        * errado — soltar ali em cima confirma o arrasto, não o desfaz. */
       previaTempo.textContent = indo
-        ? '↓ desça mais para cancelar'
+        ? tr('player.descaMaisParaCancelar')
         : App.formatarTempo(alvo) +
           (delta == null ? '' : '  ' + (delta < 0 ? '−' : '+') + Math.abs(delta) + ' s');
       pedirQuadro(alvo);
@@ -1864,7 +1869,7 @@
         if (velocidadeAntes || video.paused) return;
         velocidadeAntes = video.playbackRate || 1;
         video.playbackRate = AppPlayerCore.VELOCIDADE_SEGURAR;
-        mostrarSelo('▶▶ ' + AppPlayerCore.VELOCIDADE_SEGURAR + '× enquanto segurar', true);
+        mostrarSelo(tr('player.velocidadeSegurar', { x: AppPlayerCore.VELOCIDADE_SEGURAR }), true);
       } else {
         if (!velocidadeAntes) return;
         video.playbackRate = velocidadeAntes;
@@ -1888,11 +1893,11 @@
       caixa.classList.toggle('pl-travado', travado);
       cadeado.hidden = !travado;
       bTrava.setAttribute('aria-pressed', travado ? 'true' : 'false');
-      var rotulo = travado ? 'Desbloquear a tela' : 'Bloquear a tela';
+      var rotulo = travado ? tr('player.desbloquearTela') : tr('player.bloquearTela');
       bTrava.setAttribute('aria-label', rotulo);
       bTrava.title = rotulo;
-      mostrarSelo(travado ? 'Tela bloqueada · toque duas vezes para soltar'
-        : 'Tela liberada');
+      mostrarSelo(travado ? tr('player.telaBloqueada')
+        : tr('player.telaLiberada'));
     }
 
     /* Em tela cheia o vídeo é dono da tela, e é só ali que o arrasto VERTICAL
@@ -1957,7 +1962,7 @@
            * sozinho como sempre fez. */
           esconderPrevia();
           mostrarSelo(a.cancelado
-            ? 'Arrasto cancelado · ' + App.formatarTempo(alvo)
+            ? tr('player.arrastoCancelado', { tempo: App.formatarTempo(alvo) })
             : App.formatarTempo(alvo) + '  ' + (delta < 0 ? '−' : '+') +
               Math.abs(delta) + ' s');
         } else {
@@ -2010,7 +2015,10 @@
      * `alvo: null` chega de propósito (↓ em pé, ↑ deitado) e serve para APAGAR
      * o aviso: sem esta passagem o selo ficaria pendurado depois de um deslize
      * que não fez nada. */
-    var ROTULO_DESLIZE = { deitar: '⟳ Deitar a imagem', fechar: '✕ Fechar o vídeo' };
+    var ROTULO_DESLIZE = {
+      get deitar() { return tr('player.deslizeDeitar'); },
+      get fechar() { return tr('player.deslizeFechar'); }
+    };
 
     function aplicarDeslize(a) {
       if (a.fase !== 'fim') {
@@ -2043,16 +2051,16 @@
     function deitarImagem() {
       var o = raiz.screen && raiz.screen.orientation;
       if (!o || typeof o.lock !== 'function') {
-        mostrarSelo('Gire o aparelho para ver maior');
+        mostrarSelo(tr('player.gireOAparelho'));
         return;
       }
       try {
         var pedido = o.lock('landscape');
         if (pedido && typeof pedido.catch === 'function') {
-          pedido.catch(function () { mostrarSelo('Gire o aparelho para ver maior'); });
+          pedido.catch(function () { mostrarSelo(tr('player.gireOAparelho')); });
         }
       } catch (e) {
-        mostrarSelo('Gire o aparelho para ver maior');
+        mostrarSelo(tr('player.gireOAparelho'));
       }
     }
 
@@ -2098,7 +2106,7 @@
         case 'zoom': aplicarZoomGesto(acao); break;
         case 'velocidadeTemporaria': velocidadeTemporaria(acao.ligada); break;
         case 'avisoTravado':
-          mostrarSelo('Tela bloqueada · toque duas vezes para soltar');
+          mostrarSelo(tr('player.telaBloqueada'));
           break;
         case 'destravar': travar(false); break;
         /* Duplo clique do mouse: tela cheia SEM mexer no play. O primeiro
@@ -2144,11 +2152,11 @@
      * espelho da direita: no meio de um capítulo ela RECOMEÇA o capítulo, como
      * o botão de faixa anterior de qualquer tocador. */
     function irParaCapitulo(direcao) {
-      if (!caps.length) { mostrarSelo('Este título não tem capítulos'); return; }
+      if (!caps.length) { mostrarSelo(tr('player.semCapitulos')); return; }
       var agora = video.currentTime || 0;
       var alvo = AppPlayerCore.alvoDeCapitulo(caps, App.capituloEm(caps, agora), agora, direcao);
       if (!alvo) {
-        mostrarSelo(direcao > 0 ? 'Último capítulo' : 'Primeiro capítulo');
+        mostrarSelo(direcao > 0 ? tr('player.ultimoCapitulo') : tr('player.primeiroCapitulo'));
         return;
       }
       irPara(alvo.inicio);
@@ -2160,7 +2168,7 @@
     function irParaEpisodio(direcao) {
       var alvo = direcao > 0 ? g.proximo : g.anterior;
       if (!alvo) {
-        mostrarSelo(direcao > 0 ? 'Último da série' : 'Primeiro da série');
+        mostrarSelo(direcao > 0 ? tr('player.ultimoDaSerie') : tr('player.primeiroDaSerie'));
         return;
       }
       raiz.location.hash = '#/ep/' + encodeURIComponent(alvo.id);
@@ -2181,7 +2189,7 @@
           break;
         case 'irParaFim':
           irPara(duracao());
-          mostrarSelo('Fim');
+          mostrarSelo(tr('player.fim'));
           break;
         case 'irParaDecimo': {
           var t = AppPlayerCore.tempoPorDecimo(acao.digito, duracao());
@@ -2194,7 +2202,7 @@
         case 'velocidade': ajustarVelocidade(acao.passo); break;
         case 'alternarMudo':
           definirMudo(!video.muted);
-          mostrarSelo(video.muted ? 'Mudo' : 'Som ligado');
+          mostrarSelo(video.muted ? tr('player.mudo') : tr('player.somLigado'));
           break;
         case 'alternarLegenda': alternarLegenda(); break;
         case 'corpoLegenda': ajustarCorpoLegenda(acao.passo); break;
@@ -2554,7 +2562,7 @@
           if (!dados || !dados.fatal) return;      /* o hls.js recupera sozinho */
           if (dados.type === Hls.ErrorTypes.NETWORK_ERROR) { hls.startLoad(); return; }
           if (dados.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
-          cairParaMp4('O vídeo teve um problema de reprodução. Tentando outra via…');
+          cairParaMp4(tr('player.problemaDeReproducao'));
         });
         hls.loadSource(urlHls);
         hls.attachMedia(video);
@@ -2719,7 +2727,7 @@
     var alvo = ultimoSom;
     if (!alvo || !alvo.som.ativo || !alvo.som.ctx) {
       return Promise.resolve({
-        via: alvo ? 'elemento' : 'sem player',
+        via: alvo ? 'elemento' : 'sem player', /* i18n-ignorar: código interno (diagnóstico), não texto de tela */
         estado: alvo && alvo.som.ctx ? alvo.som.ctx.state : null,
         pico: null
       });

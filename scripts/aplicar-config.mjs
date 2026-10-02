@@ -10,15 +10,17 @@
  * de fato difere), o que deixa o `git diff` limpo e a verificação possível.
  * Config inválida: não escreve NADA e sai com 1.
  */
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { carregarConfig, RAIZ_PADRAO } from './lib/config-carregar.mjs';
+import { prepararFontes } from './lib/fontes.mjs';
 import { formatarErros } from '../core/worker/_lib/config-validar.mjs';
 import {
   gerarThemeCss, gerarManifest, gerarRobots, gerarPublico, gerarBlocoHead, trocarBloco,
   MARCADOR_INICIO, MARCADOR_FIM
 } from './lib/config-gerar.mjs';
+import { carregarCatalogos, gerarLocales, aplicarI18nNoHtml, validarCatalogosDoCliente } from './lib/i18n-gerar.mjs';
 
 async function lerOuNada(arquivo) {
   try { return await readFile(arquivo, 'utf8'); } catch (e) { return null; }
@@ -37,6 +39,11 @@ export async function aplicarConfig({ raiz = RAIZ_PADRAO, verificar = false } = 
     ['robots.txt', gerarRobots(config)],
     ['config.public.json', gerarPublico(config)]
   ]);
+  /* Os textos de interface por idioma (locales/<id>.json) e o HTML no idioma padrão. */
+  const catalogos = await carregarCatalogos(raiz);
+  const errosDeTextos = validarCatalogosDoCliente(catalogos);
+  if (errosDeTextos.length) return { ok: false, erros: errosDeTextos, alterados: [] };
+  for (const [nome, conteudo] of gerarLocales(config, catalogos)) saidas.set(nome, conteudo);
   const erros = [];
   for (const [arquivo, pagina] of [['index.html', 'index'], ['admin.html', 'admin']]) {
     const atual = await lerOuNada(path.join(site, arquivo));
@@ -46,11 +53,30 @@ export async function aplicarConfig({ raiz = RAIZ_PADRAO, verificar = false } = 
       erros.push({ caminho: `core/site/${arquivo}`, mensagem: `faltam os marcadores ${MARCADOR_INICIO} e ${MARCADOR_FIM} no <head>.` });
       continue;
     }
-    saidas.set(arquivo, novo);
+    saidas.set(arquivo, aplicarI18nNoHtml(novo, config, catalogos));
   }
+  const fontes = await prepararFontes({ raiz, config });
+  erros.push(...fontes.erros);
   if (erros.length) return { ok: false, erros, alterados: [] };
 
   const alterados = [];
+  /* Fontes (binário): copia o que mudou e apaga o que o tema deixou de pedir. */
+  for (const [nome, dados] of fontes.binarios) {
+    const destino = path.join(site, nome);
+    let atual = null;
+    try { atual = await readFile(destino); } catch (e) { /* ainda não existe */ }
+    if (atual && atual.equals(dados)) continue;
+    alterados.push(`core/site/${nome}`);
+    if (!verificar) {
+      await mkdir(path.dirname(destino), { recursive: true });
+      await writeFile(destino, dados);
+    }
+  }
+  for (const nome of fontes.obsoletos) {
+    alterados.push(`core/site/${nome} (removido)`);
+    if (!verificar) await rm(path.join(site, nome), { force: true });
+  }
+
   for (const [nome, conteudo] of saidas) {
     const destino = path.join(site, nome);
     if ((await lerOuNada(destino)) === conteudo) continue;

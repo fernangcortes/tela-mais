@@ -11,7 +11,7 @@
  * Esta função NÃO chama handler: devolve a decisão. Quem despacha é index.js.
  * Fica barata de propósito (um HMAC e, para conta comum, uma leitura de KV):
  * o plano gratuito dá 10 ms de CPU por requisição, e o teste mede. */
-import { json, contaDoToken, criarClienteBunny } from './_lib/sessao.js';
+import { json, erro, contaDoToken, criarClienteBunny } from './_lib/sessao.js';
 import { nivelDe, papelDaConta, papelMinimo, papelBasta } from './permissoes.js';
 
 export function tokenDe(request) {
@@ -40,9 +40,9 @@ export async function autorizar({ request, env, caminho, metodo, modo }) {
   if (!entrada.achou) {
     /* Em /api, quem não tem sessão não aprende o que existe: 401 para tudo.
      * Com sessão, 404 (rota que não existe) ou 405 (método que ela não aceita). */
-    if (ehApi && papel === 'anonimo') return { permitido: false, resposta: json(401, { erro: 'não autorizado' }) };
-    if (entrada.rota) return { permitido: false, resposta: json(405, { erro: 'método não permitido' }) };
-    return { permitido: false, resposta: json(404, { erro: 'não encontrado' }) };
+    if (ehApi && papel === 'anonimo') return { permitido: false, resposta: erro(401, 'nao-autorizado') };
+    if (entrada.rota) return { permitido: false, resposta: erro(405, 'metodo-nao-permitido') };
+    return { permitido: false, resposta: erro(404, 'nao-encontrado') };
   }
 
   const minimo = papelMinimo(entrada.nivel, modo);
@@ -50,8 +50,8 @@ export async function autorizar({ request, env, caminho, metodo, modo }) {
     return {
       permitido: false,
       resposta: papel === 'anonimo'
-        ? json(401, { erro: 'não autorizado' })
-        : json(403, { erro: minimo === 'super' ? 'só o superadmin faz isso' : 'sem permissão para esta rota' })
+        ? erro(401, 'nao-autorizado')
+        : erro(403, minimo === 'super' ? 'so-superadmin' : 'sem-permissao-rota')
     };
   }
   return { permitido: true, data, nivel: entrada.nivel };

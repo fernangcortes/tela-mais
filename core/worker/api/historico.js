@@ -21,7 +21,7 @@
  * ela vira rascunho, que vai pelo Publicar de sempre. Um caminho de gravação a
  * menos é uma conferência de permissão a menos para manter.
  */
-import { json } from '../_lib/sessao.js';
+import { json, erro } from '../_lib/sessao.js';
 import App from '../../site/catalogo-core.js';
 
 const CHAVE = 'catalogo';
@@ -110,22 +110,22 @@ async function linhaDoTempo(env, limite, cursor) {
 }
 
 export async function onRequestGet({ request, env, data }) {
-  if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
-  if (!data.admin) return json(401, { erro: 'não autorizado' });
+  if (!env.CATALOGO) return erro(500, 'kv-nao-vinculado');
+  if (!data.admin) return erro(401, 'nao-autorizado');
 
   const p = new URL(request.url).searchParams;
 
   const versao = p.get('versao');
   if (versao) {
     const copia = await env.CATALOGO.get(App.chaveVersao(versao), 'json');
-    if (!copia) return json(404, { erro: 'não há cópia guardada da rev ' + versao });
+    if (!copia) return erro(404, 'sem-copia-rev', { rev: versao });
     return json(200, { rev: Number(versao), catalogo: copia });
   }
 
   const rev = p.get('rev');
   if (rev) {
     const registro = await env.CATALOGO.get(App.chaveHistorico(rev), 'json');
-    if (!registro) return json(404, { erro: 'não há registro da rev ' + rev });
+    if (!registro) return erro(404, 'sem-registro-rev', { rev });
     /* Diz se a cópia inteira daquela rev ainda existe: passadas as 30, o
      * registro do que mudou continua, e o "ver como estava" não. */
     const copia = await env.CATALOGO.get(App.chaveVersao(rev));
@@ -140,27 +140,27 @@ export async function onRequestGet({ request, env, data }) {
  * anda para a frente, e a volta entra no histórico com o número da rev de onde
  * veio. Nada é apagado; desfazer a restauração é restaurar a anterior. */
 export async function onRequestPost({ request, env, data }) {
-  if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+  if (!env.CATALOGO) return erro(500, 'kv-nao-vinculado');
   if (!App.contaPode(data.conta, 'historico')) {
-    return json(403, { erro: 'esta conta não pode restaurar versão', permissao: 'historico' });
+    return erro(403, 'sem-permissao-restaurar', null, { permissao: 'historico' });
   }
 
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
   const alvo = corpo && corpo.restaurar;
-  if (alvo == null || !isFinite(Number(alvo))) return json(400, { erro: 'esperado { restaurar: <rev> }' });
+  if (alvo == null || !isFinite(Number(alvo))) return erro(400, 'esperado-restaurar');
 
   const copia = await env.CATALOGO.get(App.chaveVersao(alvo), 'json');
-  if (!copia) return json(404, { erro: 'não há cópia guardada da rev ' + alvo });
+  if (!copia) return erro(404, 'sem-copia-rev', { rev: alvo });
 
   const atual = await env.CATALOGO.get(CHAVE, 'json');
   const revAtual = (atual && atual.rev) || 0;
   if (corpo.rev != null && corpo.rev !== revAtual) {
-    return json(409, { erro: 'o catálogo mudou desde que esta tela o carregou', rev_servidor: revAtual, rev_enviada: corpo.rev });
+    return erro(409, 'catalogo-mudou', null, { rev_servidor: revAtual, rev_enviada: corpo.rev });
   }
 
   const novo = Object.assign({}, copia, {
@@ -182,8 +182,7 @@ export async function onRequestPost({ request, env, data }) {
   if (!data.conta.super) {
     const barradas = App.proibidas(data.conta, difs);
     if (barradas.length) {
-      return json(403, {
-        erro: 'esta conta não pode mudar ' + (barradas.length === 1 ? 'este campo' : 'estes ' + barradas.length + ' campos'),
+      return erro(403, 'conta-nao-pode-campos', { n: barradas.length }, {
         barradas: barradas.slice(0, 20).map(d => ({ alvo: d.alvo, campo: d.campo, permissao: d.permissao }))
       });
     }

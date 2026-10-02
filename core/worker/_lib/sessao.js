@@ -20,6 +20,7 @@
  * novo e recusa campo que a conta não pode mudar.
  */
 import App from '../../site/catalogo-core.js';
+import AppI18n from '../../site/i18n.js';
 
 const ROTULO_TOKEN = 'tm-admin:';
 const VALIDADE_TOKEN_S = 8 * 60 * 60;   /* 8 h: uma jornada de trabalho */
@@ -44,6 +45,22 @@ export function json(status, corpo, extras) {
       'cache-control': 'no-store'
     }, extras || {})
   });
+}
+
+/* Erro de API: { erro, codigo, mensagem, params?, ...extras }.
+ *
+ *   codigo    estável (kebab-case): é o que o front traduz, com a chave `api.<codigo>`
+ *             do seu catálogo, usando `params` para os buracos da frase;
+ *   mensagem  o texto já pronto, no idioma do pedido (o index.js a refaz a partir do
+ *             Accept-Language; aqui ela nasce no idioma de referência);
+ *   erro      o mesmo texto, mantido por compatibilidade com quem lia `erro` (scripts
+ *             de carga, a mesa antiga). Não remova sem avisar os scripts.
+ * `extras` carrega o resto do contrato de cada rota (motivo, permissao, rev_servidor...). */
+export function erro(status, codigo, params, extras) {
+  const mensagem = AppI18n.t('api.' + codigo, params || undefined);
+  const corpo = { erro: mensagem, codigo, mensagem };
+  if (params) corpo.params = params;
+  return json(status, Object.assign(corpo, extras || {}));
 }
 
 const enc = new TextEncoder();
@@ -80,7 +97,7 @@ const agora = () => Math.floor(Date.now() / 1000);
 /* ------------------------------------------------------------------ contas */
 
 export function contaSuper() {
-  return { usuario: 'superadmin', nome: 'Superadmin', super: true, permissoes: App.PERMISSOES.slice(), limiteEnvio: null };
+  return { usuario: 'superadmin', nome: 'Superadmin', /* i18n-ignorar: nome de conta (dado) */ super: true, permissoes: App.PERMISSOES.slice(), limiteEnvio: null };
 }
 
 export async function lerContas(env) {
@@ -223,10 +240,7 @@ export function pode(conta, permissao) {
 
 /* Resposta única para "a sua conta não faz isso", para a mesa poder explicar. */
 export function semPermissao(permissao) {
-  return json(403, {
-    erro: 'esta conta não tem a permissão “' + (App.ROTULO_PERMISSAO[permissao] || permissao) + '”',
-    permissao
-  });
+  return erro(403, 'sem-permissao', { permissao: App.ROTULO_PERMISSAO[permissao] || permissao }, { permissao });
 }
 
 /* --------------------------------------------------------------- o Bunny */

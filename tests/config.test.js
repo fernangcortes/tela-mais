@@ -62,8 +62,8 @@ test('schema: usa só as palavras que o validador sabe interpretar', () => {
 
 test('validador: recusa paleta, enum, tipo, faixa e campo desconhecido, em português', () => {
   const casos = [
-    [(c) => { c.tema.cores.escuro.marca = 'azul'; }, 'tema.cores.escuro.marca'],
-    [(c) => { c.tema.cores.escuro.fundo = '#12345'; }, 'tema.cores.escuro.fundo'],
+    [(c) => { c.tema.cores = { escuro: { marca: 'azul' } }; }, 'tema.cores.escuro.marca'],
+    [(c) => { c.tema.cores = { escuro: { fundo: '#12345' } }; }, 'tema.cores.escuro.fundo'],
     [(c) => { c.acesso.modo = 'aberto'; }, 'acesso.modo'],
     [(c) => { c.player.autoplay.modo = 'sempre'; }, 'player.autoplay.modo'],
     [(c) => { c.player.proximoEpisodio.segundosDeContagem = 0; }, 'player.proximoEpisodio.segundosDeContagem'],
@@ -83,12 +83,12 @@ test('validador: recusa paleta, enum, tipo, faixa e campo desconhecido, em portu
 
 test('validador: contraste insuficiente é recusado; paleta boa passa', () => {
   assert.ok(contraste('#000000', '#ffffff') > 20.9);
-  const ruim = validarConfig(schema, com((c) => { c.tema.cores.escuro.texto = '#1a1d22'; }));
+  const ruim = validarConfig(schema, com((c) => { c.tema.cores = { escuro: { texto: '#1a1d22' } }; }));
   assert.equal(ruim.ok, false);
   assert.match(ruim.erros[0].mensagem, /contraste insuficiente/);
-  const bom = validarConfig(schema, com((c) => { c.tema.cores.claro = { fundo: '#ffffff', texto: '#14181b', marca: '#0f6b45', superficie: '#f3f5f7' }; }));
+  const bom = validarConfig(schema, com((c) => { c.tema.cores = { claro: { fundo: '#ffffff', texto: '#14181b', marca: '#0f6b45', superficie: '#f3f5f7' } }; }));
   assert.equal(bom.ok, true, JSON.stringify(bom.erros));
-  const claroRuim = validarConfig(schema, com((c) => { c.tema.cores.claro = { fundo: '#ffffff', texto: '#cccccc' }; }));
+  const claroRuim = validarConfig(schema, com((c) => { c.tema.cores = { claro: { fundo: '#ffffff', texto: '#cccccc' } }; }));
   assert.equal(claroRuim.ok, false);
 });
 
@@ -119,7 +119,7 @@ test('segredo literal é recusado em qualquer lugar; {"$env"} é aceito', () => 
 
 test('config inválida, ausente ou sem schema => modo privado e erro marcado', async () => {
   const invalidos = [
-    { arquivo: com((c) => { c.tema.cores.escuro.marca = 'azul'; }) },
+    { arquivo: com((c) => { c.tema.cores = { escuro: { marca: 'azul' } }; }) },
     { arquivo: com((c) => { c.acesso.modo = 'aberto'; }) },
     { arquivo: com((c) => { c.video.bunny.chaveApi = 'segredo-em-texto'; }) },
     { arquivo: null },
@@ -251,7 +251,7 @@ test('aplicar-config: o repositório está em dia com o config/site.json', async
 });
 
 test('aplicar-config: escapa a marca no HTML e põe nome, cores e manifest', async () => {
-  const raiz = raizTemporaria((c) => { c.marca.nome = 'A&B "C" <i>'; c.marca.nomeCurto = 'AB'; c.tema.cores.escuro.marca = '#FFAA00'; });
+  const raiz = raizTemporaria((c) => { c.marca.nome = 'A&B "C" <i>'; c.marca.nomeCurto = 'AB'; c.tema.cores = { escuro: { marca: '#FFAA00' } }; });
   await aplicarConfig({ raiz });
   const html = lerSite(raiz, 'index.html');
   assert.ok(html.includes('<title>A&amp;B &quot;C&quot; &lt;i&gt; — catálogo</title>'));
@@ -309,7 +309,7 @@ test('validar-config: sai com 0 no exemplo e com 1 num arquivo ruim, com mensage
   const saida = (acc) => ({ log: (t) => acc.push(t), error: (t) => acc.push(t) });
   const ok = []; assert.equal(await validarPrincipal([], saida(ok)), 0);
   assert.match(ok.join('\n'), /Configuração válida/);
-  const raiz = raizTemporaria((c) => { c.tema.cores.escuro.marca = 'azul'; });
+  const raiz = raizTemporaria((c) => { c.tema.cores = { escuro: { marca: 'azul' } }; });
   const ruim = []; assert.equal(await validarPrincipal([path.join(raiz, 'config/site.json')], saida(ruim)), 1);
   assert.match(ruim.join('\n'), /tema\.cores\.escuro\.marca/);
   const sumiu = []; assert.equal(await validarPrincipal([path.join(raiz, 'nao-existe.json')], saida(sumiu)), 1);

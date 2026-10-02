@@ -10,6 +10,7 @@
   },
   "tituloBase": "Plataforma Exemplo — catálogo",
   "tema": {
+    "preset": "cinema",
     "modo": "escuro"
   },
   "idiomas": {
@@ -18,12 +19,7 @@
       "pt-BR"
     ],
     "detectarDoNavegador": false,
-    "seletorVisivel": false
-  },
-  "textos": {
-    "pt-BR": {
-      "rodape": "Plataforma Exemplo."
-    }
+    "seletorVisivel": true
   },
   "acesso": {
     "modo": "publico"

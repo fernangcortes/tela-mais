@@ -1,20 +1,53 @@
 /* GERADO por scripts/aplicar-config.mjs a partir de config/site.json. Não edite à mão:
- * mude as cores em tema.cores.escuro e rode `node scripts/aplicar-config.mjs`.
- * Carrega depois do style.css e só troca os valores das variáveis. */
+ * tema "cinema", modo "escuro". Para mudar, troque tema.* no config e rode
+ * `node scripts/aplicar-config.mjs`. Carrega depois do style.css. */
 :root {
+  color-scheme: dark;
   --marca: #6aa6ff;
   --marca-clara: #8dbcff;
   --marca-fraca: #151d2b;
   --marca-alt: #4f8de0;
   --marca-destaque: #f5c542;
+  --texto-sobre-marca: #07101c;
+  --texto-sobre-destaque: #1a1500;
   --fundo: #0f1115;
   --superficie: #171a1f;
-  --borda: #2a2f36;
-  --contorno: #656f78;
   --texto: #eceff4;
   --texto-fraco: #98a2ad;
+  --borda: #2a2f36;
+  --contorno: #656f78;
   --alerta: #e0b356;
   --alerta-fundo: #2a2415;
   --erro: #f08c86;
   --erro-fundo: #2c1817;
+  --mesa-fundo: #0a0c0e;
+  --painel: #111417;
+  --painel-alto: #1a1f23;
+  --fundo-96: rgb(15 17 21 / 0.96);
+  --fundo-72: rgb(15 17 21 / 0.72);
+  --marca-destaque-08: rgb(245 197 66 / 0.08);
+  --logo-fundo-escuro: inline-block;
+  --logo-fundo-claro: none;
+  --raio: 10px;
+  --sombra: none;
+  --largura: 1400px;
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  --esp-7: 48px;
+  --esp-8: 64px;
+  --tipo-micro: 12px;
+  --tipo-menor: 13px;
+  --tipo-corpo: 15px;
+  --tipo-base: 16px;
+  --tipo-maior: 18px;
+  --tipo-titulo: 20px;
+  --tipo-secao: 22px;
+  --fonte-corpo: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --fonte-titulo: var(--fonte-corpo);
+  --fonte-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+  --curva: ease;
 }

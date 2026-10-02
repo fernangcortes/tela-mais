@@ -20,7 +20,7 @@
  *     /api/autorizacoes e devolve 202; o navegador manda de novo com
  *     `pedidoId` depois que o superadmin aprova.
  */
-import { json, pode, semPermissao, lerContas, acharConta, registrarEnvio,
+import { json, erro, pode, semPermissao, lerContas, acharConta, registrarEnvio,
   lerAutorizacoes, gravarAutorizacoes, acharPedido, idPedido } from '../_lib/sessao.js';
 
 const VALIDADE_S = 3600;   /* UNIX em SEGUNDOS. Milissegundos invalidam a assinatura. */
@@ -31,14 +31,14 @@ export async function onRequestPost({ request, env, data }) {
 
   const bunny = data.bunny;
   if (!bunny.configurado) {
-    return json(500, { erro: 'BUNNY_LIBRARY_ID e/ou BUNNY_API_KEY ausentes no ambiente' });
+    return erro(500, 'provedor-nao-configurado');
   }
 
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   let videoId = corpo && corpo.videoId ? String(corpo.videoId) : '';
@@ -53,7 +53,7 @@ export async function onRequestPost({ request, env, data }) {
       const autorizacoes = await lerAutorizacoes(env);
       const pedido = acharPedido(autorizacoes, pedidoId);
       if (!pedido || pedido.usuario !== data.conta.usuario || pedido.status !== 'aprovado') {
-        return json(403, { erro: 'este pedido de envio não está aprovado', motivo: 'pedido-invalido' });
+        return erro(403, 'pedido-nao-aprovado', null, { motivo: 'pedido-invalido' });
       }
       titulo = pedido.titulo;
       pedidoAprovado = pedido;
@@ -63,17 +63,17 @@ export async function onRequestPost({ request, env, data }) {
       if (limite.maxVideos != null) {
         const minhaConta = acharConta(await lerContas(env), data.conta.usuario);
         if ((minhaConta && minhaConta.enviosContagem || 0) >= limite.maxVideos) {
-          return json(403, { erro: 'esta conta atingiu o limite de vídeos enviados', motivo: 'limite-videos' });
+          return erro(403, 'limite-videos', null, { motivo: 'limite-videos' });
         }
       }
 
       const duracaoEstimada = Number(corpo && corpo.duracaoEstimadaSeg);
       if (limite.maxDuracaoSeg != null && Number.isFinite(duracaoEstimada) && duracaoEstimada > limite.maxDuracaoSeg) {
-        return json(403, { erro: 'este vídeo passa do limite de duração desta conta', motivo: 'limite-duracao' });
+        return erro(403, 'limite-duracao', null, { motivo: 'limite-duracao' });
       }
 
       if (limite.autorizacaoManual === true) {
-        if (!titulo) return json(400, { erro: 'informe `titulo` (novo vídeo) ou `videoId` (retomada)' });
+        if (!titulo) return erro(400, 'informe-titulo');
         const autorizacoes = await lerAutorizacoes(env);
         const pedido = {
           id: idPedido(),
@@ -89,7 +89,7 @@ export async function onRequestPost({ request, env, data }) {
       }
     }
 
-    if (!titulo) return json(400, { erro: 'informe `titulo` (novo vídeo) ou `videoId` (retomada)' });
+    if (!titulo) return erro(400, 'informe-titulo');
 
     const criacao = await bunny.chamar('/videos', {
       method: 'POST',
@@ -99,12 +99,12 @@ export async function onRequestPost({ request, env, data }) {
 
     if (!criacao.ok) {
       const detalhe = await criacao.text();
-      return json(502, { erro: 'Bunny recusou a criação do vídeo', status: criacao.status, detalhe });
+      return erro(502, 'provedor-recusou-criacao', null, { status: criacao.status, detalhe });
     }
 
     const criado = await criacao.json();
     videoId = criado.guid;
-    if (!videoId) return json(502, { erro: 'Bunny não devolveu o guid do vídeo' });
+    if (!videoId) return erro(502, 'provedor-sem-guid');
     contaCriando = true;
   }
 
