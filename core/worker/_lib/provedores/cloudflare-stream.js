@@ -32,9 +32,15 @@
  *   (a) POST /accounts/{id}/stream/{uid}/token {exp, accessRules?} -> result.token: uma chamada de rede por
  *       vídeo; NÃO implementado aqui (custo de rede por título e por reprodução);
  *   (b) assinatura LOCAL com a chave de assinatura (RS256, header {alg, kid}, payload {sub: uid, kid, exp, nbf}):
- *       sem rede, ~1 ms. IMPLEMENTADO: com `chaveAssinaturaId` + `chaveAssinaturaJwk` presentes,
+ *       sem rede, ~1 ms. IMPLEMENTADO: com `chaveAssinaturaId` + (`chaveAssinaturaJwk` OU `chaveAssinaturaPem`) presentes,
  *       `capacidades().assinatura` é true e `urlReproducao(id, { assinar: true, validadeSeg })` devolve URLs
  *       com o token. Sem a chave, `assinar: true` rejeita com `assinatura-indisponivel`.
+ *       Formato (documentação "Securing your Stream", conferido de memória: o ambiente não alcança o site; a prova
+ *       é scripts/provar-assinatura.mjs): header {alg:"RS256", kid}, payload {sub: uid, kid, exp, nbf?, accessRules?},
+ *       URL https://customer-<código>.cloudflarestream.com/<token>/manifest/video.m3u8 (o token ocupa o lugar do uid
+ *       em TODAS as URLs: manifesto, iframe, thumbnails, captions). `pem` da API = base64 do PEM PKCS#1; o WebCrypto só
+ *       importa PKCS#8, então o adaptador embrulha o PKCS#1 aqui. `accessRules` (opcional, por chamada): lista de
+ *       { type: "ip.geoip.country"|"ip.src", action: "allow"|"block", country?|ip? }.
  *   Um vídeo com requireSignedURLs só toca com token: com `exigirAssinatura` ligado e SEM chave, o catálogo
  *   montaria URLs que o Stream recusa; quem liga o modo privado precisa dos dois.
  *
@@ -58,6 +64,7 @@ export const CREDENCIAIS = Object.freeze({
   subdominioDeClientes: { env: 'CLOUDFLARE_STREAM_SUBDOMINIO', obrigatoria: true, segredo: true },
   chaveAssinaturaId: { env: 'CLOUDFLARE_STREAM_KEY_ID', obrigatoria: false, segredo: true },
   chaveAssinaturaJwk: { env: 'CLOUDFLARE_STREAM_KEY_JWK', obrigatoria: false, segredo: true },
+  chaveAssinaturaPem: { env: 'CLOUDFLARE_STREAM_KEY_PEM', obrigatoria: false, segredo: true },   /* alternativa ao JWK: o `pem` da mesma resposta */
   segredoDoWebhook: { env: 'CLOUDFLARE_STREAM_WEBHOOK_SECRET', obrigatoria: false, segredo: true }
 });
 
@@ -112,6 +119,29 @@ function codigoDoCliente(valor) {
   return PADRAO_CODIGO.test(v) ? v : null;
 }
 
+/** PEM (texto, ou base64 do texto como a API devolve) -> { der, pkcs1 }. */
+function derDoPem(bruto) {
+  let t = String(bruto).trim();
+  if (!t.includes('-----BEGIN')) t = atob(t.replace(/\s+/g, ''));
+  const pkcs1 = /BEGIN RSA PRIVATE KEY/.test(t);
+  if (!pkcs1 && !/BEGIN PRIVATE KEY/.test(t)) throw new Error('pem');
+  const corpo = t.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+  const bin = atob(corpo);
+  const der = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) der[i] = bin.charCodeAt(i);
+  return { der, pkcs1 };
+}
+
+const derTamanho = (n) => (n < 128 ? [n] : n < 256 ? [0x81, n] : [0x82, n >> 8, n & 255]);
+
+/** Embrulha RSAPrivateKey (PKCS#1) em PrivateKeyInfo (PKCS#8), o que o WebCrypto importa. */
+function pkcs1ParaPkcs8(pkcs1) {
+  const octetos = Uint8Array.from([0x04, ...derTamanho(pkcs1.length), ...pkcs1]);
+  const algoritmo = [0x02, 0x01, 0x00, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+  const interno = Uint8Array.from([...algoritmo, ...octetos]);
+  return Uint8Array.from([0x30, ...derTamanho(interno.length), ...interno]);
+}
+
 /** SRT -> WebVTT (o Stream só recebe VTT): cabeçalho, vírgula do milissegundo vira ponto. */
 export function srtParaVtt(texto) {
   const t = String(texto).replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim();
@@ -126,14 +156,15 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
   const host = codigo ? 'customer-' + codigo + '.' + DOMINIO : null;
   const chaveId = PADRAO_CHAVE_ID.test(String(credenciais.chaveAssinaturaId || '')) ? String(credenciais.chaveAssinaturaId) : '';
   const jwkBruta = String(credenciais.chaveAssinaturaJwk || '');
+  const pemBruto = String(credenciais.chaveAssinaturaPem || '');
   const segredoWebhook = String(credenciais.segredoDoWebhook || '');
   const configurado = Boolean(contaId && token && host);
-  const podeAssinar = Boolean(chaveId && jwkBruta);
+  const podeAssinar = Boolean(chaveId && (jwkBruta || pemBruto));
   const bloco = (config && config[CHAVE_CONFIG]) || {};
   const exigirAssinatura = bloco.exigirAssinatura === true;
   const mb = Math.min(PEDACO_MAX_MB, Math.max(PEDACO_MIN_MB, Number(config && config.envio && config.envio.tamanhoDoPedacoMb) || 50));
   const pedacoBytes = Math.ceil(mb * 1024 * 1024 / PEDACO_MULTIPLO) * PEDACO_MULTIPLO;
-  const segredos = [token, jwkBruta, segredoWebhook];
+  const segredos = [token, jwkBruta, pemBruto, segredoWebhook];
 
   const buscar = (...a) => (fetchInjetado || globalThis.fetch)(...a);
   const base = HOST_API + '/accounts/' + contaId;
@@ -176,32 +207,72 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
   let chavePrivada = null;
   async function importarChave() {
     if (chavePrivada) return chavePrivada;
-    let jwk;
+    const algoritmo = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
     try {
-      jwk = JSON.parse(jwkBruta.trim().startsWith('{') ? jwkBruta : atob(jwkBruta.trim()));
-    } catch (e) { throw new ErroProvedor('provedor-nao-configurado', { detalhe: 'CLOUDFLARE_STREAM_KEY_JWK ilegível' }); /* i18n-ignorar: detalhe técnico do erro */ }
-    try {
-      chavePrivada = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
-    } catch (e) { throw new ErroProvedor('provedor-nao-configurado', { detalhe: 'CLOUDFLARE_STREAM_KEY_JWK inválida' }); /* i18n-ignorar: detalhe técnico do erro */ }
+      if (jwkBruta) {
+        const jwk = JSON.parse(jwkBruta.trim().startsWith('{') ? jwkBruta : atob(jwkBruta.trim()));
+        chavePrivada = await crypto.subtle.importKey('jwk', jwk, algoritmo, false, ['sign']);
+      } else {
+        const { der, pkcs1 } = derDoPem(pemBruto);
+        chavePrivada = await crypto.subtle.importKey('pkcs8', pkcs1 ? pkcs1ParaPkcs8(der) : der, algoritmo, false, ['sign']);
+      }
+    } catch (e) {
+      /* Nunca com a mensagem original: ela pode citar o material da chave. */
+      throw new ErroProvedor('provedor-nao-configurado', { detalhe: jwkBruta ? 'CLOUDFLARE_STREAM_KEY_JWK inválida' : 'CLOUDFLARE_STREAM_KEY_PEM inválida' }); /* i18n-ignorar: detalhe técnico do erro */
+    }
     return chavePrivada;
   }
 
-  /** JWT do Stream: header {alg:RS256, kid}, payload {sub: uid, kid, exp, nbf} (segundos UNIX). */
-  async function assinarToken(id, validadeSeg) {
-    const chave = await importarChave();
+  /* Regras de acesso do token: só as formas documentadas, no máximo 10. Valor inesperado é erro, nunca ignorado
+   * em silêncio (uma regra descartada afrouxaria o acesso). */
+  function regrasValidas(regras) {
+    if (regras == null) return null;
+    if (!Array.isArray(regras) || regras.length > 10) throw new ErroProvedor('parametro-invalido', { detalhe: 'accessRules' });
+    return regras.map(r => {
+      const ok = r && typeof r === 'object' && ['ip.geoip.country', 'ip.src'].includes(r.type) && ['allow', 'block'].includes(r.action);
+      if (!ok) throw new ErroProvedor('parametro-invalido', { detalhe: 'accessRules' });
+      const saida = { type: r.type, action: r.action };
+      if (r.type === 'ip.geoip.country') {
+        if (!Array.isArray(r.country) || !r.country.every(c => /^[A-Za-z]{2}$/.test(c))) throw new ErroProvedor('parametro-invalido', { detalhe: 'accessRules' });
+        saida.country = r.country.map(c => c.toUpperCase());
+      } else {
+        if (!Array.isArray(r.ip) || !r.ip.every(v => typeof v === 'string' && /^[0-9a-fA-F:.\/]{3,50}$/.test(v))) throw new ErroProvedor('parametro-invalido', { detalhe: 'accessRules' });
+        saida.ip = r.ip.slice();
+      }
+      return saida;
+    });
+  }
+
+  /* Cache curto: o catálogo pede capa, prévia, legenda e vídeo do MESMO título; RSA custa CPU (plano gratuito
+   * tem 10 ms). O token é reaproveitado enquanto restar mais da metade da validade pedida. */
+  const cacheTokens = new Map();
+
+  /** JWT do Stream: header {alg:RS256, kid}, payload {sub: uid, kid, exp, nbf, accessRules?} (segundos UNIX). */
+  async function assinarToken(id, validadeSeg, regras) {
     const agoraS = Math.floor(agora() / 1000);
-    const exp = agoraS + (Number(validadeSeg) > 0 ? Math.floor(Number(validadeSeg)) : VALIDADE_PADRAO_S);
+    const validade = Number(validadeSeg) > 0 ? Math.floor(Number(validadeSeg)) : VALIDADE_PADRAO_S;
+    const regrasOk = regrasValidas(regras);
+    const chaveCache = id + '|' + validade + '|' + (regrasOk ? JSON.stringify(regrasOk) : '');
+    const guardado = cacheTokens.get(chaveCache);
+    if (guardado && guardado.exp - agoraS > validade / 2) return guardado;
+    const chave = await importarChave();
+    const exp = agoraS + validade;
     const enc = new TextEncoder();
     const cabeca = b64url(enc.encode(JSON.stringify({ alg: 'RS256', kid: chaveId })));
-    const corpo = b64url(enc.encode(JSON.stringify({ sub: id, kid: chaveId, exp, nbf: agoraS - 30 })));
+    const payload = { sub: id, kid: chaveId, exp, nbf: agoraS - 30 };
+    if (regrasOk) payload.accessRules = regrasOk;
+    const corpo = b64url(enc.encode(JSON.stringify(payload)));
     const assinatura = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', chave, enc.encode(cabeca + '.' + corpo));
-    return { token: cabeca + '.' + corpo + '.' + b64url(new Uint8Array(assinatura)), exp };
+    const t = { token: cabeca + '.' + corpo + '.' + b64url(new Uint8Array(assinatura)), exp };
+    if (cacheTokens.size > 500) cacheTokens.clear();
+    cacheTokens.set(chaveCache, t);
+    return t;
   }
 
   /* O "id" que vai na URL: o uid, ou o token que o substitui no modo assinado. */
-  async function segmentoDaUrl(id, assinar, validadeSeg) {
+  async function segmentoDaUrl(id, assinar, validadeSeg, regras) {
     if (!assinar) return { seg: id, exp: null };
-    const t = await assinarToken(id, validadeSeg);
+    const t = await assinarToken(id, validadeSeg, regras);
     return { seg: t.token, exp: t.exp };
   }
 
@@ -229,10 +300,10 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
     }));
   }
 
-  async function reproducao(id, { assinar = false, validadeSeg } = {}) {
+  async function reproducao(id, { assinar = false, validadeSeg, accessRules } = {}) {
     const saida = { hls: null, mp4: null, embed: null, expiraEm: null };
     if (typeof id !== 'string' || !PADRAO_ID.test(id) || !host) return saida;
-    const { seg, exp } = await segmentoDaUrl(id, assinar, validadeSeg);
+    const { seg, exp } = await segmentoDaUrl(id, assinar, validadeSeg, accessRules);
     saida.hls = 'https://' + host + '/' + seg + '/manifest/video.m3u8';
     saida.embed = embedCom(seg);
     saida.expiraEm = exp;
@@ -371,9 +442,9 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       return estadoDe(await lerResultado(r, 'provedor-recusou-consulta'));
     },
 
-    async urlReproducao(id, { assinar = false, validadeSeg } = {}) {
+    async urlReproducao(id, { assinar = false, validadeSeg, accessRules } = {}) {
       if (assinar && !podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
-      return reproducao(id, { assinar, validadeSeg });
+      return reproducao(id, { assinar, validadeSeg, accessRules });
     },
 
     /* Atalho do catálogo: a `Midia` inteira, sem rede e sem assinatura (igual à composição). */
@@ -417,20 +488,24 @@ export function criar({ credenciais = {}, config = {}, fetch: fetchInjetado, ago
       return { tempoSeg: t, pct, urlCapa: urlCapaCom(id, { tempoSeg: t }) };
     },
 
-    async urlPreview(id) {
+    async urlPreview(id, { assinar = false, validadeSeg } = {}) {
       if (!host || typeof id !== 'string' || !PADRAO_ID.test(id)) return { animada: null, clipeHls: null, sprite: null };
+      if (assinar && !podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+      const seg = (await segmentoDaUrl(id, assinar, validadeSeg)).seg;
       /* GIF animado: pesado; quem usa a URL só a pede no hover. */
-      return { animada: 'https://' + host + '/' + id + '/thumbnails/thumbnail.gif', clipeHls: null, sprite: null };
+      return { animada: 'https://' + host + '/' + seg + '/thumbnails/thumbnail.gif', clipeHls: null, sprite: null };
     },
 
-    async legendas(id, { idiomas } = {}) {
+    async legendas(id, { idiomas, assinar = false, validadeSeg } = {}) {
       validarId(id);
-      if (Array.isArray(idiomas)) return legendasPorIdioma(id, idiomas);
+      if (assinar && !podeAssinar) throw new ErroProvedor('assinatura-indisponivel', { status: 501 });
+      const seg = (await segmentoDaUrl(id, assinar, validadeSeg)).seg;
+      if (Array.isArray(idiomas)) return legendasPorIdioma(seg, idiomas);
       const r = await exigir(await chamar('/stream/' + id + '/captions'), 'provedor-recusou-consulta');
       const lista = await lerResultado(r, 'provedor-recusou-consulta');
       return (Array.isArray(lista) ? lista : []).filter(c => c && PADRAO_IDIOMA.test(String(c.language)) && (!c.status || c.status === 'ready')).map(c => ({
         idioma: String(c.language), rotulo: c.label ? String(c.label) : rotuloDoIdioma(String(c.language)),
-        url: host ? 'https://' + host + '/' + id + '/captions/' + c.language + '/vtt' : '',
+        url: host ? 'https://' + host + '/' + seg + '/captions/' + c.language + '/vtt' : '',
         origem: c.generated === true ? 'ia' : 'manual'
       }));
     },

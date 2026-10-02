@@ -9,11 +9,16 @@
  *   - o token é assinado por SESSION_SECRET, não pela senha do admin.
  *
  * Esta função NÃO chama handler: devolve a decisão. Quem despacha é index.js.
- * Fica barata de propósito (um HMAC e, para conta comum, uma leitura de KV):
- * o plano gratuito dá 10 ms de CPU por requisição, e o teste mede. */
-import { json, erro, contaDoToken } from './_lib/sessao.js';
+ * Fica barata de propósito: o plano gratuito dá 10 ms de CPU por requisição, e o
+ * teste mede. Quem manda token Bearer (equipe) paga um HMAC e uma linha do D1;
+ * quem manda o cookie de espectador paga 2 linhas do D1 (sessão + usuário, ambas
+ * por índice); anônimo não paga nada. Quem é a pessoa sai de
+ * `sessaoDaRequisicao` (_lib/sessoes.js). */
+import { json, erro } from './_lib/sessao.js';
 import { criarProvedor } from './_lib/provedores/index.js';
-import { nivelDe, papelDaConta, papelMinimo, papelBasta } from './permissoes.js';
+import { nivelDe, papelMinimo, papelBasta } from './permissoes.js';
+import { sessaoDaRequisicao } from './_lib/sessoes.js';
+import { politicaDeAcesso } from './_lib/contas.js';
 
 export function tokenDe(request) {
   const cabecalho = request.headers.get('authorization') || '';
@@ -29,15 +34,19 @@ export function normalizarCaminho(pathname) {
 /* Devolve { permitido: true, data, nivel } ou { permitido: false, resposta }.
  * `modo` já vem seguro (modoSeguro) de quem chama; `config` (pode ser null) escolhe
  * o provedor de vídeo que vai em `data.provedor`. */
-export async function autorizar({ request, env, caminho, metodo, modo, config }) {
+export async function autorizar({ request, env, caminho, metodo, modo, config, waitUntil }) {
   const entrada = nivelDe(caminho, metodo);
   const ehApi = caminho === '/api' || caminho.startsWith('/api/');
 
-  /* A conta só é resolvida quando há token: visita anônima não paga HMAC. */
-  const token = tokenDe(request);
-  const conta = token ? await contaDoToken(token, env) : null;
-  const papel = papelDaConta(conta);
-  const data = { conta, admin: !!conta, papel, modo, provedor: criarProvedor(config, env) };
+  /* Quem é: Bearer da equipe, cookie de espectador ou ninguém. Só olha o que
+   * veio na requisição: visita anônima não toca o banco. */
+  const politica = politicaDeAcesso(config);
+  const sessao = await sessaoDaRequisicao(request, env, { waitUntil, horasEspectador: politica.horasEspectador });
+  const conta = sessao.conta || null;
+  const papel = sessao.papel;
+  /* `sessao` e `politica` são o que o resto do Worker usa para decidir (ex.: assinar
+   * a mídia só para quem tem sessão: `data.sessao.papel !== 'anonimo'`). */
+  const data = { conta, admin: !!conta, papel, sessao, politica, modo, provedor: criarProvedor(config, env) };
 
   if (!entrada.achou) {
     /* Em /api, quem não tem sessão não aprende o que existe: 401 para tudo.

@@ -25,7 +25,8 @@
  *     /api/autorizacoes e devolve 202; o navegador manda de novo com
  *     `pedidoId` depois que o superadmin aprova.
  */
-import { json, erro, pode, semPermissao, lerContas, acharConta, registrarEnvio,
+import { equipeAchar } from '../_lib/contas.js';
+import { json, erro, pode, semPermissao, registrarEnvio,
   lerAutorizacoes, gravarAutorizacoes, acharPedido, idPedido } from '../_lib/sessao.js';
 import { respostaDeErro } from '../_lib/provedores/index.js';
 
@@ -70,7 +71,7 @@ export async function onRequestPost({ request, env, data }) {
       const limite = data.conta.limiteEnvio;
 
       if (limite.maxVideos != null) {
-        const minhaConta = acharConta(await lerContas(env), data.conta.usuario);
+        const minhaConta = await equipeAchar(env, data.conta.usuario);
         if ((minhaConta && minhaConta.enviosContagem || 0) >= limite.maxVideos) {
           return erro(403, 'limite-videos', null, { motivo: 'limite-videos' });
         }

@@ -134,6 +134,7 @@
         M.pode('player') ? itemMenu('player', 'player', tr('mesa.player')) : null,
         h('li', { class: 'menu-grupo', text: tr('mesa.equipe') }),
         M.sessao.super ? itemMenu('contas', 'contas', tr('mesa.contas'), (M.contas.lista || []).length || null) : null,
+        M.sessao.super ? itemMenu('acesso', 'conta', tr('acesso.mesaMenu')) : null,
         itemMenu('conta', 'conta', M.sessao.super ? tr('mesa.superadmin') : M.sessao.nome)),
       h('div', { class: 'menu-pe' },
         seletorDeIdioma(),
@@ -183,6 +184,7 @@
       : st.tela === 'historico' ? [tr('mesa.catalogo'), tr('mesa.historico')]
       : st.tela === 'enviar' ? [tr('mesa.catalogo'), tr('mesa.enviarTitulo')]
       : st.tela === 'contas' ? [tr('mesa.equipe'), tr('mesa.contas')]
+      : st.tela === 'acesso' ? [tr('mesa.equipe'), tr('acesso.mesaMenu')]
       : st.tela === 'conta' ? [tr('mesa.equipe'), tr('mesa.minhaConta')]
       : M.FILAS[st.tela] ? [tr('mesa.filasDeTrabalho'), M.FILAS[st.tela].rotulo]
       : [tr('mesa.catalogo'), tr('mesa.todosOsTitulos')];
@@ -221,6 +223,7 @@
       st.tela === 'enviar' ? M.telaEnviar()
         : st.tela === 'capa' ? M.telaCapa(cat)
         : st.tela === 'contas' ? M.telaContas()
+        : st.tela === 'acesso' ? M.telaAcesso()
         : st.tela === 'conta' ? M.telaMinhaConta()
         : st.tela === 'fila-pendencias' ? M.telaPendencias(cat)
         : st.tela === 'estrutura' ? M.telaEstrutura(cat)

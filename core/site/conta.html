@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Minha conta</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<!-- O idioma: o catálogo de textos do idioma padrão e a config pública descem já na chegada. -->
+<link rel="preload" href="locales/pt-BR.json" as="fetch" crossorigin>
+<link rel="preload" href="config.public.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="tokens-fixos.css">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="acesso.css">
+</head>
+<body class="acesso" data-pagina="conta">
+<a class="pular" href="#conteudo" data-i18n="site.pularParaOConteudo">Pular para o conteúdo</a>
+<header class="acesso-topo">
+  <a class="marca" href="index.html">
+    <img class="marca-logo logo-p-escuro" src="logo-fundo-escuro.svg" width="117" height="48"
+         alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
+    <img class="marca-logo logo-p-claro" src="logo-fundo-claro.svg" width="117" height="48"
+         alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
+  </a>
+  <div id="idioma-caixa" hidden>
+    <label class="so-leitor" for="idioma" data-i18n="site.idioma">Idioma</label>
+    <select id="idioma" autocomplete="off"></select>
+  </div>
+</header>
+
+<main id="conteudo" class="acesso-main" tabindex="-1">
+  <h1 id="titulo" data-i18n="acesso.contaTitulo">Minha conta</h1>
+  <p id="carregando" class="fraco" role="status" data-i18n="acesso.carregando">Carregando…</p>
+  <p id="conta-erro" class="estado estado-erro" role="alert" hidden></p>
+
+  <section id="bloco-equipe" class="aviso" hidden>
+    <p data-i18n="acesso.contaDeEquipe">Esta é uma conta da equipe: os dados dela ficam na mesa de curadoria.</p>
+    <a href="admin.html" data-i18n="acesso.irParaAMesa">Ir para a mesa de curadoria</a>
+  </section>
+
+  <section id="bloco-excluida" class="cartao" role="status" hidden>
+    <p id="excluida-aviso"></p>
+    <a class="botao" href="index.html" data-i18n="site.voltarAoCatalogo">← Voltar ao catálogo</a>
+  </section>
+
+  <div id="conta-tudo" hidden>
+    <section class="cartao" aria-labelledby="h-dados">
+      <h2 id="h-dados" data-i18n="acesso.seusDados">Seus dados</h2>
+      <dl class="dados">
+        <dt data-i18n="acesso.email">E-mail</dt><dd id="dado-email"></dd>
+        <dt data-i18n="acesso.contaCriadaEm">Conta criada em</dt><dd id="dado-desde"></dd>
+      </dl>
+      <form id="form-nome" novalidate>
+        <div class="campo">
+          <label for="nome" data-i18n="acesso.nome">Nome</label>
+          <input type="text" id="nome" autocomplete="name" maxlength="80">
+        </div>
+        <button type="submit" class="botao botao-leve" data-i18n="acesso.salvar">Salvar</button>
+        <p id="nome-estado" class="estado" role="status"></p>
+      </form>
+    </section>
+
+    <section class="cartao" aria-labelledby="h-textos">
+      <h2 id="h-textos" data-i18n="acesso.textosAceitos">Textos aceitos</h2>
+      <ul class="lista-simples" id="textos-lista"></ul>
+      <div id="bloco-pendente" class="aviso aviso-alerta" hidden>
+        <p data-i18n="acesso.pendenteAviso">Os textos mudaram. Leia a nova versão e aceite para continuar.</p>
+        <p><a href="termos.html" target="_blank" rel="noopener" data-i18n="legal.termosTitulo">Termos de uso</a> ·
+           <a href="privacidade.html" target="_blank" rel="noopener" data-i18n="legal.privacidadeTitulo">Política de privacidade</a></p>
+        <button type="button" class="botao" id="pendente-botao" data-i18n="acesso.aceitarNovaVersao">Aceitar a nova versão</button>
+        <p id="pendente-estado" class="estado" role="status"></p>
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="h-sessoes">
+      <h2 id="h-sessoes" data-i18n="acesso.sessoesTitulo">Sessões</h2>
+      <p id="sessoes-n"></p>
+      <div class="linha-botoes">
+        <button type="button" class="botao botao-leve" id="sair-botao" data-i18n="acesso.sair">Sair</button>
+        <button type="button" class="botao botao-leve" id="sair-todos-botao" data-i18n="acesso.sairDeTodos">Sair de todos os aparelhos</button>
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="h-exportar">
+      <h2 id="h-exportar" data-i18n="acesso.exportarTitulo">Exportar os meus dados</h2>
+      <p data-i18n="acesso.exportarTexto">Baixe um arquivo JSON com tudo o que guardamos sobre você.</p>
+      <button type="button" class="botao botao-leve" id="exportar-botao" data-i18n="acesso.exportarBotao">Baixar os meus dados</button>
+      <p id="exportar-estado" class="estado" role="status"></p>
+    </section>
+
+    <section class="cartao" aria-labelledby="h-excluir">
+      <h2 id="h-excluir" data-i18n="acesso.excluirTitulo">Excluir a minha conta</h2>
+      <p data-i18n="acesso.excluirTexto">Apaga a conta, as sessões, os convites e os links. Não tem volta. Digite o seu e-mail para confirmar.</p>
+      <form id="form-excluir" novalidate>
+        <div class="campo">
+          <label for="excluir-email" data-i18n="acesso.email">E-mail</label>
+          <input type="email" id="excluir-email" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false">
+        </div>
+        <button type="submit" class="botao botao-perigo" data-i18n="acesso.excluirBotao">Excluir a conta</button>
+        <p id="excluir-estado" class="estado" role="status"></p>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer class="acesso-rodape">
+  <a href="privacidade.html" data-i18n="legal.privacidadeTitulo">Política de privacidade</a>
+  <a href="termos.html" data-i18n="legal.termosTitulo">Termos de uso</a>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="acesso.js"></script>
+</body>
+</html>

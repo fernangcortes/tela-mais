@@ -7,7 +7,7 @@ scripts Node para administrar o catálogo.
 
 ## Estado atual
 
-**Marco M4 de um plano em marcos (adaptadores de provedor de vídeo prontos: Bunny, Cloudflare Stream e HLS genérico). Ainda não está pronto para produção.** Nesta etapa o
+**Marco M5 de um plano em marcos (adaptadores de provedor de vídeo, modos de acesso com contas e vídeo assinado). Ainda não está pronto para produção.** Nesta etapa o
 código está sendo separado em um repositório próprio e neutro (marca padrão
 "Plataforma Exemplo"). Ainda não há instalador e o roteiro de setup para leigos chega no M7.
 
@@ -29,7 +29,7 @@ scripts/              scripts Node (catálogo, legendas, sinopses...) e scripts/
 tests/                testes (npm test)
 config/site.json      configuração do site (sem segredos; segredos ficam em variáveis de ambiente)
 config/site.schema.json  esquema (JSON Schema) da configuração
-docs/                 guias (provedores de vídeo)
+docs/                 guias (provedores de vídeo, modos de acesso)
 exemplo/              catálogo de exemplo fictício
 .github/workflows/    integração contínua
 ```
@@ -38,6 +38,10 @@ exemplo/              catálogo de exemplo fictício
 
 Escolha em `video.provedor` (`bunny`, `cloudflare-stream` ou `hls-generico`); trocar não exige editar código.
 Quando usar cada um, custos estimados e credenciais: `docs/provedores.md`.
+
+## Acesso: público, cadastro ou privado
+
+Quem pode ver o catálogo, o que cada modo exige configurar e o aviso de que nenhum modo impede gravação de tela: `docs/modos-de-acesso.md`.
 
 ## Personalizar tema, cores, fontes e textos
 

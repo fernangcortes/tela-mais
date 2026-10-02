@@ -94,7 +94,10 @@ export function idiomasDeLegendaPadrao(config) {
 }
 
 /* montarMidia(provedor, item, opcoes?) -> Midia | null
- *   opcoes: { assinar?, validadeSeg?, viewer?, idiomasDeLegenda?: string[], semAtalho? (força a composição; para testes) }
+ *   opcoes: { assinar?, validadeSeg?, sessao?, viewer?, idiomasDeLegenda?: string[], semAtalho? (força a composição; para testes) }
+ *   O handler chama com assinar = (config.acesso.modo !== 'publico' && config.acesso.privado.assinarMidia) e
+ *   validadeSeg = config.acesso.privado.validadeDaAssinaturaSeg. `sessao` ({ expiraEm?: UNIX s, id? }) limita a validade:
+ *   a URL nunca vive mais que a sessão (mínimo de 30 s). Capa, prévia e legendas saem assinadas junto (mesmo token no Bunny).
  * Devolve null quando o item não tem vídeo NESTE provedor. Com `assinar` e um
  * adaptador sem assinatura, REJEITA (ErroProvedor 'assinatura-indisponivel'):
  * quem pediu URL assinada não pode receber uma aberta. Sem rede quando o
@@ -105,6 +108,13 @@ export async function montarMidia(provedor, item, opcoes = {}) {
   if (fonte.provedor && fonte.provedor !== provedor.id) return null;
   if (!provedor.padraoId.test(fonte.id)) return null;
 
+  const assinar = opcoes.assinar === true;
+  let validadeSeg = opcoes.validadeSeg;
+  const fimDaSessao = opcoes.sessao && Number(opcoes.sessao.expiraEm);
+  if (assinar && fimDaSessao > 0) {
+    const restante = Math.max(30, Math.floor(fimDaSessao - Date.now() / 1000));
+    validadeSeg = Number(validadeSeg) > 0 ? Math.min(Number(validadeSeg), restante) : restante;
+  }
   const idiomas = Array.isArray(item.legendas_idiomas) ? item.legendas_idiomas : (opcoes.idiomasDeLegenda || ['pt']);
 
   /* Atalho opcional do adaptador (uma chamada em vez de quatro: o catálogo monta isto
@@ -118,10 +128,10 @@ export async function montarMidia(provedor, item, opcoes = {}) {
   }
 
   const [rep, capa, previa, legendas] = await Promise.all([
-    provedor.urlReproducao(fonte.id, { assinar: opcoes.assinar === true, validadeSeg: opcoes.validadeSeg, viewer: opcoes.viewer, extras: fonte.extras }),
-    provedor.urlCapa(fonte.id, { arquivo: item.capa_arquivo || undefined, versao: item.capa_versao != null ? item.capa_versao : undefined, extras: fonte.extras }),
-    provedor.urlPreview(fonte.id),
-    provedor.legendas(fonte.id, { idiomas, extras: fonte.extras })
+    provedor.urlReproducao(fonte.id, { assinar, validadeSeg, viewer: opcoes.viewer, extras: fonte.extras }),
+    provedor.urlCapa(fonte.id, { arquivo: item.capa_arquivo || undefined, versao: item.capa_versao != null ? item.capa_versao : undefined, extras: fonte.extras, assinar, validadeSeg }),
+    provedor.urlPreview(fonte.id, { assinar, validadeSeg }),
+    provedor.legendas(fonte.id, { idiomas, extras: fonte.extras, assinar, validadeSeg })
   ]);
   return {
     hls: rep.hls || null,
@@ -132,6 +142,21 @@ export async function montarMidia(provedor, item, opcoes = {}) {
     embed: rep.embed || null,
     expiraEm: rep.expiraEm || null
   };
+}
+
+/** As opções de assinatura de UMA requisição, a partir do que o middleware já decidiu (`data`).
+ * Só assina quando o modo é restrito, a política manda e há sessão válida; no modo público
+ * nada muda. Sem sessão em modo restrito devolve `assinar: false` (o gate já barrou antes). */
+export function opcoesDeAssinatura(data, extra = {}) {
+  const pol = (data && data.politica) || {};
+  const logado = !!(data && data.sessao && data.sessao.papel && data.sessao.papel !== 'anonimo');
+  const assinar = !!pol.modo && pol.modo !== 'publico' && pol.assinarMidia === true && logado;
+  const op = Object.assign({}, extra, { assinar });
+  if (assinar) {
+    op.validadeSeg = pol.validadeDaAssinaturaSeg;
+    if (data.sessao.expiraEm) op.sessao = { expiraEm: data.sessao.expiraEm };
+  }
+  return op;
 }
 
 /** O item com `midia` calculada (cópia; o original não muda). */

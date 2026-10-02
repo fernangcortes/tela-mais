@@ -128,7 +128,7 @@ test('a tabela só usa níveis e métodos conhecidos', async () => {
     assert.ok(caminho === '/' || caminho.startsWith('/api/'), caminho);
     for (const [metodo, nivel] of Object.entries(linha)) {
       assert.ok(['GET', 'POST', 'PUT', 'DELETE'].includes(metodo), metodo);
-      assert.ok(['aberto', 'modo', 'equipe', 'super'].includes(nivel), caminho + ' ' + metodo + ': nível ' + nivel);
+      assert.ok(['aberto', 'modo', 'conta', 'equipe', 'super'].includes(nivel), caminho + ' ' + metodo + ': nível ' + nivel);
     }
   }
 });

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Criar conta</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<!-- O idioma: o catálogo de textos do idioma padrão e a config pública descem já na chegada. -->
+<link rel="preload" href="locales/pt-BR.json" as="fetch" crossorigin>
+<link rel="preload" href="config.public.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="tokens-fixos.css">
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="acesso.css">
+</head>
+<body class="acesso" data-pagina="cadastro">
+<a class="pular" href="#conteudo" data-i18n="site.pularParaOConteudo">Pular para o conteúdo</a>
+<header class="acesso-topo">
+  <a class="marca" href="index.html">
+    <img class="marca-logo logo-p-escuro" src="logo-fundo-escuro.svg" width="117" height="48"
+         alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
+    <img class="marca-logo logo-p-claro" src="logo-fundo-claro.svg" width="117" height="48"
+         alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
+  </a>
+  <div id="idioma-caixa" hidden>
+    <label class="so-leitor" for="idioma" data-i18n="site.idioma">Idioma</label>
+    <select id="idioma" autocomplete="off"></select>
+  </div>
+</header>
+
+<main id="conteudo" class="acesso-main" tabindex="-1">
+  <h1 id="titulo" data-i18n="acesso.cadastroTitulo">Criar conta</h1>
+  <p id="carregando" class="fraco" role="status" data-i18n="acesso.carregando">Carregando…</p>
+
+  <section id="bloco-fechado" class="aviso aviso-alerta" role="alert" hidden>
+    <p data-i18n="acesso.cadastroFechado">O cadastro não está aberto neste site.</p>
+    <a href="entrar.html" data-i18n="acesso.jaTemConta">Já tenho conta</a>
+  </section>
+
+  <section id="bloco-dentro" class="cartao" hidden>
+    <p data-i18n="acesso.jaEstaDentro">Você já está conectado.</p>
+    <a class="botao" href="index.html" data-i18n="site.voltarAoCatalogo">← Voltar ao catálogo</a>
+  </section>
+
+  <form id="form-cadastro" class="cartao" hidden novalidate>
+    <p data-i18n="acesso.cadastroIntro">Crie a sua conta para assistir. Pedimos só o e-mail.</p>
+    <div class="campo">
+      <label for="email" data-i18n="acesso.email">E-mail</label>
+      <input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="campo">
+      <label for="nome" data-i18n="acesso.nomeOpcional">Nome (opcional)</label>
+      <input type="text" id="nome" autocomplete="name" maxlength="80">
+    </div>
+    <div class="campo" id="bloco-senha" hidden>
+      <label for="senha" data-i18n="acesso.criarSenha">Crie uma senha</label>
+      <input type="password" id="senha" autocomplete="new-password">
+      <p class="dica" data-i18n="acesso.senhaDica">Ela será pedida nos próximos acessos.</p>
+    </div>
+      <div class="aceite" id="bloco-aceite">
+        <input type="checkbox" id="aceite">
+        <label for="aceite" id="aceite-rotulo"></label>
+      </div>
+      <div id="turnstile" hidden aria-label="Verificação anti-robô" data-i18n-attr="aria-label:acesso.verificacaoAntiRobo"></div>
+    <button type="submit" class="botao" id="cadastro-botao" data-i18n="acesso.criarContaBotao">Criar conta</button>
+    <p id="cadastro-estado" class="estado" role="status"></p>
+  </form>
+
+  <section id="bloco-feito" class="cartao" role="status" hidden>
+    <p id="cadastro-feito"></p>
+    <a href="entrar.html" data-i18n="acesso.irParaEntrar">Ir para a página de entrada</a>
+  </section>
+</main>
+
+<footer class="acesso-rodape">
+  <a href="privacidade.html" data-i18n="legal.privacidadeTitulo">Política de privacidade</a>
+  <a href="termos.html" data-i18n="legal.termosTitulo">Termos de uso</a>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="acesso.js"></script>
+</body>
+</html>

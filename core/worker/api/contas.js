@@ -13,7 +13,8 @@
  * opcionais — `null`/ausente em cada campo é "sem limite". Quem confere de
  * verdade é /api/upload-token, no envio; esta rota só guarda a configuração.
  */
-import { json, erro, lerContas, gravarContas, acharConta, hashSenha, iteracoesDe } from '../_lib/sessao.js';
+import { json, erro, hashSenha, iteracoesDe } from '../_lib/sessao.js';
+import { equipeListar, equipeAchar, equipeCriar, equipeSalvar, equipeApagar } from '../_lib/contas.js';
 import App from '../../site/catalogo-core.js';
 
 function soSuper(data) {
@@ -39,8 +40,7 @@ function paraTela(c) {
 export async function onRequestGet({ env, data }) {
   const barrado = soSuper(data);
   if (barrado) return barrado;
-  const dados = await lerContas(env);
-  return json(200, { contas: (dados.contas || []).map(paraTela) });
+  return json(200, { contas: (await equipeListar(env)).map(paraTela) });
 }
 
 export async function onRequestPost({ request, env, data }) {
@@ -68,8 +68,7 @@ export async function onRequestPost({ request, env, data }) {
     return erro(400, 'limite-envio-invalido');
   }
 
-  const dados = await lerContas(env);
-  if (acharConta(dados, usuario)) return erro(409, 'conta-ja-existe');
+  if (await equipeAchar(env, usuario)) return erro(409, 'conta-ja-existe');
 
   const conta = {
     usuario,
@@ -83,8 +82,7 @@ export async function onRequestPost({ request, env, data }) {
     criada_em: new Date().toISOString(),
     criada_por: data.conta.usuario
   };
-  dados.contas = (dados.contas || []).concat([conta]);
-  await gravarContas(env, dados);
+  if (!await equipeCriar(env, conta)) return erro(409, 'conta-ja-existe');
   return json(200, { ok: true, conta: paraTela(conta) });
 }
 
@@ -99,8 +97,7 @@ export async function onRequestPut({ request, env, data }) {
     return erro(400, 'corpo-invalido');
   }
 
-  const dados = await lerContas(env);
-  const conta = acharConta(dados, corpo && corpo.usuario);
+  const conta = await equipeAchar(env, corpo && corpo.usuario);
   if (!conta) return erro(404, 'conta-nao-encontrada');
 
   let derruba = false;   /* mudança que precisa derrubar as sessões abertas */
@@ -141,7 +138,7 @@ export async function onRequestPut({ request, env, data }) {
 
   if (derruba) conta.versao = (conta.versao || 1) + 1;
   conta.alterada_em = new Date().toISOString();
-  await gravarContas(env, dados);
+  await equipeSalvar(env, conta);
   return json(200, { ok: true, conta: paraTela(conta), sessoesDerrubadas: derruba });
 }
 
@@ -150,10 +147,6 @@ export async function onRequestDelete({ request, env, data }) {
   if (barrado) return barrado;
 
   const usuario = String(new URL(request.url).searchParams.get('usuario') || '').trim().toLowerCase();
-  const dados = await lerContas(env);
-  if (!acharConta(dados, usuario)) return erro(404, 'conta-nao-encontrada');
-
-  dados.contas = (dados.contas || []).filter(c => c.usuario !== usuario);
-  await gravarContas(env, dados);
+  if (!await equipeApagar(env, usuario)) return erro(404, 'conta-nao-encontrada');
   return json(200, { ok: true, usuario });
 }

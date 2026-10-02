@@ -7,10 +7,9 @@
  *
  * PAPÉIS, do mais fraco ao mais forte:
  *   anonimo    ninguém identificado
- *   espectador quem assiste, nos modos `cadastro` e `privado`. NÃO EXISTE AINDA:
- *              contas de espectador (D1, link mágico) são do M5. Até lá a
- *              única sessão válida é a da equipe/admin, e ela vale como
- *              "espectador" por ser mais forte.
+ *   espectador quem assiste, nos modos `cadastro` e `privado`: conta de
+ *              espectador (D1) com sessão por cookie. A equipe e o superadmin
+ *              valem como "espectador" por serem papéis mais fortes.
  *   equipe     conta criada pelo superadmin (permissões finas no handler)
  *   super      o superadmin (a senha do ambiente)
  *
@@ -18,6 +17,8 @@
  *   'aberto'   qualquer um, em qualquer modo (login, página inicial)
  *   'modo'     depende do modo de acesso: `publico` => anonimo;
  *              `cadastro` e `privado` => espectador (D-4 e tabela 4.5 do plano)
+ *   'conta'    precisa de uma sessão de conta (espectador ou mais forte) em QUALQUER
+ *              modo: "Minha conta", exportar e excluir dados
  *   'equipe'   conta de equipe ou superadmin; o handler confere a permissão fina
  *   'super'    só o superadmin
  *
@@ -41,6 +42,7 @@ export function papelDaConta(conta) {
 export function papelMinimo(acesso, modo) {
   if (acesso === 'aberto') return 'anonimo';
   if (acesso === 'modo') return modoSeguro(modo) === 'publico' ? 'anonimo' : 'espectador';
+  if (acesso === 'conta') return 'espectador';
   if (acesso === 'equipe') return 'equipe';
   if (acesso === 'super') return 'super';
   return 'super';   /* nível desconhecido: o mais fechado */
@@ -55,6 +57,25 @@ export const PERMISSOES = {
   '/': { GET: 'aberto' },
 
   '/api/login': { POST: 'aberto' },
+
+  /* Contas de espectador (M5). As rotas de ENTRADA são abertas de propósito (quem
+   * entra ainda não tem sessão) e cada uma confere o modo, o banco, o limite de
+   * tentativas e o Turnstile por dentro: no modo `publico` respondem que o site
+   * não usa contas. "Minha conta" exige sessão em qualquer modo. */
+  '/api/auth/estado': { GET: 'aberto' },
+  '/api/auth/entrar': { POST: 'aberto' },
+  '/api/auth/cadastro': { POST: 'aberto' },
+  '/api/auth/link': { POST: 'aberto' },
+  '/api/auth/convite': { POST: 'aberto' },
+  '/api/auth/sair': { POST: 'aberto' },
+  '/api/conta/eu': { GET: 'conta', PUT: 'conta' },
+  '/api/conta/exportar': { GET: 'conta' },
+  '/api/conta/excluir': { POST: 'conta' },
+  /* Política de privacidade e termos: o texto é público; editar é do superadmin. */
+  '/api/legal': { GET: 'aberto', PUT: 'super' },
+  /* Convites e espectadores: gestão do superadmin (link copiável, aprovar, bloquear). */
+  '/api/convites': { GET: 'super', POST: 'super', DELETE: 'super' },
+  '/api/espectadores': { GET: 'super', PUT: 'super', DELETE: 'super' },
 
   /* Catálogo e busca: abertos só no modo `publico`. O GET com `?completo=1`
    * (o catálogo inteiro, com o que está fora do ar) exige conta no handler. */

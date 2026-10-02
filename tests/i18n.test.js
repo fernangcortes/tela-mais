@@ -536,7 +536,7 @@ test('o seletor de idioma: escondido no HTML, ligado pelo app.js só com mais de
   assert.match(liga[1], /AppI18n|I18n\.trocarIdioma/);
   assert.match(liga[1], /caixa\.hidden = false/);
   /* O app só desenha depois de o idioma chegar, e a falha de rede espera por ele. */
-  assert.match(app, /Promise\.all\(\[idiomaPronto, carregar\(\)\]\)/);
+  assert.match(app, /Promise\.all\(\[idiomaPronto, carregar\(idiomaPronto\)\]\)/);
   const css = ler('core/site/idioma.css');
   assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css), 'o idioma.css não escreve cor: usa as variáveis do tema');
 });
@@ -546,7 +546,7 @@ test('a mesa carrega o idioma ANTES dos scripts dela, em ordem, e oferece os tr�
   assert.deepEqual([...admin.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['i18n.js', 'mesa-inicio.js']);
   const inicio = ler('core/site/mesa-inicio.js');
   const ordem = [...inicio.matchAll(/'([\w./-]+\.js)'/g)].map((m) => m[1]);
-  assert.deepEqual(ordem, ['vendor/tus.min.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa.js']);
+  assert.deepEqual(ordem, ['vendor/tus.min.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-acesso.js', 'mesa.js']);
   assert.match(inicio, /disponiveis: I18n\.IDIOMAS_DE_FABRICA/);
   assert.match(inicio, /tag\.async = false/);
   assert.match(ler('core/site/mesa.js'), /index\.html\?mesa=1&idioma=/, 'o site no quadro abre no idioma da mesa');

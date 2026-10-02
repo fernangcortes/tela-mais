@@ -11,7 +11,11 @@
 //   as credenciais do provedor de vídeo escolhido em config/site.json (video.provedor),
 //   por ex. BUNNY_LIBRARY_ID, BUNNY_API_KEY, BUNNY_PULLZONE (host da pull zone) e afins;
 //   cada adaptador (core/worker/_lib/provedores/) declara os nomes que lê
-// Variáveis não secretas opcionais (`vars`): APP_SITE_URL, SENHA_ITERACOES.
+// Contas de espectador e anti-abuso (opcionais; sem eles o recurso correspondente fica desligado):
+//   TURNSTILE_SECRET   segredo do Turnstile (obrigatório para ABRIR o cadastro)
+//   RESEND_API_KEY     chave do Resend, se `acesso.email.adaptador` = "resend"
+// Variáveis não secretas opcionais (`vars`): APP_SITE_URL, SENHA_ITERACOES,
+//   TURNSTILE_SITE_KEY (a chave PÚBLICA do Turnstile), EMAIL_REMETENTE (remetente do e-mail).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "plataforma-exemplo",
@@ -27,7 +31,9 @@
     // `/admin.html`): a política de segurança delas (CSP) leva os hosts do
     // provedor de vídeo escolhido em `video.provedor`, e só o Worker os conhece.
     // Todo o resto é Static Assets puro.
-    "run_worker_first": ["/api/*", "/", "/index.html", "/admin", "/admin.html"],
+    // As páginas de entrada e de cadastro também: elas levam o desafio anti-robô
+    // (Turnstile) e a política de segurança só as libera para ele.
+    "run_worker_first": ["/api/*", "/", "/index.html", "/admin", "/admin.html", "/entrar", "/entrar.html", "/cadastro", "/cadastro.html"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   },
@@ -38,12 +44,28 @@
     { "binding": "CATALOGO" }
   ],
 
-  // Opcionais (modos de acesso com contas de espectador chegam no M5; busca por
-  // sentido e IA de conteúdo, mais adiante). Descomente só quando for usar:
+  // D1: pessoas (equipe, espectadores, sessões, convites, consentimentos). Sem
+  // `database_id`, o wrangler 4 cria o banco no primeiro deploy e o vincula sozinho.
+  // As tabelas nascem na primeira requisição (core/worker/_lib/contas-banco.js); se
+  // preferir, `wrangler d1 migrations apply DB --remote` aplica o mesmo SQL.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "plataforma-exemplo", "migrations_dir": "core/migrations" }
+  ],
+
+  // Retenção: todo dia, 03:17 UTC, apaga sessões, links e convites vencidos.
+  "triggers": { "crons": ["17 3 * * *"] },
+
+  // Opcional: freio de tentativas do Cloudflare (Rate Limiting). Sem ele, o limite usa
+  // o D1 (uma escrita por tentativa de entrada). `namespace_id` é um número que você
+  // escolhe, único na conta. Descomente se quiser poupar escrita de D1:
   //
-  // "d1_databases": [
-  //   { "binding": "DB", "database_name": "plataforma-exemplo", "migrations_dir": "core/migrations" }
+  // "ratelimits": [
+  //   { "name": "LIMITE_ENTRADA", "namespace_id": "1001", "simple": { "limit": 10, "period": 10 } }
   // ],
+
+  // Opcionais (busca por sentido e IA de conteúdo, mais adiante). Descomente só
+  // quando for usar:
+  //
   // "ai": { "binding": "AI" },
   // "vectorize": [
   //   { "binding": "VECTORIZE", "index_name": "plataforma-exemplo-busca" }

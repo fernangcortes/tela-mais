@@ -5,7 +5,8 @@
  * ambiente do Worker, e trocá-la é trocar a variável (o que também invalida
  * todos os tokens de uma vez, inclusive os das contas).
  */
-import { json, erro, lerContas, gravarContas, acharConta, conferirSenha, hashSenha, iteracoesDe, emitirToken } from '../_lib/sessao.js';
+import { json, erro, conferirSenha, hashSenha, iteracoesDe, emitirToken } from '../_lib/sessao.js';
+import { equipeAchar, equipeSalvar, politicaDeAcesso } from '../_lib/contas.js';
 import App from '../../site/catalogo-core.js';
 
 export async function onRequestGet({ data }) {
@@ -13,7 +14,7 @@ export async function onRequestGet({ data }) {
   return json(200, { usuario: c.usuario, nome: c.nome, super: c.super === true, permissoes: c.permissoes || [] });
 }
 
-export async function onRequestPut({ request, env, data }) {
+export async function onRequestPut({ request, env, data, config }) {
   if (data.conta.super === true) {
     return erro(400, 'senha-superadmin-ambiente');
   }
@@ -30,8 +31,7 @@ export async function onRequestPut({ request, env, data }) {
     return erro(400, 'senha-curta', { minimo: App.SENHA_MINIMA });
   }
 
-  const dados = await lerContas(env);
-  const conta = acharConta(dados, data.conta.usuario);
+  const conta = await equipeAchar(env, data.conta.usuario);
   if (!conta) return erro(404, 'conta-nao-encontrada');
   if (!await conferirSenha(corpo.senhaAtual, conta.senha)) {
     return erro(401, 'senha-atual-errada');
@@ -42,8 +42,8 @@ export async function onRequestPut({ request, env, data }) {
    * inclusive os de outro navegador onde a conta ficou aberta. */
   conta.versao = (conta.versao || 1) + 1;
   conta.alterada_em = new Date().toISOString();
-  await gravarContas(env, dados);
+  await equipeSalvar(env, conta);
 
   /* E esta sessão ganha um token novo, senão ela cairia junto. */
-  return json(200, Object.assign({ ok: true }, await emitirToken(env, conta)));
+  return json(200, Object.assign({ ok: true }, await emitirToken(env, conta, { horas: politicaDeAcesso(config).horasEquipe })));
 }

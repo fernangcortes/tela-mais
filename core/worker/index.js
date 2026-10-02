@@ -9,16 +9,21 @@
  *
  * MODO DE ACESSO. `obterConfig(env)` (config.js) já devolve a config mesclada
  * e validada. Se ela lançar, ou vier sem `acesso.modo` válido, o modo é
- * `privado`: falha fechada. Hoje (M2) o único jeito de ter sessão nos modos
- * `cadastro` e `privado` é ser da equipe/admin: contas de espectador são do M5. */
+ * `privado`: falha fechada. Quem tem sessão nesses modos: a equipe/admin (token
+ * Bearer) e o espectador (cookie, D1): ver _lib/sessoes.js. */
 import { obterConfig as obterConfigPadrao } from './_lib/config.js';
 import { comCabecalhos } from './_lib/seguranca.js';
 import { json, erro } from './_lib/sessao.js';
 import { autorizar, normalizarCaminho } from './middleware.js';
 import { handlerDe } from './rotas.js';
 import { modoSeguro } from './permissoes.js';
+import { origemConfiavel } from './_lib/sessoes.js';
 import { onRequestGet as homeGet } from './home.js';
 import { localizarResposta } from './_lib/mensagens.js';
+import { limparExpirados } from './_lib/contas.js';
+
+/* As páginas que desenham o desafio anti-robô: só elas levam a Cloudflare na CSP. */
+const PAGINAS_COM_TURNSTILE = ['/entrar', '/entrar.html', '/cadastro', '/cadastro.html'];
 
 async function modoDoAcesso(env, obterConfig) {
   try {
@@ -43,13 +48,18 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
       return env.ASSETS ? env.ASSETS.fetch(request) : erro(404, 'nao-encontrado');
     }
 
+    /* CSRF de login: toda rota que muda estado em /api/auth/* (com cookie ou sem) só vale
+     * vinda do próprio site. Sem isto, um form `text/plain` de outro site entregaria ao
+     * navegador da vítima uma sessão do atacante (login CSRF). */
+    if (caminho.startsWith('/api/auth/') && !origemConfiavel(request)) return erro(403, 'origem-invalida');
+
     const { modo, config } = await modoDoAcesso(env, obterConfig);
     lugar.config = config;
-    const decisao = await autorizar({ request, env, caminho, metodo, modo, config });
+    const waitUntil = (p) => { if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p); };
+    const decisao = await autorizar({ request, env, caminho, metodo, modo, config, waitUntil });
     if (!decisao.permitido) return decisao.resposta;
 
     const { data } = decisao;
-    const waitUntil = (p) => { if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p); };
     const contexto = { request, env, data, waitUntil, modo, config };
 
     if (caminho === '/') return homeGet(contexto);
@@ -71,6 +81,16 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
   }
 
   return {
+    /* O cron diário (wrangler.jsonc, `triggers.crons`): RETENÇÃO. Apaga sessões, links
+     * mágicos, convites e contadores de tentativa vencidos. Sem D1, não há o que limpar. */
+    async scheduled(event, env, ctx) {
+      const limpeza = limparExpirados(env).catch((e) => {
+        console.error('retenção falhou:', e && e.message); /* i18n-ignorar: log técnico, não vai à tela */
+      });
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(limpeza);
+      else await limpeza;
+    },
+
     async fetch(request, env, ctx) {
       const caminho = normalizarCaminho(new URL(request.url).pathname);
       const ehApi = caminho === '/api' || caminho.startsWith('/api/');
@@ -83,7 +103,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
         resposta = erro(500, 'erro-interno');
       }
       if (ehApi) resposta = await localizarResposta(resposta, request, lugar.config);
-      return comCabecalhos(resposta, env, { api: ehApi, config: lugar.config });
+      return comCabecalhos(resposta, env, { api: ehApi, config: lugar.config, turnstile: PAGINAS_COM_TURNSTILE.indexOf(caminho) >= 0 });
     }
   };
 }

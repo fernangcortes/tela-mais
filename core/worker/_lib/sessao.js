@@ -21,10 +21,10 @@
  */
 import App from '../../site/catalogo-core.js';
 import AppI18n from '../../site/i18n.js';
+import { equipeListar, equipeAchar, equipeSalvar, equipeCriar, equipeContarEnvio } from './contas.js';
 
 const ROTULO_TOKEN = 'tm-admin:';
 const VALIDADE_TOKEN_S = 8 * 60 * 60;   /* 8 h: uma jornada de trabalho */
-const CHAVE_ADMINS = 'admins';
 const CHAVE_AUTORIZACOES = 'autorizacoes';
 
 /* PBKDF2 custa CPU, e o plano gratuito da Cloudflare dá 10 ms por requisição
@@ -100,14 +100,18 @@ export function contaSuper() {
   return { usuario: 'superadmin', nome: 'Superadmin', /* i18n-ignorar: nome de conta (dado) */ super: true, permissoes: App.PERMISSOES.slice(), limiteEnvio: null };
 }
 
+/* A equipe mora no D1 (tabela `usuarios`, ver contas.js) e, sem D1, no KV. Estas
+ * funções ficam por compatibilidade com quem lia o documento inteiro; o código novo
+ * usa `equipeAchar`, `equipeSalvar`, `equipeCriar` e `equipeApagar`, que mexem em
+ * UMA conta (uma linha, pelo índice). */
 export async function lerContas(env) {
-  if (!env.CATALOGO) return { contas: [] };
-  const guardado = await env.CATALOGO.get(CHAVE_ADMINS, 'json');
-  return guardado && Array.isArray(guardado.contas) ? guardado : { contas: [] };
+  return { contas: await equipeListar(env) };
 }
 
 export async function gravarContas(env, dados) {
-  await env.CATALOGO.put(CHAVE_ADMINS, JSON.stringify({ contas: dados.contas || [] }));
+  for (const conta of (dados && dados.contas) || []) {
+    if (!await equipeSalvar(env, conta)) await equipeCriar(env, conta);
+  }
 }
 
 export function acharConta(dados, usuario) {
@@ -118,11 +122,7 @@ export function acharConta(dados, usuario) {
 /* Some cada vídeo criado com sucesso: é o que o limite de "máximo de vídeos"
  * (limiteEnvio, M2+) confere antes de deixar subir o próximo. */
 export async function registrarEnvio(env, usuario) {
-  const dados = await lerContas(env);
-  const conta = acharConta(dados, usuario);
-  if (!conta) return;
-  conta.enviosContagem = (conta.enviosContagem || 0) + 1;
-  await gravarContas(env, dados);
+  await equipeContarEnvio(env, usuario);
 }
 
 /* --------------------------------------------------- pedidos de autorização
@@ -186,10 +186,11 @@ export function segredoDeSessao(env) {
   return typeof s === 'string' && s.length >= 32 ? s : null;
 }
 
-export async function emitirToken(env, conta) {
+/* `horas` vem de `acesso.sessao.horasEquipe` (padrão 8 h: uma jornada de trabalho). */
+export async function emitirToken(env, conta, { horas } = {}) {
   const segredo = segredoDeSessao(env);
   if (!segredo) throw new Error('SESSION_SECRET ausente ou curta demais');
-  const expira = agora() + VALIDADE_TOKEN_S;
+  const expira = agora() + (Number.isFinite(horas) && horas > 0 ? Math.floor(horas * 3600) : VALIDADE_TOKEN_S);
   const versao = conta.super ? 0 : (conta.versao || 1);
   const assinatura = await assinarHmac(segredo, ROTULO_TOKEN + conta.usuario + ':' + expira + ':' + versao);
   return {
@@ -219,12 +220,14 @@ export async function contaDoToken(token, env) {
 
   if (usuario === 'superadmin') return contaSuper();
 
-  /* A conta é lida a cada requisição (uma leitura de KV). Tirar uma permissão,
+  /* A conta é lida a cada requisição (uma linha do D1, pelo índice de `login`; sem D1, uma leitura de KV). Tirar uma permissão,
    * desativar a conta ou trocar a senha sobe a `versao` — e o token de antes
    * para de valer no pedido seguinte, não daqui a 8 horas. */
-  const conta = acharConta(await lerContas(env), usuario);
+  let conta;
+  try { conta = await equipeAchar(env, usuario); } catch (e) { return null; }   /* banco fora: falha fechada */
   if (!conta || conta.ativa === false || String(conta.versao || 1) !== versaoTexto) return null;
   return {
+    id: conta.id,
     usuario: conta.usuario,
     nome: conta.nome || conta.usuario,
     super: false,
