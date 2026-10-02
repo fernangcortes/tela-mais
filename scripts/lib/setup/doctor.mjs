@@ -1,5 +1,5 @@
 /* scripts/lib/setup/doctor.mjs — as checagens do `doctor`, em grupos: env, config, cloudflare, video, acesso, admin,
- * seguranca e remoto (só com --remote). Cada checagem vira { id, grupo, status, mensagem, correcao }:
+ * ia (opcional), seguranca e remoto (só com --remote). Cada checagem vira { id, grupo, status, mensagem, correcao }:
  *   ok     está certo
  *   aviso  funciona, mas você deveria saber (não impede de publicar)
  *   erro   precisa ser corrigido (o doctor sai com 1; o deploy não segue)
@@ -14,9 +14,11 @@ import { credenciaisNecessarias } from './credenciais.mjs';
 import { criarEstado, URL_DO_ULTIMO_DEPLOY } from './estado.mjs';
 import { arquivosParaVarrer, varrerArquivos } from './scan.mjs';
 import { valoresSecretosLocais, garantirGitignore } from './segredos.mjs';
+import { configDeTranscricao, VARIAVEL_PADRAO } from '../../../core/worker/_lib/ia/config.js';
+import { configDoExecutor, VARIAVEL_DO_TOKEN } from '../../../core/worker/_lib/ia/executor.js';
 import { lerSkills, lerNotas, gerarEspelhos, compararEspelhos, gravarEspelhos } from './agentes.mjs';
 
-export const GRUPOS = Object.freeze(['env', 'config', 'cloudflare', 'video', 'acesso', 'admin', 'seguranca', 'remoto']);
+export const GRUPOS = Object.freeze(['env', 'config', 'cloudflare', 'video', 'acesso', 'admin', 'ia', 'seguranca', 'remoto']);
 
 /* Credenciais que ligam a assinatura de vídeo (cada lista interna = qualquer uma serve). */
 const SINAIS_DE_ASSINATURA = Object.freeze({
@@ -217,6 +219,9 @@ export async function executarDoctor(ctx, rel, { only = null, remote = false, ur
     if (env.ADMIN_PASSWORD && env.SESSION_SECRET && env.ADMIN_PASSWORD === env.SESSION_SECRET) c('admin.separados', 'admin', 'erro', 'SESSION_SECRET e ADMIN_PASSWORD são iguais neste computador; precisam ser diferentes.', 'Gere outra chave: node scripts/setup.mjs segredo SESSION_SECRET --gerar');
   }
 
+  /* ------------------------------------------------------------------ ia (opcional: só avisa custo e o que falta) */
+  if (grupos.includes('ia')) await checarIA(ctx, estado, c, { config, fix });
+
   /* ------------------------------------------------------------------ segurança */
   if (grupos.includes('seguranca')) {
     const { origem, arquivos } = await arquivosParaVarrer(ctx);
@@ -255,6 +260,98 @@ export async function executarDoctor(ctx, rel, { only = null, remote = false, ur
   /* ------------------------------------------------------------------ remoto */
   if (grupos.includes('remoto')) await checarRemoto(ctx, estado, rel, { config, modo, url, hls, videoId, adaptador });
   return { modo, config };
+}
+
+/* ------------------------------------------------------------------ IA de conteúdo (M9) */
+
+/* Nunca dá erro: a IA é opcional, paga e nasce desligada. Aqui só se AVISA o custo, o destino do conteúdo e o que falta
+ * (chave, token, bucket). Nenhum valor de segredo é lido para a tela: só se uma variável existe (nome) ou não. */
+async function checarIA(ctx, estado, c, { config }) {
+  if (!config) { c('ia.config', 'ia', 'pulado', 'config/site.json inválida: não deu para olhar a IA.'); return; }
+  const ia = config.ia || {};
+  const ligadosNaConfig = Object.entries(ia.recursos || {}).filter(([, v]) => v === true).map(([k]) => k);
+  const textos = ia.textos || {}; const fala = ia.transcricao || {};
+  const comTexto = (textos.provedor || 'nenhum') !== 'nenhum';
+  const comFala = (fala.provedor || 'nenhum') !== 'nenhum';
+  const comExecutor = Boolean(ia.executor && ia.executor.github && ia.executor.github.ligado);
+  const comMidia = Boolean(ia.midia && ia.midia.destino === 'r2');
+  if (!comTexto && !comFala && !comExecutor && !comMidia && !ligadosNaConfig.length) {
+    c('ia.desligada', 'ia', 'ok', 'a IA de conteúdo está desligada (o padrão): sem custo e nenhum conteúdo sai da sua conta. Para ligar: docs/ia.md.');
+    return;
+  }
+
+  const orcamento = Number.isFinite(ia.orcamentoMensalUSD) ? ia.orcamentoMensalUSD : 5;
+  const envLocal = await estado.envLocal();
+  const remotos = comTexto || comFala || comExecutor ? await estado.segredosRemotos() : { nomes: [], consultado: false, existeWorker: false };
+  const w = await estado.wrangler();
+  /* só a PRESENÇA de cada variável: o valor vira "1" e nunca sai daqui */
+  const presenca = {};
+  for (const [k, v] of Object.entries(envLocal)) if (v) presenca[k] = '1';
+  for (const n of remotos.nomes || []) presenca[n] = '1';
+
+  const onde = (nome) => ((remotos.nomes || []).includes(nome) ? 'no Worker' : (envLocal[nome] ? 'só neste computador' : null));
+  const faltaChave = (nome, rotulo, usos) => {
+    const lugar = onde(nome);
+    if (lugar === 'no Worker') return null;
+    if (lugar) return `${rotulo}: a chave ${nome} está só neste computador. Os scripts e o GitHub a usam, mas o botão "Gerar agora" do /admin precisa dela também no Worker.`;
+    return `${rotulo}: falta a chave ${nome}. ${usos}`;
+  };
+  const nomeDaChave = (bloco, padrao) => (bloco && bloco.chave && typeof bloco.chave === 'object' && bloco.chave.$env) || padrao;
+
+  /* o custo e o destino do conteúdo, de uma vez só */
+  const partes = [];
+  if (comTexto) partes.push(`textos por ${textos.provedor}${textos.modelo && typeof textos.modelo === 'string' ? ' (' + textos.modelo + ')' : ''}`);
+  if (comFala) partes.push(`transcrição por ${fala.provedor}`);
+  const saiDaConta = (comTexto && textos.provedor !== 'workers-ai') || (comFala && !['workers-ai-whisper', 'provedor-de-video'].includes(fala.provedor));
+  c('ia.custo', 'ia', 'aviso',
+    `IA de conteúdo configurada${partes.length ? ': ' + partes.join('; ') : ''}. Cada geração é cobrada pelo provedor, dentro do teto de US$ ${orcamento}/mês (ia.orcamentoMensalUSD); um lote que não cabe é recusado antes de começar. ${saiDaConta ? 'O texto e a legenda dos títulos que você gerar VÃO para o provedor escolhido. ' : 'O conteúdo fica na sua conta Cloudflare (Workers AI). '}Tudo que a IA gera fica como sugestão: só vai ao ar quando uma pessoa aceita. Cada recurso nasce desligado e se liga na tela IA do /admin.`,
+    'Estimativa de custo e privacidade: docs/ia.md');
+  if (orcamento === 0) c('ia.orcamento', 'ia', 'aviso', 'o orçamento mensal de IA é US$ 0: todo lote será recusado.', 'Defina ia.orcamentoMensalUSD em config/site.json (ex.: 5).');
+
+  if (comTexto) {
+    if (textos.provedor === 'workers-ai') {
+      const temBinding = Boolean(w && w.dados && w.dados.ai);
+      if (temBinding) c('ia.texto-acesso', 'ia', 'ok', 'textos: o Workers AI está ligado ao Worker (binding "ai" no wrangler.jsonc).');
+      else c('ia.texto-acesso', 'ia', 'aviso', 'textos: o Workers AI precisa do binding "ai" no wrangler.jsonc para funcionar no Worker (nos scripts basta CLOUDFLARE_ACCOUNT_ID e CLOUDFLARE_API_TOKEN).', 'Descomente a linha "ai": { "binding": "AI" } em wrangler.jsonc e publique de novo.');
+    } else {
+      const nome = nomeDaChave(textos, VARIAVEL_PADRAO[textos.provedor]);
+      const problema = faltaChave(nome, 'textos', `Guarde-a com: node scripts/setup.mjs segredo ${nome}`);
+      if (!problema) c('ia.texto-chave', 'ia', 'ok', `textos: a chave ${nome} está guardada no Worker.`);
+      else c('ia.texto-chave', 'ia', 'aviso', problema, `Guarde-a com: node scripts/setup.mjs segredo ${nome}`);
+    }
+  }
+  if (comFala && fala.provedor !== 'provedor-de-video' && fala.provedor !== 'workers-ai-whisper') {
+    const nome = nomeDaChave(fala, VARIAVEL_PADRAO[fala.provedor]);
+    const problema = faltaChave(nome, 'transcrição', `Guarde-a com: node scripts/setup.mjs segredo ${nome}`);
+    if (!problema) c('ia.fala-chave', 'ia', 'ok', `transcrição: a chave ${nome} está guardada no Worker.`);
+    else c('ia.fala-chave', 'ia', 'aviso', problema, `Guarde-a com: node scripts/setup.mjs segredo ${nome}`);
+  }
+  if (comFala && fala.provedor === 'workers-ai-whisper') {
+    const ok = configDeTranscricao(config, presenca);
+    if (ok.pronto || (w && w.dados && w.dados.ai)) c('ia.fala-acesso', 'ia', 'ok', 'transcrição: o Whisper do Workers AI tem como ser chamado.');
+    else c('ia.fala-acesso', 'ia', 'aviso', 'transcrição: fora do Worker (scripts e GitHub) o Whisper do Workers AI precisa de CLOUDFLARE_API_TOKEN (permissão Workers AI) e CLOUDFLARE_ACCOUNT_ID. Não deixe o token no .env: ele atrapalha o "wrangler login".', 'Cadastre os dois como segredos do GitHub (Settings, Secrets and variables, Actions) e rode a transcrição pelo fluxo gerar-midia, ou use o binding "ai" no wrangler.jsonc.');
+  }
+
+  if (comExecutor) {
+    const g = configDoExecutor(config, presenca);
+    const fluxo = await readFile(path.join(ctx.raiz, '.github', 'workflows', g.fluxo), 'utf8').catch(() => null);
+    if (!g.repositorio) c('ia.github', 'ia', 'aviso', 'o botão "Gerar no GitHub" está ligado, mas falta ia.executor.github.repositorio (dono/repositório).', 'Preencha em config/site.json.');
+    else if (fluxo === null) c('ia.github', 'ia', 'aviso', `o botão "Gerar no GitHub" está ligado, mas o fluxo .github/workflows/${g.fluxo} não existe neste projeto.`, 'Restaure o arquivo com git (git checkout .github/workflows/gerar-midia.yml).');
+    else if (!(remotos.nomes || []).includes(g.nomeDoToken)) c('ia.github', 'ia', 'aviso', `o botão "Gerar no GitHub" está ligado, mas o segredo ${g.nomeDoToken} não está no Worker. Use um token fino do GitHub só deste repositório, com a permissão "Actions: Read and write" e mais nenhuma.`, `Rode: node scripts/setup.mjs segredo ${g.nomeDoToken || VARIAVEL_DO_TOKEN}`);
+    else c('ia.github', 'ia', 'ok', `o botão "Gerar no GitHub" está pronto (${g.repositorio}). Lembre: no GitHub, a variável IA_EXECUTOR_LIGADO = true e os segredos do provedor precisam existir (docs/ia.md).`);
+  }
+
+  if (comMidia) {
+    const m = ia.midia || {};
+    if (!m.bucket || !m.urlBase) c('ia.midia', 'ia', 'aviso', 'o destino do trailer e do clipe é o R2, mas faltam ia.midia.bucket e/ou ia.midia.urlBase (endereço https público do bucket).', 'Crie o bucket no painel da Cloudflare (R2), ligue o acesso público e preencha os dois campos. O endereço entra sozinho na política de segurança do site.');
+    else c('ia.midia', 'ia', 'ok', `trailer e clipe vão para o R2 (${m.bucket}); R2 tem 10 GB grátis e não cobra a entrega.`);
+  }
+
+  if (comMidia || comExecutor || ligadosNaConfig.includes('trailer')) {
+    const ff = await ctx.exec('ffmpeg', ['-version'], { cwd: ctx.raiz });
+    if (ff.codigo === 0) c('ia.ffmpeg', 'ia', 'ok', 'ffmpeg instalado (corta trailer, clipe e capas; é grátis).');
+    else c('ia.ffmpeg', 'ia', 'aviso', 'ffmpeg não encontrado neste computador. Só é preciso aqui se você for gerar capas, trailer ou clipe localmente; o GitHub instala o dele sozinho.', 'Instale em ffmpeg.org (ou: sudo apt install ffmpeg / brew install ffmpeg).');
+  }
 }
 
 /* ------------------------------------------------------------------ site publicado */

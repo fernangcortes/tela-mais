@@ -23,7 +23,12 @@ export const ONDE_ACHAR = Object.freeze({
   CLOUDFLARE_STREAM_TOKEN: 'Cloudflare: Perfil, Tokens de API, token personalizado com a permissão "Stream: Edit" só para a sua conta. É secreto. (docs/contas-e-chaves.md, seção 3)',
   CLOUDFLARE_STREAM_KEY_ID: 'Cloudflare: a chave de assinatura dos vídeos. Você NÃO digita: o comando "video" a cria sozinho com o seu token.',
   CLOUDFLARE_STREAM_KEY_JWK: 'Cloudflare: a parte secreta da chave de assinatura. Você NÃO cola: o comando "video" a cria e a guarda sozinho.',
-  CLOUDFLARE_STREAM_SUBDOMINIO: 'Cloudflare: na página do Stream, o endereço "customer-xxxx" dos vídeos. Não é senha. (docs/contas-e-chaves.md, seção 3)'
+  CLOUDFLARE_STREAM_SUBDOMINIO: 'Cloudflare: na página do Stream, o endereço "customer-xxxx" dos vídeos. Não é senha. (docs/contas-e-chaves.md, seção 3)',
+  ANTHROPIC_API_KEY: 'Anthropic: console.anthropic.com, API Keys. É secreta e a IA é cobrada por uso: defina também um limite de gasto lá. (docs/ia.md)',
+  OPENAI_API_KEY: 'OpenAI: platform.openai.com, API keys. É secreta e a IA é cobrada por uso: defina também um limite de gasto lá. (docs/ia.md)',
+  GEMINI_API_KEY: 'Google AI Studio: aistudio.google.com, "Get API key". É secreta e a IA é cobrada por uso: defina um limite de gasto. (docs/ia.md)',
+  ASSEMBLYAI_API_KEY: 'AssemblyAI: assemblyai.com, painel, API key. É secreta e a transcrição é cobrada por hora de áudio. (docs/ia.md)',
+  GITHUB_DISPATCH_TOKEN: 'GitHub: Settings, Developer settings, Fine-grained tokens. Escolha SÓ o repositório do site, permissão "Actions: Read and write" e mais nenhuma, validade curta. É secreto. (docs/ia.md)'
 });
 
 /* Regras de formato que a pessoa deve saber ANTES de chegar ao campo escondido. */

@@ -252,7 +252,7 @@ try {
     console.log('são institucionais de trilha musical, e a sinopse precisa ser escrita à mão.');
   }
   console.log('próximos passos:');
-  console.log('  node scripts/sinopses.mjs            (Task 3.4 — sinopses a partir das legendas)');
+  console.log("  npm run ia:textos                    (sinopses etc. como sugestão, com custo avisado; ver docs/ia.md)");
   console.log('  node scripts/capas-legendas.mjs      (Task 3.2 — subir as legendas ao Bunny)');
 } catch (e) {
   erroFatal(e);

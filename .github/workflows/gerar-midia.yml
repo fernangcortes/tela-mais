@@ -1,0 +1,143 @@
+name: gerar-midia
+
+# O executor da IA de conteúdo (M9): roda os scripts de textos, transcrição, capas, trailer e clipe de fundo com o ffmpeg do
+# próprio GitHub (o Worker da Cloudflare não roda ffmpeg). Tudo que sai é SUGESTÃO na tela IA do /admin: nada vai ao ar sozinho.
+# Passo a passo, custo e privacidade em docs/ia.md.
+#
+# DESLIGADO por padrão: só roda se a variável de repositório IA_EXECUTOR_LIGADO for "true".
+# Duas formas de disparar (as duas são sempre manuais, nunca por push nem por agenda):
+#   1. Aba Actions do GitHub, "Run workflow".
+#   2. O botão "Gerar no GitHub" da tela IA do /admin (precisa de ia.executor.github.ligado e do token GITHUB_DISPATCH_TOKEN no
+#      Worker: token fino do GitHub, SÓ este repositório, permissão "Actions: Read and write" e mais nenhuma).
+#
+# Precisa de (Settings, Secrets and variables, Actions):
+#   variável  IA_EXECUTOR_LIGADO = true
+#   variável  APP_SITE_URL       = https://seu-site (sem barra no fim)
+#   segredo   APP_SENHA          = a senha do superadmin do /admin (o script entra no site com ela para ler o catálogo, conferir
+#                                  o orçamento do mês e entregar as sugestões)
+#   segredos do provedor de TEXTO e de TRANSCRIÇÃO que você escolheu em config/site.json (ia.*): ANTHROPIC_API_KEY, OPENAI_API_KEY,
+#             GEMINI_API_KEY, ASSEMBLYAI_API_KEY; para o Workers AI fora do Worker, CLOUDFLARE_API_TOKEN (permissão Workers AI) e
+#             CLOUDFLARE_ACCOUNT_ID. Só os que você usa.
+#   segredos do provedor de VÍDEO (para ler o vídeo e a legenda): BUNNY_LIBRARY_ID, BUNNY_API_KEY, BUNNY_PULLZONE, BUNNY_TOKEN_KEY
+#             ou CLOUDFLARE_STREAM_TOKEN, CLOUDFLARE_STREAM_SUBDOMINIO (e as chaves de assinatura, no modo privado).
+#   trailer e clipe vão para o R2: ia.midia.destino = "r2", ia.midia.bucket e ia.midia.urlBase em config/site.json, e o segredo
+#             CLOUDFLARE_API_TOKEN com permissão "Workers R2 Storage: Edit" (junto de CLOUDFLARE_ACCOUNT_ID).
+on:
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: 'O que gerar'
+        required: true
+        type: choice
+        options: [textos, transcrever, trailer, clipe, capas]
+      ids:
+        description: 'Ids dos títulos, separados por vírgula (até 20)'
+        required: true
+        type: string
+      subtarefas:
+        description: 'Só para "textos": sinopse-curta, sinopse-longa, capitulos, tags, titulo-alternativo, descricao-acessivel, traducao-legenda (separadas por vírgula)'
+        required: false
+        type: string
+      idiomas:
+        description: 'Só para a tradução de legenda: idiomas de destino (ex.: en,es)'
+        required: false
+        type: string
+      usar_ia:
+        description: 'Trailer e clipe: o modelo de texto escolhe os trechos pela legenda (custa centavos, dentro do orçamento)? "nao" usa a amostra automática, de graça'
+        required: false
+        type: choice
+        default: 'nao'
+        options: ['sim', 'nao']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gerar-midia
+  cancel-in-progress: false
+
+jobs:
+  gerar:
+    if: ${{ vars.IA_EXECUTOR_LIGADO == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # as entradas viajam por variável de ambiente (nunca coladas dentro do comando): é o que impede injeção de comando
+      INPUT_TAREFA: ${{ inputs.tarefa }}
+      INPUT_IDS: ${{ inputs.ids }}
+      INPUT_SUBTAREFAS: ${{ inputs.subtarefas }}
+      INPUT_IDIOMAS: ${{ inputs.idiomas }}
+      INPUT_USAR_IA: ${{ inputs.usar_ia }}
+      APP_SITE_URL: ${{ vars.APP_SITE_URL }}
+      APP_SENHA: ${{ secrets.APP_SENHA }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ASSEMBLYAI_API_KEY: ${{ secrets.ASSEMBLYAI_API_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BUNNY_LIBRARY_ID: ${{ secrets.BUNNY_LIBRARY_ID }}
+      BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+      BUNNY_PULLZONE: ${{ secrets.BUNNY_PULLZONE }}
+      BUNNY_TOKEN_KEY: ${{ secrets.BUNNY_TOKEN_KEY }}
+      CLOUDFLARE_STREAM_TOKEN: ${{ secrets.CLOUDFLARE_STREAM_TOKEN }}
+      CLOUDFLARE_STREAM_SUBDOMINIO: ${{ secrets.CLOUDFLARE_STREAM_SUBDOMINIO }}
+      CLOUDFLARE_STREAM_KEY_ID: ${{ secrets.CLOUDFLARE_STREAM_KEY_ID }}
+      CLOUDFLARE_STREAM_KEY_JWK: ${{ secrets.CLOUDFLARE_STREAM_KEY_JWK }}
+    steps:
+      - name: Confere a configuração e as entradas
+        run: |
+          faltando=""
+          [ -n "$APP_SITE_URL" ] || faltando="$faltando APP_SITE_URL(variável)"
+          [ -n "$APP_SENHA" ] || faltando="$faltando APP_SENHA"
+          if [ -n "$faltando" ]; then echo "::error::Faltam:$faltando (veja docs/ia.md)"; exit 1; fi
+          case "$INPUT_TAREFA" in textos|transcrever|trailer|clipe|capas) ;; *) echo "::error::tarefa inválida"; exit 1;; esac
+          # ids: letras, números, ponto, hífen, sublinhado, separados por vírgula, no máximo 20
+          printf '%s' "$INPUT_IDS" | grep -Eq '^[A-Za-z0-9._-]+(,[A-Za-z0-9._-]+){0,19}$' || { echo "::error::ids inválidos (use ids separados por vírgula, até 20)"; exit 1; }
+          if [ "$INPUT_TAREFA" = "textos" ]; then
+            printf '%s' "$INPUT_SUBTAREFAS" | grep -Eq '^(sinopse-curta|sinopse-longa|capitulos|tags|titulo-alternativo|descricao-acessivel|traducao-legenda)(,(sinopse-curta|sinopse-longa|capitulos|tags|titulo-alternativo|descricao-acessivel|traducao-legenda))*$' || { echo "::error::informe as subtarefas de texto"; exit 1; }
+          fi
+          if [ -n "$INPUT_IDIOMAS" ]; then
+            printf '%s' "$INPUT_IDIOMAS" | grep -Eq '^[a-z]{2}(-[A-Za-z]{2})?(,[a-z]{2}(-[A-Za-z]{2})?)*$' || { echo "::error::idiomas inválidos (ex.: en,es)"; exit 1; }
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instala o ffmpeg e uma fonte para o título das capas
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          ffmpeg -version | head -1
+      - name: Textos por IA (sugestões na fila do /admin)
+        if: ${{ inputs.tarefa == 'textos' }}
+        run: |
+          extra=""
+          [ -n "$INPUT_IDIOMAS" ] && extra="--idiomas $INPUT_IDIOMAS"
+          node scripts/ia-textos.mjs --tarefa "$INPUT_SUBTAREFAS" --item "$INPUT_IDS" $extra --yes
+      - name: Transcrição por IA (legenda na fila do /admin)
+        if: ${{ inputs.tarefa == 'transcrever' }}
+        run: node scripts/ia-transcrever.mjs --item "$INPUT_IDS" --yes
+      - name: Trailer (sugestão na fila do /admin)
+        if: ${{ inputs.tarefa == 'trailer' }}
+        run: |
+          extra=""
+          [ "$INPUT_USAR_IA" = "sim" ] && extra="--ia --yes"
+          node scripts/trailer.mjs --fila --so-trailer --item "$INPUT_IDS" $extra
+      - name: Clipe mudo de fundo (sugestão na fila do /admin)
+        if: ${{ inputs.tarefa == 'clipe' }}
+        run: |
+          extra=""
+          [ "$INPUT_USAR_IA" = "sim" ] && extra="--ia --yes"
+          node scripts/trailer.mjs --fila --so-clipe --item "$INPUT_IDS" $extra
+      - name: Capas candidatas (3 por título, só ffmpeg, de graça)
+        if: ${{ inputs.tarefa == 'capas' }}
+        run: node scripts/capas.mjs --fila --item "$INPUT_IDS" --saida capas-geradas
+      - name: Guarda as capas candidatas (baixe, escolha e envie pelo /admin)
+        if: ${{ inputs.tarefa == 'capas' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: capas-candidatas
+          path: capas-geradas/
+          retention-days: 7
+          if-no-files-found: error

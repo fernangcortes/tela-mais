@@ -2,7 +2,7 @@
 // catálogo ou o vídeo (HLS) abrirem sem login. Os testes negativos usam um "site" que vaza de propósito.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, rmSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { criarProjeto, rodar, criarMundo, criarFetch, lerArq, escreverSiteJson, lerSiteJson, CABECALHOS_SEGUROS } from './setup-falso.js';
 
@@ -244,4 +244,79 @@ test('doctor --remote: erro de rede não derruba o doctor (vira erro na checagem
   const r = await rodar(['doctor', '--only', 'remoto', '--url', base, '--json'], { raiz, mundo, fetch: quebrado });
   assert.equal(r.codigo, 1);
   assert.match(por(r, 'remoto.home').mensagem, /ECONNREFUSED/);
+});
+
+/* ------------------------------------------------------------------ grupo ia (M9): só avisa custo e o que falta, nunca erra */
+
+function comIA(raiz, ia) {
+  const cfg = lerSiteJson(raiz);
+  cfg.ia = { ...(cfg.ia || {}), ...ia };
+  escreverSiteJson(raiz, cfg);
+}
+
+test('doctor ia: desligada por padrão (ok, sem custo) e entra na lista de grupos', async () => {
+  const { raiz, mundo } = await projeto('criador');
+  const r = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.equal(r.codigo, 0);
+  assert.equal(por(r, 'ia.desligada').status, 'ok');
+  assert.match(por(r, 'ia.desligada').mensagem, /sem custo/);
+  assert.deepEqual(r.json.checagens.map((c) => c.grupo), ['ia']);
+  const geral = await rodar(['doctor', '--json'], { raiz, mundo, env: ENV_BUNNY, fetch: criarFetch(videosOk) });
+  assert.ok(geral.json.checagens.some((c) => c.grupo === 'ia'), 'o doctor padrão inclui o grupo ia');
+});
+
+test('doctor ia: provedor de texto ligado avisa o CUSTO, o teto do mês e que o conteúdo sai da conta; chave faltando vira aviso com o comando (nunca erro)', async () => {
+  const { raiz, mundo } = await projeto('criador');
+  comIA(raiz, { textos: { provedor: 'anthropic' }, orcamentoMensalUSD: 7 });
+  const r = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.equal(r.codigo, 0, 'IA é opcional: nunca bloqueia');
+  const custo = por(r, 'ia.custo');
+  assert.equal(custo.status, 'aviso');
+  assert.match(custo.mensagem, /anthropic/);
+  assert.match(custo.mensagem, /US\$ 7\/mês/);
+  assert.match(custo.mensagem, /VÃO para o provedor/);
+  assert.match(custo.mensagem, /só vai ao ar quando uma pessoa aceita/);
+  const chave = por(r, 'ia.texto-chave');
+  assert.equal(chave.status, 'aviso');
+  assert.match(chave.mensagem, /falta a chave ANTHROPIC_API_KEY/);
+  assert.match(chave.correcao, /setup\.mjs segredo ANTHROPIC_API_KEY/);
+  assert.equal(r.json.checagens.filter((c) => c.status === 'erro').length, 0);
+});
+
+test('doctor ia: chave só no computador avisa que o botão do /admin precisa dela no Worker; no Worker fica ok; o valor nunca aparece', async () => {
+  const { raiz, mundo } = await projeto('criador');
+  comIA(raiz, { textos: { provedor: 'anthropic' } });
+  const valor = 'sk-ant-valor-que-nao-pode-aparecer-0123456789';
+  const local = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo, env: { ANTHROPIC_API_KEY: valor } });
+  assert.match(por(local, 'ia.texto-chave').mensagem, /só neste computador/);
+  assert.ok(!local.tudo.includes(valor));
+  mundo.segredos.set('ANTHROPIC_API_KEY', 'x');
+  const remoto = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.equal(por(remoto, 'ia.texto-chave').status, 'ok');
+});
+
+test('doctor ia: orçamento zero, botão do GitHub sem repositório ou sem token, R2 sem bucket: tudo aviso com o que fazer', async () => {
+  const { raiz, mundo } = await projeto('criador');
+  comIA(raiz, { textos: { provedor: 'workers-ai' }, orcamentoMensalUSD: 0, executor: { github: { ligado: true } }, midia: { destino: 'r2' } });
+  const r = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.equal(r.codigo, 0);
+  assert.equal(por(r, 'ia.orcamento').status, 'aviso');
+  assert.match(por(r, 'ia.texto-acesso').correcao, /binding/);
+  assert.match(por(r, 'ia.github').mensagem, /falta ia\.executor\.github\.repositorio/);
+  assert.match(por(r, 'ia.midia').mensagem, /bucket|urlBase/);
+  assert.ok(por(r, 'ia.ffmpeg'));
+
+  comIA(raiz, { executor: { github: { ligado: true, repositorio: 'cliente/streaming' } } });
+  const semFluxo = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.match(por(semFluxo, 'ia.github').mensagem, /gerar-midia\.yml não existe/);
+
+  mkdirSync(path.join(raiz, '.github', 'workflows'), { recursive: true });
+  writeFileSync(path.join(raiz, '.github', 'workflows', 'gerar-midia.yml'), 'name: gerar-midia\n');
+  const semToken = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.match(por(semToken, 'ia.github').mensagem, /GITHUB_DISPATCH_TOKEN não está no Worker/);
+  assert.match(por(semToken, 'ia.github').mensagem, /só deste repositório/);
+
+  mundo.segredos.set('GITHUB_DISPATCH_TOKEN', 'x');
+  const pronto = await rodar(['doctor', '--only', 'ia', '--json'], { raiz, mundo });
+  assert.equal(por(pronto, 'ia.github').status, 'ok');
 });

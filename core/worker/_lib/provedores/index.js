@@ -79,11 +79,43 @@ export function criarProvedor(config, env, opcoes = {}) {
 
 /** Hosts de mídia do provedor desta instalação (CSP e preconnect). Nunca lança. */
 export function hostsDeMidia(config, env, opcoes = {}) {
+  let hosts;
   try {
-    return hostsLimpos(criarProvedor(config, env, opcoes).hostsMidia());
+    hosts = hostsLimpos(criarProvedor(config, env, opcoes).hostsMidia());
   } catch (e) {
-    return hostsLimpos({});
+    hosts = hostsLimpos({});
   }
+  /* Clipe e trailer gerados (M9) moram fora do provedor de vídeo (R2 do cliente): o host de `ia.midia.urlBase` entra na CSP. */
+  const extra = hostDaMidiaGerada(config);
+  if (!extra) return hosts;
+  return hostsLimpos({
+    ...hosts,
+    img: (hosts.img || []).concat([extra]),
+    media: (hosts.media || []).concat([extra])
+  });
+}
+
+/** O host (`https://...`) de `ia.midia.urlBase`, ou null. Só https e só a origem: nunca caminho nem consulta. */
+export function hostDaMidiaGerada(config) {
+  const base = config && config.ia && config.ia.midia && config.ia.midia.urlBase;
+  if (typeof base !== 'string') return null;
+  try {
+    const u = new URL(base);
+    return u.protocol === 'https:' && !u.username && !u.password ? u.origin : null;
+  } catch (e) { return null; }
+}
+
+/** Põe `clipe`, `clipePoster` e `trailer` de `item.midia_gerada` em `midia`, SÓ se uma pessoa aceitou
+ * (`proveniencia.revisado === true`) e a URL é https. Nunca sobrescreve o que o adaptador do provedor entregou.
+ * (Mesma regra de scripts/lib/midia-gerada.mjs: o Worker não importa de scripts/.) Devolve `midia` se nada muda. */
+export function mesclarMidiaGerada(midia, item) {
+  const g = item && item.midia_gerada;
+  if (!midia || !g || !g.proveniencia || g.proveniencia.revisado !== true) return midia;
+  const https = (u) => typeof u === 'string' && /^https:\/\/[^\s]+$/.test(u);
+  const saida = { ...midia };
+  if (https(g.clipe) && !saida.clipe) { saida.clipe = g.clipe; if (https(g.clipePoster)) saida.clipePoster = g.clipePoster; }
+  if (https(g.trailer) && !saida.trailer) saida.trailer = g.trailer;
+  return saida;
 }
 
 /** Os idiomas de legenda que se presumem existir quando o item não diz: o idioma padrão do site. */
@@ -124,7 +156,7 @@ export async function montarMidia(provedor, item, opcoes = {}) {
       extras: fonte.extras, arquivo: item.capa_arquivo || undefined,
       versao: item.capa_versao != null ? item.capa_versao : undefined, idiomas
     });
-    return Object.assign({}, m, { legendas: m.legendas.filter(l => l.url).map(l => ({ idioma: l.idioma, rotulo: l.rotulo, url: l.url })) });
+    return mesclarMidiaGerada(Object.assign({}, m, { legendas: m.legendas.filter(l => l.url).map(l => ({ idioma: l.idioma, rotulo: l.rotulo, url: l.url })) }), item);
   }
 
   const [rep, capa, previa, legendas] = await Promise.all([
@@ -133,7 +165,7 @@ export async function montarMidia(provedor, item, opcoes = {}) {
     provedor.urlPreview(fonte.id, { assinar, validadeSeg }),
     provedor.legendas(fonte.id, { idiomas, extras: fonte.extras, assinar, validadeSeg })
   ]);
-  return {
+  return mesclarMidiaGerada({
     hls: rep.hls || null,
     mp4: rep.mp4 || null,
     capa: capa || null,
@@ -141,7 +173,7 @@ export async function montarMidia(provedor, item, opcoes = {}) {
     legendas: legendas.filter(l => l.url).map(l => ({ idioma: l.idioma, rotulo: l.rotulo, url: l.url })),
     embed: rep.embed || null,
     expiraEm: rep.expiraEm || null
-  };
+  }, item);
 }
 
 /** As opções de assinatura de UMA requisição, a partir do que o middleware já decidiu (`data`).

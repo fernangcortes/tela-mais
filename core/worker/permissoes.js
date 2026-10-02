@@ -105,6 +105,13 @@ export const PERMISSOES = {
    * agente com token `mcp_…` (nem a sessão da equipe nem o cookie de espectador valem), e o handler confere por dentro, nesta
    * ordem: `mcp.ligado` (senão 404), Origin, token válido (senão 401), limite de taxa e escopo de cada ferramenta. */
   '/api/mcp-tokens': { GET: 'super', POST: 'super', DELETE: 'super' },
+
+  /* IA de conteúdo (M9). O retrato e a estimativa de custo são da equipe; GERAR (gasta dinheiro), registrar gasto e ligar/desligar
+   * recurso são do superadmin (o handler confere por ação). A FILA de sugestões: a equipe vê, aceita e descarta (permissão
+   * `conteudo`, conferida no handler; o aceite ainda passa pelo `gravarCatalogo`, com permissão por campo); colocar sugestão na fila
+   * é do superadmin (os scripts de lote). Nada gerado por IA vai ao ar sem uma pessoa aceitar. */
+  '/api/ia': { GET: 'equipe', POST: 'equipe', PUT: 'super' },
+  '/api/ia-sugestoes': { GET: 'equipe', POST: 'super', PUT: 'equipe', DELETE: 'equipe' },
   '/mcp': { GET: 'aberto', POST: 'aberto', DELETE: 'aberto' }
 };
 

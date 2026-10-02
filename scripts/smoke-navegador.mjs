@@ -34,7 +34,10 @@ export const SELETORES = Object.freeze({
   entrarFormulario: '#form-entrar',
   mesa: '#mesa:not([hidden])',
   assistente: '.asst-previa, [data-asst]',
-  tabelaDeProvedores: '.a-tabela-provedores'
+  tabelaDeProvedores: '.a-tabela-provedores',
+  menuIA: '[data-acao="tela"][data-tela="ia"]',
+  telaIA: '.a.ia',
+  recursoIA: 'input[data-ia="recurso"]'
 });
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -167,6 +170,16 @@ export async function principal(argv = process.argv.slice(2), deps = {}) {
     if (medidas.rolagem > medidas.caixa + 1) throw new Error(`a tabela de provedores é cortada à direita no desktop (conteúdo ${medidas.rolagem}px numa caixa de ${medidas.caixa}px).`);
     passo('tabela de provedores cabe na tela, sem rolagem lateral');
     await dormir(800);   /* deixa o que ainda está carregando falhar, se for falhar */
+
+    /* 3c. A tela IA (M9): abre sem erro, mostra o texto traduzido (nunca a chave crua) e tudo nasce desligado. */
+    await pagina.locator(SELETORES.menuIA).first().click();
+    await pagina.waitForSelector(SELETORES.telaIA, { timeout: 15000 }).catch(() => { throw new Error('a tela IA não abriu (seletor: ' + SELETORES.telaIA + ').'); });
+    await pagina.waitForSelector(SELETORES.recursoIA, { timeout: 15000 }).catch(() => { throw new Error('a tela IA abriu mas não mostrou os recursos (a rota /api/ia respondeu?).'); });
+    const ia = await pagina.locator(SELETORES.telaIA).first().evaluate((el) => ({ texto: el.innerText, ligados: el.querySelectorAll('input[data-ia="recurso"]:checked').length, total: el.querySelectorAll('input[data-ia="recurso"]').length }));
+    await foto('ia');
+    if (/\bia\.[a-zA-Z]+/.test(ia.texto)) throw new Error('a tela IA mostra uma chave de texto crua (falta tradução): ' + (ia.texto.match(/\bia\.[a-zA-Z.-]+/) || [''])[0]);
+    if (!ia.total || ia.ligados !== 0) throw new Error(`na tela IA todo recurso deveria nascer desligado (ligados ${ia.ligados} de ${ia.total}).`);
+    passo(`tela IA abriu: ${ia.total} recursos, todos desligados`);
 
     /* 4. O PRAZO DO ERRO DO PLAYER, medido de verdade: com segmentos que travam, o painel "Tentar de novo" aparece em até 15 s. */
     const prazos = await medirPrazoDoPlayer(navegador, { raizSite: path.join(RAIZ, 'core', 'site') });
