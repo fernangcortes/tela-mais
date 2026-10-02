@@ -5,7 +5,7 @@
  * janela de quem fala. */
 (function () {
   'use strict';
-  var M = window.MESA, h = M.h, st = M.st, $ = M.$;
+  var M = window.MESA, h = M.h, st = M.st, $ = M.$, tr = M.tr;
 
   var el = {
     entrar: $('tela-entrar'), mesa: $('mesa'), esq: $('esq'), barra: $('barra'), palco: $('palco'),
@@ -115,40 +115,57 @@
   function desenharMenu() {
     var cat = M.efetivo();
     var envio = M.envio.fase === 'enviando' || M.envio.fase === 'pausado' ? Math.floor(M.pctEnvio()) + '%' : M.envio.fase === 'enviado' ? 'ok' : null;
-    var ate = new Date(M.sessao.expira * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    var ate = M.I18n.data(M.sessao.expira * 1000, 'hora');
     el.esq.replaceChildren(h('div', { class: 'menu' },
-      h('div', { class: 'marca-mesa' }, h('span', { class: 'marca-mesa-logo', 'aria-hidden': 'true' }, 'P'),
-        h('span', { class: 'menu-rotulo' }, h('b', { text: 'Plataforma Exemplo' }), h('small', { text: 'Mesa de Curadoria' }))),
+      h('div', { class: 'marca-mesa' }, h('span', { class: 'marca-mesa-logo', 'aria-hidden': 'true' }, Array.from(tr('mesa.nomeDaMarca'))[0] || ''),
+        h('span', { class: 'menu-rotulo' }, h('b', { text: tr('mesa.nomeDaMarca') }), h('small', { text: tr('mesa.tituloDaMesa') }))),
       h('ul', { class: 'menu-lista' },
-        itemMenu('site', 'site', 'Site'),
-        h('li', { class: 'menu-grupo', text: 'Catálogo' }),
-        itemMenu('catalogo', 'tabela', 'Todos os títulos', cat ? cat.itens.length : null),
-        M.pode('enviar') ? itemMenu('enviar', 'enviar', 'Enviar título', envio, 'b-ouro') : null,
-        itemMenu('historico', 'desfazer', 'Histórico'),
-        M.pode('conteudo') && cat ? h('li', { class: 'menu-grupo', text: 'Filas de trabalho' }) : null,
-        M.pode('conteudo') && cat ? itemMenu('fila-sinopses', 'busca', 'Sinopses a revisar', App.filaSinopses(cat.itens).length) : null,
-        M.pode('conteudo') && cat ? itemMenu('fila-pendencias', 'alerta', 'Pendências', App.filaPendencias(cat.itens).length, 'b-ouro') : null,
-        M.pode('conteudo') && cat ? itemMenu('fila-semsinopse', 'imagem', 'Sem sinopse', App.filaSemSinopse(cat.itens).length, 'b-ouro') : null,
-        M.pode('player') || M.pode('estrutura') ? h('li', { class: 'menu-grupo', text: 'Ajustes' }) : null,
-        M.pode('estrutura') ? itemMenu('estrutura', 'estrutura', 'Estrutura') : null,
-        M.pode('player') ? itemMenu('player', 'player', 'Player') : null,
-        h('li', { class: 'menu-grupo', text: 'Equipe' }),
-        M.sessao.super ? itemMenu('contas', 'contas', 'Contas', (M.contas.lista || []).length || null) : null,
-        itemMenu('conta', 'conta', M.sessao.super ? 'Superadmin' : M.sessao.nome)),
+        itemMenu('site', 'site', tr('mesa.site')),
+        h('li', { class: 'menu-grupo', text: tr('mesa.catalogo') }),
+        itemMenu('catalogo', 'tabela', tr('mesa.todosOsTitulos'), cat ? cat.itens.length : null),
+        M.pode('enviar') ? itemMenu('enviar', 'enviar', tr('mesa.enviarTitulo'), envio, 'b-ouro') : null,
+        itemMenu('historico', 'desfazer', tr('mesa.historico')),
+        M.pode('conteudo') && cat ? h('li', { class: 'menu-grupo', text: tr('mesa.filasDeTrabalho') }) : null,
+        M.pode('conteudo') && cat ? itemMenu('fila-sinopses', 'busca', tr('mesa.sinopsesARevisar'), App.filaSinopses(cat.itens).length) : null,
+        M.pode('conteudo') && cat ? itemMenu('fila-pendencias', 'alerta', tr('mesa.pendencias'), App.filaPendencias(cat.itens).length, 'b-ouro') : null,
+        M.pode('conteudo') && cat ? itemMenu('fila-semsinopse', 'imagem', tr('mesa.semSinopse'), App.filaSemSinopse(cat.itens).length, 'b-ouro') : null,
+        M.pode('player') || M.pode('estrutura') ? h('li', { class: 'menu-grupo', text: tr('mesa.ajustes') }) : null,
+        M.pode('estrutura') ? itemMenu('estrutura', 'estrutura', tr('mesa.estrutura')) : null,
+        M.pode('player') ? itemMenu('player', 'player', tr('mesa.player')) : null,
+        h('li', { class: 'menu-grupo', text: tr('mesa.equipe') }),
+        M.sessao.super ? itemMenu('contas', 'contas', tr('mesa.contas'), (M.contas.lista || []).length || null) : null,
+        itemMenu('conta', 'conta', M.sessao.super ? tr('mesa.superadmin') : M.sessao.nome)),
       h('div', { class: 'menu-pe' },
-        h('span', { class: 'menu-rotulo sessao', text: 'sessão até ' + ate }),
-        h('button', { type: 'button', class: 'icone-botao', id: 'b-sair', 'aria-label': 'Sair', title: 'Sair' }, M.ic('sair')),
-        h('button', { type: 'button', class: 'icone-botao so-largo', id: 'b-recolher', 'aria-label': st.rail ? 'Abrir o menu' : 'Recolher o menu', 'aria-pressed': String(st.rail) }, M.ic('recolher')))));
+        seletorDeIdioma(),
+        h('span', { class: 'menu-rotulo sessao', text: tr('mesa.sessaoAte', { hora: ate }) }),
+        h('button', { type: 'button', class: 'icone-botao', id: 'b-sair', 'aria-label': tr('mesa.sair'), title: tr('mesa.sair') }, M.ic('sair')),
+        h('button', { type: 'button', class: 'icone-botao so-largo', id: 'b-recolher', 'aria-label': st.rail ? tr('mesa.abrirOMenu') : tr('mesa.recolherOMenu'), 'aria-pressed': String(st.rail) }, M.ic('recolher')))));
+  }
+
+  /* O seletor de idioma do menu: o idioma é de quem edita, e vale também para o
+   * site no quadro (vai por ?idioma=). Trocar recarrega a página; o rascunho já
+   * está guardado no navegador, então nada se perde. */
+  function seletorDeIdioma() {
+    var info = window.MESA_IDIOMA;
+    if (!info || !info.disponiveis || info.disponiveis.length < 2) return null;
+    var sel = h('select', { id: 'idioma-mesa', 'aria-label': tr('site.idioma'), title: tr('site.idioma') });
+    info.montar(sel, info.disponiveis, info.atual);
+    return h('div', { class: 'idioma-seletor' }, sel);
+  }
+
+  /* O site no quadro abre no idioma da mesa, quando o site o tem. */
+  function urlDoSite() {
+    return 'index.html?mesa=1&idioma=' + encodeURIComponent(M.I18n.idioma());
   }
 
   /* --------------------------------------------------------- barra do meio */
 
   function nomeDaRota() {
     var ep = st.rota.match(/^#\/ep\/(.+)$/);
-    if (ep) { var it = M.item(decodeURIComponent(ep[1])); return ['Ficha', it ? App.tituloCurto(it) : '']; }
+    if (ep) { var it = M.item(decodeURIComponent(ep[1])); return [tr('mesa.ficha'), it ? App.tituloCurto(it) : '']; }
     var tudo = st.rota.match(/^#\/tudo\/(.+)$/);
-    if (tudo) return ['Ver tudo'];
-    return ['Início'];
+    if (tudo) return [tr('mesa.verTudo')];
+    return [tr('mesa.inicio')];
   }
 
   function segmentado(prefixo, opcoes, atual, rotulo) {
@@ -159,25 +176,25 @@
   }
 
   function desenharBarra() {
-    var trilha = st.tela === 'site' ? ['Site'].concat(nomeDaRota())
-      : st.tela === 'capa' ? ['Site', 'Escolher capa']
-      : st.tela === 'player' ? ['Ajustes', 'Player']
-      : st.tela === 'estrutura' ? ['Ajustes', 'Estrutura']
-      : st.tela === 'historico' ? ['Catálogo', 'Histórico']
-      : st.tela === 'enviar' ? ['Catálogo', 'Enviar título']
-      : st.tela === 'contas' ? ['Equipe', 'Contas']
-      : st.tela === 'conta' ? ['Equipe', 'Minha conta']
-      : M.FILAS[st.tela] ? ['Filas de trabalho', M.FILAS[st.tela].rotulo]
-      : ['Catálogo', 'Todos os títulos'];
+    var trilha = st.tela === 'site' ? [tr('mesa.site')].concat(nomeDaRota())
+      : st.tela === 'capa' ? [tr('mesa.site'), tr('mesa.escolherCapa')]
+      : st.tela === 'player' ? [tr('mesa.ajustes'), tr('mesa.player')]
+      : st.tela === 'estrutura' ? [tr('mesa.ajustes'), tr('mesa.estrutura')]
+      : st.tela === 'historico' ? [tr('mesa.catalogo'), tr('mesa.historico')]
+      : st.tela === 'enviar' ? [tr('mesa.catalogo'), tr('mesa.enviarTitulo')]
+      : st.tela === 'contas' ? [tr('mesa.equipe'), tr('mesa.contas')]
+      : st.tela === 'conta' ? [tr('mesa.equipe'), tr('mesa.minhaConta')]
+      : M.FILAS[st.tela] ? [tr('mesa.filasDeTrabalho'), M.FILAS[st.tela].rotulo]
+      : [tr('mesa.catalogo'), tr('mesa.todosOsTitulos')];
     var ferramentas = h('div', { class: 'ferramentas' });
     if (NO_QUADRO[st.tela]) {
-      ferramentas.appendChild(segmentado('d-', [['computador', 'Computador · 1400 px', 'computador'], ['tablet', 'Tablet · 768 px', 'tablet'], ['celular', 'Celular · 375 px', 'celular']], st.disp, 'Largura da prévia'));
-      ferramentas.appendChild(segmentado('v-', [['rascunho', 'Com rascunho'], ['noar', 'No ar']], st.semRascunho ? 'noar' : 'rascunho', 'O que a prévia mostra'));
+      ferramentas.appendChild(segmentado('d-', [['computador', tr('mesa.computador1400'), 'computador'], ['tablet', tr('mesa.tablet768'), 'tablet'], ['celular', tr('mesa.celular375'), 'celular']], st.disp, tr('mesa.larguraDaPrevia')));
+      ferramentas.appendChild(segmentado('v-', [['rascunho', tr('mesa.comRascunho')], ['noar', tr('mesa.noAr')]], st.semRascunho ? 'noar' : 'rascunho', tr('mesa.oQueAPreviaMostra')));
     }
-    ferramentas.appendChild(h('a', { class: 'botao botao-leve botao-pequeno', href: 'index.html' + (NO_QUADRO[st.tela] ? st.rota : ''), target: '_blank', rel: 'noopener' }, M.ic('abrir'), 'Abrir o site'));
-    ferramentas.appendChild(h('button', { type: 'button', class: 'icone-botao so-movel', id: 'b-painel', 'aria-label': 'Painel da direita' }, M.ic('painel')));
+    ferramentas.appendChild(h('a', { class: 'botao botao-leve botao-pequeno', href: 'index.html' + (NO_QUADRO[st.tela] ? st.rota : ''), target: '_blank', rel: 'noopener' }, M.ic('abrir'), tr('mesa.abrirOSite')));
+    ferramentas.appendChild(h('button', { type: 'button', class: 'icone-botao so-movel', id: 'b-painel', 'aria-label': tr('mesa.painelDaDireita') }, M.ic('painel')));
     el.barra.replaceChildren(h('div', { class: 'barra-in' },
-      h('button', { type: 'button', class: 'icone-botao so-movel', id: 'b-menu', 'aria-label': 'Menu' }, M.ic('menu')),
+      h('button', { type: 'button', class: 'icone-botao so-movel', id: 'b-menu', 'aria-label': tr('mesa.menu') }, M.ic('menu')),
       h('p', { class: 'trilha' }, trilha.filter(Boolean).map(function (t, k, a) { return h('span', { class: k === a.length - 1 ? 'trilha-atual' : '', text: t }); })),
       ferramentas));
   }
@@ -186,7 +203,7 @@
     var n = M.contarAlteracoes();
     el.quadroBarra.replaceChildren(
       h('span', { class: 'ponto ' + (st.semRascunho || !n ? 'ponto-verde' : 'ponto-ouro') }),
-      h('span', { text: st.semRascunho ? 'O site no ar, sem o rascunho' : n ? 'Prévia com o rascunho: ' + n + (n === 1 ? ' alteração' : ' alterações') : 'Prévia igual ao site no ar' }),
+      h('span', { text: st.semRascunho ? tr('mesa.siteNoArSemRascunho') : n ? tr('mesa.previaComRascunho', { alteracoes: tr('mesa.alteracoesN', { n: n }) }) : tr('mesa.previaIgualAoSite') }),
       h('span', { class: 'quadro-largura mono', id: 'quadro-largura', text: st.leituraQuadro || '' }));
   }
 
@@ -321,7 +338,7 @@
     var proximo = pos.lista[pos.indice + 1] || null;
     if (it.sinopse_origem === 'auto') M.mudar(it.id, 'sinopse_origem', 'revisada', { semPainel: true, semCentro: true });
     if (proximo) irNaFila('fila-sinopses', proximo.id);
-    else { M.escolher(''); M.toast('Fila de sinopses concluída — nada mais a revisar.'); }
+    else { M.escolher(''); M.toast(tr('mesa.filaDeSinopsesConcluidaNada')); }
   }
 
   /* "Resolvida" tira a pendência; "tirar do ar" some da chegada por decisão
@@ -350,12 +367,12 @@
     var it = M.item(id);
     if (!it) return;
     if (ligar && !(it.fonte && it.fonte.videoId)) {
-      M.toast('Este título não tem vídeo no Bunny: pôr no ar deixaria um player vazio.');
+      M.toast(tr('mesa.semVideoNaoPorNoAr'));
       return redesenhar();
     }
     /* Marcado como bruto de câmera na curadoria: dá para pôr no ar, mas não por descuido. */
     if (ligar && it.pendencia === 'material_bruto' &&
-        !window.confirm('Este título foi identificado como MATERIAL BRUTO (não editado).\n\n' + (it.nota_curadoria || '') + '\n\nPôr no ar mesmo assim?')) {
+        !window.confirm(tr('mesa.confirmaMaterialBruto', { nota: it.nota_curadoria || '' }))) {
       return redesenhar();
     }
     M.mudar(id, 'publicar', ligar);
@@ -372,7 +389,7 @@
     st.marcados = {};
     st.versao++;
     M.guardarRascunho();
-    if (pulados) M.toast(pulados + (pulados === 1 ? ' título sem vídeo ficou fora do ar.' : ' títulos sem vídeo ficaram fora do ar.'));
+    if (pulados) M.toast(tr('mesa.semVideoForaDoAr', { n: pulados }));
     M.aoMudar({});
   }
 
@@ -395,8 +412,8 @@
       /* O índice da busca também é relido: é ele que diz quem ficou fora. */
       M.carregarBusca();
       redesenhar();
-      M.toast('Catálogo lido de novo · rev ' + st.servidor.rev + (st.conflitos.length ? ' · ' + st.conflitos.length + ' em conflito com o rascunho' : ''));
-    }).catch(function (e) { M.toast('Não deu para ler o catálogo: ' + e.message); });
+      M.toast(tr('mesa.catalogoLido', { rev: st.servidor.rev }) + (st.conflitos.length ? ' · ' + tr('mesa.emConflitoComRascunho', { n: st.conflitos.length }) : ''));
+    }).catch(function (e) { M.toast(tr('mesa.naoDeuParaLer', { mensagem: e.message })); });
   }
 
   /* ------------------------------------------------------------- contas */
@@ -404,7 +421,7 @@
   function mudarConta(usuario, mudanca) {
     return M.api('/api/contas', { method: 'PUT', body: JSON.stringify(Object.assign({ usuario: usuario }, mudanca)) })
       .then(function (r) {
-        M.toast(r.sessoesDerrubadas ? 'Salvo. A sessão aberta de ' + usuario + ' caiu.' : 'Salvo.');
+        M.toast(r.sessoesDerrubadas ? tr('mesa.salvoSessaoCaiu', { usuario: usuario }) : tr('mesa.salvo'));
         return M.carregarContas();
       })
       .catch(function (e) { M.toast(e.message); });
@@ -420,7 +437,7 @@
       permissoes: M.marcadasEm('nc-'),
       limiteEnvio: M.limiteEnvioEm('nc-')
     };
-    estado.textContent = 'Criando…';
+    estado.textContent = tr('mesa.criando');
     M.api('/api/contas', { method: 'POST', body: JSON.stringify(corpo) }).then(function (r) {
       M.contas.senhaNova = { usuario: r.conta.usuario, senha: senha };
       return M.carregarContas();
@@ -433,14 +450,14 @@
     'senha-ok': function () { M.contas.senhaNova = null; redesenhar({ semPainel: true }); },
     'ms-trocar': function () {
       var estado = $('ms-estado');
-      estado.textContent = 'Trocando…';
+      estado.textContent = tr('mesa.trocando');
       M.api('/api/conta', { method: 'PUT', body: JSON.stringify({ senhaAtual: $('ms-atual').value, senhaNova: $('ms-nova').value }) })
         .then(function (r) {
           M.guardarSessao(r);
           $('ms-atual').value = '';
           $('ms-nova').value = '';
           estado.textContent = '';
-          M.toast('Senha trocada. As outras sessões desta conta caíram.');
+          M.toast(tr('mesa.senhaTrocadaAsOutrasSessoes'));
         })
         .catch(function (e) { estado.textContent = e.message; });
     },
@@ -458,7 +475,7 @@
     's-revisar': function () { M.mudarSerie(st.sel.slice(6), { origem: 'revisada' }, {}); },
     's-gerado': function () {
       var nome = st.sel.slice(6);
-      if (!window.confirm('Voltar "' + nome + '" ao gerado?\n\nA apresentação sai da página até o script gerar de novo. O que foi revisado se perde (o histórico guarda).')) return;
+      if (!window.confirm(tr('mesa.confirmaVoltarAoGerado', { nome: nome }))) return;
       M.voltarSerieAoGerado(nome);
     },
     /* A prateleira do painel é a que está escolhida — `st.sel` é
@@ -479,13 +496,13 @@
        * decisão de ninguém. */
       var escolhido = !!M.site().destaque || cat.itens.some(function (i) { return i.destaque === true && i.publicar === true; });
       if (ligar && escolhido && atual && atual.id !== id &&
-        !window.confirm('A chegada destaca hoje:\n\n' + (atual.titulo || atual.id) + '\n\nSubstituir por este título?')) return;
+        !window.confirm(tr('mesa.confirmaSubstituirDestaque', { atual: atual.titulo || atual.id }))) return;
       M.destacar(id, ligar);
     },
     'r-ver': function () { st.verRascunho = !st.verRascunho; desenharRascunho(); },
     'r-descartar': function () {
       var n = M.contarAlteracoes();
-      if (window.confirm('Descartar ' + n + (n === 1 ? ' alteração' : ' alterações') + ' do rascunho? O site não muda.')) M.descartarRascunho();
+      if (window.confirm(tr('mesa.confirmaDescartar', { n: n }))) M.descartarRascunho();
     },
     'r-publicar': function () { M.publicar(); },
     'a-padrao': function () { M.mudarVarios('ajustes', [['arrastoTeto', 0.4], ['controlesEspera', 3]]); },
@@ -522,7 +539,7 @@
       }
       if (a === 'hist-restaurar') {
         var revVolta = Number(acao.getAttribute('data-rev'));
-        if (!window.confirm('Voltar o catálogo inteiro para a rev ' + revVolta + '?\n\nIsso é uma publicação nova: o site muda na hora, e a volta fica no histórico. Nada é apagado.')) return;
+        if (!window.confirm(tr('mesa.confirmaVoltarCatalogo', { rev: revVolta }))) return;
         return M.restaurarVersao(revVolta);
       }
       if (a === 'pr-mover') return M.moverPrateleira(acao.getAttribute('data-id'), Number(acao.getAttribute('data-passo')));
@@ -594,7 +611,7 @@
       }
       if (a === 'conta-ativa') return mudarConta(usuario, { ativa: acao.getAttribute('data-ativa') === 'true' });
       if (a === 'conta-senha') {
-        if (!window.confirm('Sortear uma senha nova para ' + usuario + '?\n\nA senha de agora para de valer, e a sessão aberta dela cai.')) return;
+        if (!window.confirm(tr('mesa.confirmaSortearSenha', { usuario: usuario }))) return;
         var senha = M.senhaSorteada();
         return mudarConta(usuario, { senha: senha }).then(function () {
           M.contas.senhaNova = { usuario: usuario, senha: senha };
@@ -602,9 +619,9 @@
         });
       }
       if (a === 'conta-excluir') {
-        if (!window.confirm('Excluir a conta ' + usuario + '?\n\nEla perde o acesso na hora.')) return;
+        if (!window.confirm(tr('mesa.confirmaExcluirConta', { usuario: usuario }))) return;
         return M.api('/api/contas?usuario=' + encodeURIComponent(usuario), { method: 'DELETE' })
-          .then(function () { M.toast('Conta excluída.'); return M.carregarContas(); })
+          .then(function () { M.toast(tr('mesa.contaExcluida')); return M.carregarContas(); })
           .catch(function (e) { M.toast(e.message); });
       }
 
@@ -612,7 +629,7 @@
         var id = acao.getAttribute('data-id');
         return M.api('/api/autorizacoes', { method: 'PUT', body: JSON.stringify({ id: id, aprovado: a === 'pedido-aprovar' }) })
           .then(function () {
-            M.toast(a === 'pedido-aprovar' ? 'Pedido aprovado — a pessoa retoma o envio dela.' : 'Pedido recusado.');
+            M.toast(a === 'pedido-aprovar' ? tr('mesa.pedidoAprovado') : tr('mesa.pedidoRecusado'));
             return M.carregarAutorizacoes();
           })
           .catch(function (e) { M.toast(e.message); });
@@ -643,7 +660,7 @@
     if (t.id === 'f-sinopse' && id) {
       M.mudarSinopse(id, t.value.trim());
       var it = M.item(id), chipOrigem = $('f-origem');
-      chipOrigem.textContent = !it.sinopse ? 'vazia' : it.sinopse_origem === 'auto' ? 'automática' : 'revisada';
+      chipOrigem.textContent = !it.sinopse ? tr('mesa.vazia') : it.sinopse_origem === 'auto' ? tr('mesa.automatica') : tr('mesa.revisada');
       chipOrigem.className = 'chip ' + (!it.sinopse ? 'chip-erro' : it.sinopse_origem === 'auto' ? 'chip-alerta' : 'chip-ok');
       return;
     }
@@ -661,7 +678,7 @@
       var nomeSerie = st.sel.slice(6);
       M.mudarSerie(nomeSerie, { sobre: t.value });
       var dadoSerie = M.site().series[nomeSerie], chipSerie = $('s-origem');
-      chipSerie.textContent = !dadoSerie ? 'sem apresentação' : dadoSerie.origem === 'revisada' ? 'revisado' : 'automático · não revisado';
+      chipSerie.textContent = !dadoSerie ? tr('mesa.semApresentacao') : dadoSerie.origem === 'revisada' ? tr('mesa.revisado') : tr('mesa.automaticoNaoRevisado');
       chipSerie.className = 'chip ' + (!dadoSerie ? 'chip-erro' : dadoSerie.origem === 'revisada' ? 'chip-ok' : 'chip-alerta');
       return;
     }
@@ -673,12 +690,12 @@
       st.busca = t.value;
       var r = M.linhasCatalogo(M.efetivo());
       $('cat-linhas').replaceWith(r.tbody);
-      $('cat-conta').textContent = r.n + (r.n === 1 ? ' título' : ' títulos');
+      $('cat-conta').textContent = tr('comum.titulos', { n: r.n });
       return;
     }
     if (t.id === 'a-teto') {
       var pct = Number(t.value), estado = $('a-estado');
-      if (!isFinite(pct) || pct < 5 || pct > 100) { estado.textContent = 'Escolha entre 5% e 100%.'; return; }
+      if (!isFinite(pct) || pct < 5 || pct > 100) { estado.textContent = tr('mesa.escolhaEntre5E100'); return; }
       estado.textContent = '';
       $('a-exemplos').replaceChildren.apply($('a-exemplos'), M.exemplosDoTeto(M.efetivo(), pct).map(function (x) { return h('li', { text: x }); }));
       /* Grava a FRAÇÃO: a tela fala em % porque é o que se lê, e o player-core
@@ -692,7 +709,7 @@
   el.mesa.addEventListener('change', function (ev) {
     var t = ev.target, id = st.sel.indexOf('item:') === 0 ? st.sel.slice(5) : '';
     if (t.id === 'f-publicar' && id) return alternarNoAr(id, t.checked);
-    if (t.id === 'f-serie' && id) return M.mudar(id, 'serie', t.value.trim() || 'A classificar');
+    if (t.id === 'f-serie' && id) return M.mudar(id, 'serie', t.value.trim() || 'A classificar'); /* i18n-ignorar: nome de série (dado do acervo) */
     if ((t.id === 'f-temporada' || t.id === 'f-episodio') && id) return M.mudar(id, t.id.slice(2), t.value === '' ? null : Number(t.value));
     if (t.id === 'f-pendencia' && id) return M.mudar(id, 'pendencia', t.value || null);
     if (t.id === 'm-titularidade' && id) return M.mudar(id, 'titularidade', t.value);
@@ -703,7 +720,7 @@
     }
     if (t.id === 'a-sumico') {
       var seg = Number(t.value);
-      if (!isFinite(seg) || seg < 0 || seg > 30) { $('a-estado').textContent = 'O sumiço vai de 0 a 30 segundos.'; return; }
+      if (!isFinite(seg) || seg < 0 || seg > 30) { $('a-estado').textContent = tr('mesa.oSumicoVaiDe0'); return; }
       $('a-estado').textContent = '';
       return M.mudar('ajustes', 'controlesEspera', Math.round(seg), { semCentro: true });
     }
@@ -778,18 +795,18 @@
       st.versao++;
       st.conflitos = App.conflitosRascunho(st.servidor, st.rascunho);
       $('mesa-carregando').hidden = true;
-      if (el.site.getAttribute('src') !== 'index.html?mesa=1') { st.sitePronto = false; el.site.setAttribute('src', 'index.html?mesa=1'); }
+      if (el.site.getAttribute('src') !== urlDoSite()) { st.sitePronto = false; el.site.setAttribute('src', urlDoSite()); }
       /* O índice da busca, em segundo plano: a visão geral mostra quem ficou
        * fora dela, e ninguém espera por isso para entrar. */
       M.carregarBusca();
       redesenhar();
       ajustarQuadro();
       if (st.rascunho.length) {
-        M.toast('O rascunho voltou: ' + M.contarAlteracoes() + (M.contarAlteracoes() === 1 ? ' alteração' : ' alterações') +
-          (st.conflitos.length ? ', ' + st.conflitos.length + ' em conflito com o site' : '') + '.');
+        M.toast(tr('mesa.rascunhoVoltou', { alteracoes: tr('mesa.alteracoesN', { n: M.contarAlteracoes() }) }) +
+          (st.conflitos.length ? tr('mesa.rascunhoVoltouConflitos', { n: st.conflitos.length }) : '.'));
       }
     }).catch(function (e) {
-      $('mesa-carregando').textContent = 'Não deu para ler o catálogo: ' + e.message;
+      $('mesa-carregando').textContent = tr('mesa.naoDeuParaLer', { mensagem: e.message });
     });
   }
 
@@ -804,13 +821,13 @@
   $('form-entrar').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var estado = $('estado-entrar');
-    estado.textContent = 'Conferindo…';
+    estado.textContent = tr('mesa.conferindo');
     fetch('/api/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ usuario: ($('usuario').value || '').trim(), senha: $('senha').value })
     })
-      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (corpo) { if (!r.ok) throw new Error(corpo.erro || ('erro ' + r.status)); return corpo; }); })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (corpo) { if (!r.ok) throw new Error(M.mensagemDeErro(corpo, r.status)); return corpo; }); })
       .then(function (dados) { M.guardarSessao(dados); $('senha').value = ''; estado.textContent = ''; abrirMesa(); })
       .catch(function (e) { estado.textContent = e.message; });
   });

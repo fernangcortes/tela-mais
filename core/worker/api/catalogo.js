@@ -5,7 +5,8 @@
  * O catálogo mora numa chave só do KV (`catalogo`). Para 50 títulos isso é
  * trivial e cabe folgado no plano gratuito.
  */
-import { json } from '../_lib/sessao.js';
+import { json, erro } from '../_lib/sessao.js';
+import AppI18n from '../../site/i18n.js';
 import { registrarPublicacao } from './historico.js';
 import App from '../../site/catalogo-core.js';
 
@@ -159,7 +160,7 @@ async function lerCatalogo(env) {
 
 export async function onRequestGet({ env, request, data, waitUntil }) {
   if (!env.CATALOGO) {
-    return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+    return erro(500, 'kv-nao-vinculado');
   }
 
   const guardado = await lerCatalogo(env);
@@ -168,13 +169,13 @@ export async function onRequestGet({ env, request, data, waitUntil }) {
     return json(200, {
       versao: 1, rev: 0, itens: [], vazio: true, config: config(env),
       ajustes: ajustes(null), site: site(null),
-      observacao: 'catálogo ainda não importado — rode scripts/semear.mjs'
+      codigo: 'catalogo-nao-importado', observacao: AppI18n.t('api.catalogo-nao-importado')
     });
   }
 
   const completo = new URL(request.url).searchParams.get('completo') === '1';
   if (completo) {
-    if (!data.admin) return json(401, { erro: 'não autorizado' });
+    if (!data.admin) return erro(401, 'nao-autorizado');
     return json(200, Object.assign({}, guardado, {
       config: config(env), ajustes: ajustes(guardado)
     }));
@@ -204,29 +205,29 @@ export async function onRequestGet({ env, request, data, waitUntil }) {
 }
 
 export async function onRequestPut({ request, env, data }) {
-  if (!data.admin) return json(401, { erro: 'não autorizado' });
+  if (!data.admin) return erro(401, 'nao-autorizado');
   if (!env.CATALOGO) {
-    return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });
+    return erro(500, 'kv-nao-vinculado');
   }
 
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   if (!corpo || typeof corpo !== 'object' || !Array.isArray(corpo.itens)) {
-    return json(400, { erro: 'esperado um objeto com a lista `itens`' });
+    return erro(400, 'catalogo-esperado-itens');
   }
 
   const ids = new Set();
   for (const item of corpo.itens) {
     if (!item || typeof item.id !== 'string' || !item.id) {
-      return json(400, { erro: 'todo item precisa de um `id` string não vazio' });
+      return erro(400, 'item-sem-id');
     }
     if (ids.has(item.id)) {
-      return json(400, { erro: 'id repetido no catálogo: ' + item.id });
+      return erro(400, 'id-repetido', { id: item.id });
     }
     ids.add(item.id);
   }
@@ -237,8 +238,7 @@ export async function onRequestPut({ request, env, data }) {
   /* Concorrência otimista: a tela lê o catálogo inteiro, edita e devolve.
    * Sem esta checagem, dois admins abertos ao mesmo tempo se sobrescrevem. */
   if (atual && corpo.rev !== revAtual) {
-    return json(409, {
-      erro: 'o catálogo mudou desde que esta tela o carregou',
+    return erro(409, 'catalogo-mudou', null, {
       rev_servidor: revAtual,
       rev_enviada: corpo.rev ?? null
     });
@@ -278,8 +278,7 @@ export async function onRequestPut({ request, env, data }) {
   if (!data.conta.super) {
     const barradas = App.proibidas(data.conta, difs);
     if (barradas.length) {
-      return json(403, {
-        erro: 'esta conta não pode mudar ' + (barradas.length === 1 ? 'este campo' : 'estes ' + barradas.length + ' campos'),
+      return erro(403, 'conta-nao-pode-campos', { n: barradas.length }, {
         barradas: barradas.slice(0, 20).map(d => ({ alvo: d.alvo, campo: d.campo, permissao: d.permissao }))
       });
     }

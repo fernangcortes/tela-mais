@@ -50,7 +50,15 @@
     ficha: document.getElementById('conteudo-ficha')
   };
 
-  var TITULO_BASE = 'Plataforma Exemplo — catálogo';
+  /* A tradução: `tr` é o AppI18n.t deste arquivo (o nome `t` aparece como variável
+   * local em vários pontos). O idioma e o catálogo chegam em `iniciar()`. */
+  var I18n = window.AppI18n;
+  function tr(chave, params) { return I18n.t(chave, params); }
+  /* "Sem série" e afins: rótulo de tela E chave de agrupamento do core. */
+  var semSerie = App.semSerie;
+
+  /* O título-base das abas: "{marca} — catálogo" no idioma de agora. */
+  var TITULO_BASE = '';
 
   /* config.public.json é GERADO de config/site.json (scripts/aplicar-config.mjs)
    * e traz só o que o navegador pode ver: nome da marca, título-base, rodapé.
@@ -58,25 +66,41 @@
    * segue com os textos escritos aqui e no catalogo-core.js, como antes. */
   var CONFIG_PUBLICA = null;
 
-  function carregarConfigPublica() {
-    if (typeof fetch !== 'function') return;
-    fetch('config.public.json', { credentials: 'same-origin' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (c) {
-        if (!c || typeof c !== 'object') return;
-        CONFIG_PUBLICA = c;
-        if (typeof c.tituloBase === 'string' && c.tituloBase) TITULO_BASE = c.tituloBase;
-        if (estado.carregado) pintarRodape();
-      })
-      .catch(function () { /* sem config pública: vale o texto de fábrica */ });
+  /* O IDIOMA e a config pública chegam juntos: `iniciarNoNavegador` lê
+   * config.public.json, escolhe o idioma (?idioma= > escolha guardada > navegador,
+   * se o cliente ligou > padrão) e baixa só o catálogo de textos dele — que o
+   * aplicar-config já deixou com os textos do cliente por cima. */
+  function carregarIdioma() {
+    return I18n.iniciarNoNavegador({ chaveSalva: App.PREFIXO + ':idioma' }).then(function (r) {
+      CONFIG_PUBLICA = r.publica && typeof r.publica === 'object' ? r.publica : null;
+      TITULO_BASE = tr('site.tituloBase');
+      I18n.aplicarNoDocumento(document);
+      ligarSeletorIdioma(r);
+      if (estado.carregado) pintarRodape();
+      return r;
+    });
   }
 
-  /* O texto da config pública para a chave, no idioma padrão; '' se não houver. */
-  function textoDaConfigPublica(chave) {
-    var c = CONFIG_PUBLICA;
-    if (!c || !c.textos || !c.idiomas) return '';
-    var t = c.textos[c.idiomas.padrao];
-    return t && typeof t[chave] === 'string' ? t[chave] : '';
+  /* O seletor aparece quando há mais de um idioma e o cliente não o escondeu.
+   * Trocar recarrega a página (os textos são desenhados uma vez) e guarda a
+   * escolha. Dentro da mesa ele fica escondido: o idioma da mesa é o da pessoa
+   * que edita, escolhido na mesa, e não o do site em edição. */
+  function ligarSeletorIdioma(r) {
+    var caixa = document.getElementById('idioma-caixa');
+    var sel = document.getElementById('idioma');
+    var idi = (CONFIG_PUBLICA && CONFIG_PUBLICA.idiomas) || {};
+    if (!caixa || !sel || mesa.ligada || r.disponiveis.length < 2 || idi.seletorVisivel === false) return;
+    limpar(sel);
+    r.disponiveis.forEach(function (id) {
+      var o = criar('option', null, I18n.rotuloDoIdioma(id));
+      o.value = id;
+      if (id === r.idioma) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () {
+      I18n.trocarIdioma(sel.value, { chaveSalva: App.PREFIXO + ':idioma' });
+    });
+    caixa.hidden = false;
   }
 
   /* ------------------------------------------------------------- modo mesa
@@ -392,12 +416,8 @@
    * na mesa (M4). Chamada na hora de desenhar, e não guardada numa constante,
    * porque dentro da mesa o texto muda a cada tecla do rascunho. */
   function frase(chave) {
-    /* Ordem: o que a mesa escreveu > config/site.json > padrão do código. */
-    var daMesa = estado.site && estado.site.textos && estado.site.textos[chave];
-    if (!daMesa) {
-      var daConfig = textoDaConfigPublica(chave);
-      if (daConfig) return daConfig;
-    }
+    /* Ordem: o que a mesa escreveu > config/site.json (já mesclado no catálogo do
+     * idioma) > texto de fábrica do idioma. O `App.textoDoSite` faz as duas pontas. */
     return App.textoDoSite(estado.site, chave);
   }
 
@@ -523,13 +543,14 @@
    * `catalogo-core.js` são o MESMO: se separarem, o rodapé pisca a cada carga
    * em todas as visitas, e ninguém ligaria uma coisa à outra. */
   function pintarRodape() {
-    var caixa = document.querySelector('.rodape .limite');
-    if (!caixa) return;
-    var no = caixa.firstChild;
-    if (!no || no.nodeType !== 3) return;   /* 3 = nó de texto */
-    var novo = frase('rodape') + ' · ';
-    if (no.nodeValue.trim() === novo.trim()) return;
-    no.nodeValue = novo;
+    var no = document.getElementById('rodape-texto');
+    if (!no) return;
+    /* O catálogo de vídeos pode chegar antes do de textos: sem ele, o `tr` devolveria a
+     * chave. O carregarIdioma repinta o rodapé quando o idioma chega. */
+    if (!I18n.tem('site.rodape')) return;
+    var novo = frase('rodape');
+    if (no.textContent === novo) return;
+    no.textContent = novo;
   }
 
   function carregar() {
@@ -544,7 +565,7 @@
     }
     return fetch('/api/catalogo', { headers: { Accept: 'application/json' } })
       .then(function (r) {
-        if (!r.ok) throw new Error('resposta ' + r.status);
+        if (!r.ok) throw new Error(tr('site.erroResposta', { status: r.status }));
         return r.json();
       })
       .then(receberDados);
@@ -576,7 +597,7 @@
   function filtroSeries(opcoes) {
     var caixa = criar('div', 'chips');
     caixa.setAttribute('role', 'group');
-    caixa.setAttribute('aria-label', 'Filtrar por série');
+    caixa.setAttribute('aria-label', tr('site.filtrarPorSerie'));
 
     var faz = function (rotulo, valor) {
       var b = criar('button', 'chip', rotulo);
@@ -611,7 +632,7 @@
       caixa.appendChild(b);
     };
 
-    faz('Todas', '');
+    faz(tr('site.todas'), '');
     opcoes.forEach(function (s) { faz(s, s); });
     return caixa;
   }
@@ -726,7 +747,7 @@
       tag.src = src;
       tag.async = true;
       tag.addEventListener('load', resolve);
-      tag.addEventListener('error', function () { reject(new Error('não foi possível carregar ' + src)); });
+      tag.addEventListener('error', function () { reject(new Error(tr('site.erroCarregarScript', { src: src }))); });
       document.head.appendChild(tag);
     });
   }
@@ -752,7 +773,7 @@
       /* O navegador guarda a resposta e pergunta pelo `ETag` antes de usar:
        * a segunda visita que busca recebe um 304, sem os 430 KB. */
       fetch('/api/busca/fala', { headers: { Accept: 'text/plain' } }).then(function (r) {
-        if (!r.ok) throw new Error('resposta ' + r.status);
+        if (!r.ok) throw new Error(tr('site.erroResposta', { status: r.status }));
         return r.text();
       }).then(function (texto) {
         busca.falaTexto = texto;
@@ -889,17 +910,17 @@
     a.appendChild(document.createTextNode(' '));
     var corpo = criar('span', 'trecho-corpo');
     if (t.tipo === 'capitulo') {
-      corpo.appendChild(comMarcas(criar('span', 'trecho-capitulo', 'Capítulo: '), AppBusca.marcar(t.texto, casadas)));
+      corpo.appendChild(comMarcas(criar('span', 'trecho-capitulo', tr('site.rotuloCapitulo') + ' '), AppBusca.marcar(t.texto, casadas)));
     } else {
       if (t.capitulo) {
-        corpo.appendChild(comMarcas(criar('span', 'trecho-capitulo', 'Capítulo: '), AppBusca.marcar(t.capitulo, casadas)));
+        corpo.appendChild(comMarcas(criar('span', 'trecho-capitulo', tr('site.rotuloCapitulo') + ' '), AppBusca.marcar(t.capitulo, casadas)));
         corpo.appendChild(document.createTextNode(' '));
       }
       corpo.appendChild(comMarcas(criar('span', 'trecho-frase'), AppBusca.frase(t.texto, casadas, 120)));
     }
     if (t.porSentido) {
       corpo.appendChild(document.createTextNode(' '));
-      corpo.appendChild(criar('span', 'selo selo-sentido', 'Sobre o assunto'));
+      corpo.appendChild(criar('span', 'selo selo-sentido', tr('site.seloSentido')));
     }
     a.appendChild(corpo);
     return a;
@@ -937,7 +958,7 @@
     var cabeca = criar('div', 'trecho-cabeca');
     var sobre = [g.item.serie, App.rotuloNumero(g.item)].filter(Boolean).join(' · ');
     if (sobre) cabeca.appendChild(criar('p', 'ep-numero', sobre));
-    cabeca.appendChild(criar('h3', 'ep-titulo', App.tituloCurto(g.item) || g.item.titulo || '(sem título)'));
+    cabeca.appendChild(criar('h3', 'ep-titulo', App.tituloCurto(g.item) || g.item.titulo || tr('comum.semTitulo')));
     li.appendChild(cabeca);
 
     var ol = criar('ol', 'trechos-do-video');
@@ -954,7 +975,7 @@
     li.appendChild(ol);
 
     if (!aberto && g.resto.length) {
-      var mais = criar('button', 'trecho-mais', 'mais ' + g.resto.length + ' neste vídeo');
+      var mais = criar('button', 'trecho-mais', tr('site.trechoMais', { n: g.resto.length }));
       mais.type = 'button';
       mais.addEventListener('click', function () {
         busca.abertos[g.item.id] = true;
@@ -975,7 +996,7 @@
     var secao = criar('section', 'trechos');
     secao.setAttribute('aria-labelledby', 'trechos-titulo');
     var cabeca = criar('div', 'prateleira-cabeca');
-    var h2 = criar('h2', 'prateleira-titulo', 'Trechos');
+    var h2 = criar('h2', 'prateleira-titulo', tr('site.trechos'));
     h2.id = 'trechos-titulo';
     cabeca.appendChild(h2);
     secao.appendChild(cabeca);
@@ -1157,7 +1178,7 @@
     ligarPreview(a, capa, item);
 
     var corpo = criar('div', 'card-corpo');
-    corpo.appendChild(criar('h2', 'card-titulo', item.titulo || '(sem título)'));
+    corpo.appendChild(criar('h2', 'card-titulo', item.titulo || tr('comum.semTitulo')));
 
     var meta = [item.serie, App.rotuloEpisodio(item), item.ano]
       .filter(Boolean).join(' · ');
@@ -1167,7 +1188,7 @@
     var resumo = App.resumoSinopse(item);
     if (resumo) corpo.appendChild(criar('p', 'card-sinopse', resumo));
 
-    if (porSentido) corpo.appendChild(criar('span', 'selo selo-sentido', 'Sobre o assunto'));
+    if (porSentido) corpo.appendChild(criar('span', 'selo selo-sentido', tr('site.seloSentido')));
 
     if (!App.resolverFonte(item, estado.config)) {
       corpo.appendChild(criar('span', 'selo selo-erro', frase('videoIndisponivel')));
@@ -1238,7 +1259,7 @@
     var acima = [item.serie, App.rotuloEpisodio(item)].filter(Boolean).join(' · ');
     if (acima) texto.appendChild(criar('p', 'destaque-serie', acima));
 
-    var h1 = criar('h1', 'destaque-titulo', App.tituloCurto(item) || item.titulo || '(sem título)');
+    var h1 = criar('h1', 'destaque-titulo', App.tituloCurto(item) || item.titulo || tr('comum.semTitulo'));
     h1.id = 'destaque-titulo';
     texto.appendChild(h1);
 
@@ -1246,7 +1267,7 @@
     var meta = [
       App.formatarDuracao(item),
       item.ano,
-      caps.length ? caps.length + ' capítulos' : ''
+      caps.length ? tr('comum.capitulos', { n: caps.length }) : ''
     ].filter(Boolean).join(' · ');
     if (meta) texto.appendChild(criar('p', 'destaque-meta', meta));
 
@@ -1260,7 +1281,7 @@
     var assistir = criar('a', 'botao botao-primario destaque-assistir');
     assistir.href = '#/ep/' + encodeURIComponent(item.id);
     assistir.appendChild(iconePlay());
-    assistir.appendChild(document.createTextNode('Assistir'));
+    assistir.appendChild(document.createTextNode(tr('site.assistir')));
     ligarAssistir(assistir, item.id);
     botoes.appendChild(assistir);
 
@@ -1273,7 +1294,7 @@
      * seis títulos, como Campanhas, ficava sem ele. */
     var daSerie = App.paginaDaSerie(estado.itens, item.serie, estado.site);
     if (daSerie && daSerie.temPagina) {
-      var verSerie = criar('a', 'botao', 'Ver a série');
+      var verSerie = criar('a', 'botao', tr('site.verSerie'));
       verSerie.href = '#/serie/' + encodeURIComponent(daSerie.nome);
       botoes.appendChild(verSerie);
     }
@@ -1437,15 +1458,15 @@
     tri.setAttribute('fill', 'currentColor');
     play.appendChild(tri);
     assistir.appendChild(play);
-    assistir.appendChild(document.createTextNode('Assistir'));
+    assistir.appendChild(document.createTextNode(tr('site.assistir')));
     /* O mesmo pedido de tocar do destaque (D6): abre a ficha E dá o play. */
     ligarAssistir(assistir, item.id);
     painel.appendChild(assistir);
 
     var texto = criar('div', 'pop-texto');
-    texto.appendChild(criar('p', 'pop-titulo', App.tituloCurto(item) || item.titulo || '(sem título)'));
+    texto.appendChild(criar('p', 'pop-titulo', App.tituloCurto(item) || item.titulo || tr('comum.semTitulo')));
     var caps = App.capitulos(item);
-    var meta = [App.formatarDuracao(item), item.ano, caps.length ? caps.length + ' capítulos' : '']
+    var meta = [App.formatarDuracao(item), item.ano, caps.length ? tr('comum.capitulos', { n: caps.length }) : '']
       .filter(Boolean).join(' · ');
     if (meta) texto.appendChild(criar('p', 'pop-meta', meta));
     painel.appendChild(texto);
@@ -1553,7 +1574,7 @@
     else ligarPop(a, item);
 
     var corpo = criar('div', 'pcard-corpo');
-    corpo.appendChild(criar('h3', 'pcard-titulo', App.tituloCurto(item) || '(sem título)'));
+    corpo.appendChild(criar('h3', 'pcard-titulo', App.tituloCurto(item) || tr('comum.semTitulo')));
 
     /* A linha que desfaz a colisão do título curto: cinco "Literatura e
      * cidadania" só se distinguem por "Parte 3".
@@ -1632,11 +1653,11 @@
     h2.id = id;
     cabeca.appendChild(h2);
 
-    var tudo = criar('a', 'prateleira-tudo', 'Ver tudo');
+    var tudo = criar('a', 'prateleira-tudo', tr('site.verTudo'));
     tudo.href = '#/tudo/' + encodeURIComponent(p.id);
     /* O rótulo "Ver tudo" repetido dez vezes não diz nada a quem ouve a
      * página fora de contexto. */
-    tudo.setAttribute('aria-label', 'Ver tudo de ' + p.titulo);
+    tudo.setAttribute('aria-label', tr('site.verTudoDe', { titulo: p.titulo }));
     cabeca.appendChild(tudo);
     marcarMesa(cabeca, 'prateleira:' + p.id);
     secao.appendChild(cabeca);
@@ -1708,8 +1729,8 @@
      * elas ficam onde foram postas. */
     var palco = criar('div', 'prateleira-palco');
     palco.appendChild(pista);
-    palco.appendChild(faz('esq', 'anterior'));
-    palco.appendChild(faz('dir', 'próxima'));
+    palco.appendChild(faz('esq', tr('site.anterior')));
+    palco.appendChild(faz('dir', tr('site.proxima')));
 
     /* `passive`: o ouvinte só LÊ a rolagem, e prometer isso ao navegador tira o
      * quadro que ele gastaria esperando um `preventDefault` que não vem. */
@@ -1727,8 +1748,8 @@
     if (!ps.length) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
-        titulo: 'Nada para mostrar ainda',
-        texto: 'Os vídeos aparecem aqui assim que forem publicados pela equipe.'
+        titulo: tr('site.nadaAindaTitulo'),
+        texto: tr('site.nadaAindaTexto')
       }));
       return;
     }
@@ -1787,7 +1808,7 @@
     var corpo = criar('div', 'pcard-corpo');
     corpo.appendChild(criar('h3', 'pcard-titulo', s.nome));
     var n = s.itens.length;
-    var meta = [n + (n === 1 ? ' título' : ' títulos'), App.formatarMinutos(s.segundos)]
+    var meta = [tr('comum.titulos', { n: n }), App.formatarMinutos(s.segundos)]
       .filter(Boolean).join(' · ');
     corpo.appendChild(criar('p', 'pcard-meta', meta));
     a.appendChild(corpo);
@@ -1802,12 +1823,12 @@
    * abriu como grade e que a D6 fez página —, ou à ficha, na série pequena
    * (ver `cartaoSerie`). */
   function renderIndiceSeries() {
-    document.title = 'Séries — ' + TITULO_BASE;
+    document.title = tr('site.tituloSeries') + ' — ' + TITULO_BASE;
     var grupos = App.gruposDeSeries(estado.itens, estado.site);
     var total = grupos.reduce(function (n, g) { return n + g.series.length; }, 0);
 
-    el.grade.appendChild(criar('h1', 'grade-titulo', 'Séries'));
-    el.grade.appendChild(criar('p', 'contagem', total + (total === 1 ? ' série' : ' séries')));
+    el.grade.appendChild(criar('h1', 'grade-titulo', tr('site.tituloSeries')));
+    el.grade.appendChild(criar('p', 'contagem', tr('comum.series', { n: total })));
 
     grupos.forEach(function (g) {
       var secao = criar('section', 'indice-grupo');
@@ -1880,8 +1901,8 @@
     var corpo = criar('div', 'ep-corpo');
     var sobre = [App.rotuloNumero(item), item.ano].filter(Boolean).join(' · ');
     if (sobre) corpo.appendChild(criar('p', 'ep-numero', sobre));
-    corpo.appendChild(criar(nivel, 'ep-titulo', App.tituloCurto(item) || '(sem título)'));
-    if (atual) corpo.appendChild(criar('p', 'ep-aqui', 'Você está aqui'));
+    corpo.appendChild(criar(nivel, 'ep-titulo', App.tituloCurto(item) || tr('comum.semTitulo')));
+    if (atual) corpo.appendChild(criar('p', 'ep-aqui', tr('site.vocePareAqui')));
     var resumo = App.resumoSinopse(item);
     if (resumo) corpo.appendChild(criar('p', 'ep-sinopse', resumo));
     if (!App.resolverFonte(item, estado.config)) {
@@ -1906,13 +1927,13 @@
     secao.setAttribute('aria-labelledby', 'episodios-titulo');
 
     var cabeca = criar('div', 'prateleira-cabeca');
-    var h2 = criar('h2', 'prateleira-titulo', atualId ? 'Episódios da série' : 'Episódios');
+    var h2 = criar('h2', 'prateleira-titulo', atualId ? tr('site.episodiosDaSerie') : tr('site.episodios'));
     h2.id = 'episodios-titulo';
     cabeca.appendChild(h2);
     if (atualId && s.temPagina) {
-      var ver = criar('a', 'prateleira-tudo', 'Ver a série');
+      var ver = criar('a', 'prateleira-tudo', tr('site.verSerie'));
       ver.href = '#/serie/' + encodeURIComponent(s.nome);
-      ver.setAttribute('aria-label', 'Ver a página da série ' + s.nome);
+      ver.setAttribute('aria-label', tr('site.verPaginaDaSerie', { nome: s.nome }));
       cabeca.appendChild(ver);
     }
     secao.appendChild(cabeca);
@@ -1957,7 +1978,7 @@
     texto.appendChild(h1);
     var n = s.itens.length;
     texto.appendChild(criar('p', 'destaque-meta',
-      [n + (n === 1 ? ' título' : ' títulos'), App.formatarMinutos(s.segundos), App.formatarAnos(s.anos)]
+      [tr('comum.titulos', { n: n }), App.formatarMinutos(s.segundos), App.formatarAnos(s.anos)]
         .filter(Boolean).join(' · ')));
 
     /* O "CONTINUAR" (fase 6): o último episódio visto DESTA série, no
@@ -1972,11 +1993,11 @@
       var continuar = criar('a', 'botao botao-primario destaque-assistir serie-continuar');
       continuar.href = cont.link;
       continuar.appendChild(iconePlay());
-      continuar.appendChild(document.createTextNode('Continuar'));
+      continuar.appendChild(document.createTextNode(tr('site.continuar')));
       ligarAssistir(continuar, cont.item.id);
       botoes.appendChild(continuar);
       botoes.appendChild(criar('p', 'serie-continuar-onde',
-        (App.tituloCurto(cont.item) || cont.item.titulo) + ', de ' + App.formatarTempo(cont.t)));
+        tr('site.continuarDe', { titulo: App.tituloCurto(cont.item) || cont.item.titulo, tempo: App.formatarTempo(cont.t) })));
       texto.appendChild(botoes);
     }
 
@@ -2029,7 +2050,7 @@
     var secao = criar('section', 'serie-sobre');
     secao.setAttribute('aria-labelledby', 'serie-sobre-titulo');
     marcarMesa(secao, 'serie:' + nome);
-    var h2 = criar('h2', 'prateleira-titulo', 'Sobre a série');
+    var h2 = criar('h2', 'prateleira-titulo', tr('site.sobreASerie'));
     h2.id = 'serie-sobre-titulo';
     secao.appendChild(h2);
     /* Parágrafo por linha em branco: o texto é dado, e nada dele passa por
@@ -2051,13 +2072,13 @@
     var faixa = criar('div', 'serie-destaques');
 
     if (a.comeco) {
-      var b = blocoDestaque('serie-comeco', 'Comece por aqui');
+      var b = blocoDestaque('serie-comeco', tr('site.comecePorAqui'));
       var link = criar('a', 'serie-comeco-link');
       link.href = App.linkDaFicha(a.comeco.id);
       ligarAssistir(link, a.comeco.id);
       var sobre = [App.rotuloNumero(a.comeco), App.formatarDuracao(a.comeco)].filter(Boolean).join(' · ');
       if (sobre) link.appendChild(criar('span', 'ep-numero', sobre));
-      link.appendChild(criar('span', 'ep-titulo', App.tituloCurto(a.comeco) || a.comeco.titulo || '(sem título)'));
+      link.appendChild(criar('span', 'ep-titulo', App.tituloCurto(a.comeco) || a.comeco.titulo || tr('comum.semTitulo')));
       var resumo = App.resumoSinopse(a.comeco, 140);
       if (resumo) link.appendChild(criar('span', 'serie-comeco-sinopse', resumo));
       b.appendChild(link);
@@ -2065,7 +2086,7 @@
     }
 
     if (a.momentos.length) {
-      var m = blocoDestaque('serie-momentos', 'Momentos da série');
+      var m = blocoDestaque('serie-momentos', tr('site.momentosDaSerie'));
       var lista = criar('ol', 'serie-momentos-lista');
       a.momentos.forEach(function (mo) {
         var li = criar('li');
@@ -2087,7 +2108,7 @@
     }
 
     if (a.temas.length) {
-      var t = blocoDestaque('serie-temas', 'Temas');
+      var t = blocoDestaque('serie-temas', tr('site.temas'));
       t.appendChild(chipsDeTemas(a.temas));
       faixa.appendChild(t);
     }
@@ -2099,7 +2120,7 @@
     temas.forEach(function (tema) {
       var chip = criar('button', 'chip', tema);
       chip.type = 'button';
-      chip.setAttribute('aria-label', 'Buscar vídeos sobre ' + tema);
+      chip.setAttribute('aria-label', tr('site.buscarSobre', { tema: tema }));
       chip.addEventListener('click', function () { buscarPor(tema); });
       chips.appendChild(chip);
     });
@@ -2154,9 +2175,9 @@
     if (!s) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
-        titulo: 'Esta série não existe mais',
-        texto: 'Ela pode ter mudado de nome. As séries de hoje estão todas na página Séries.',
-        acoes: [{ rotulo: 'Ver todas as séries', href: '#/series', primario: true }]
+        titulo: tr('site.serieAusenteTitulo'),
+        texto: tr('site.serieAusenteTexto'),
+        acoes: [{ rotulo: tr('site.verTodasAsSeries'), href: '#/series', primario: true }]
       }));
       return;
     }
@@ -2170,7 +2191,7 @@
      * texto, eram coisa demais antes da lista. Mesma peça, outro lugar; o CSS
      * mostra uma das duas, e a escondida sai também da leitura de tela. */
     if (a && a.temas.length) {
-      var fim = blocoDestaque('serie-temas serie-temas-fim', 'Temas');
+      var fim = blocoDestaque('serie-temas serie-temas-fim', tr('site.temas'));
       fim.appendChild(chipsDeTemas(a.temas));
       el.grade.appendChild(fim);
     }
@@ -2200,8 +2221,8 @@
     if (!publicados.length) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
-        titulo: 'Nada para mostrar ainda',
-        texto: 'Os vídeos aparecem aqui assim que forem publicados pela equipe.'
+        titulo: tr('site.nadaAindaTitulo'),
+        texto: tr('site.nadaAindaTexto')
       }));
       return;
     }
@@ -2243,9 +2264,9 @@
     if (estado.prateleira && !prat) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
-        titulo: 'Esta lista não existe mais',
-        texto: 'As listas do início mudam quando a equipe arruma o catálogo.',
-        acoes: [{ rotulo: 'Voltar ao início', href: '#/', primario: true }]
+        titulo: tr('site.listaAusenteTitulo'),
+        texto: tr('site.listaAusenteTexto'),
+        acoes: [{ rotulo: tr('comum.voltarAoInicio'), href: '#/', primario: true }]
       }));
       return;
     }
@@ -2264,7 +2285,7 @@
     /* O chip vale para os trechos também: ligado "Séries", um trecho do
      * *Título X* embaixo da grade contradiria o botão aceso. */
     var trechos = estado.serie
-      ? resposta.trechos.filter(function (t) { return (t.item.serie || 'Sem série') === estado.serie; })
+      ? resposta.trechos.filter(function (t) { return (t.item.serie || semSerie()) === estado.serie; })
       : resposta.trechos;
     if (busca.abertosDe !== estado.termo) {
       busca.abertos = Object.create(null);
@@ -2272,9 +2293,10 @@
     }
 
     /* "N títulos · M trechos". */
-    var contagem = lista.length + (lista.length === 1 ? ' título' : ' títulos') +
-      (lista.length !== publicados.length ? ' de ' + publicados.length : '') +
-      (trechos.length ? ' · ' + trechos.length + (trechos.length === 1 ? ' trecho' : ' trechos') : '');
+    var contagem = (lista.length !== publicados.length
+      ? tr('site.titulosDeTotal', { n: lista.length, total: publicados.length })
+      : tr('comum.titulos', { n: lista.length })) +
+      (trechos.length ? ' · ' + tr('comum.trechos', { n: trechos.length }) : '');
     /* O vazio do B8 só quando nem título nem trecho responde — e aí SEM a
      * contagem: "0 títulos de 69" logo acima de "Nenhum vídeo encontrado" diz
      * a mesma coisa duas vezes, a primeira em língua de programador (D7). */
@@ -2291,11 +2313,11 @@
         termo: estado.termo.trim(),
         texto: frase('buscaVaziaAjuda'),
         acoes: [
-          { rotulo: 'Limpar a busca', primario: true, aoClicar: function () {
+          { rotulo: tr('site.limparBusca'), primario: true, aoClicar: function () {
             fecharBusca();
             el.busca.focus();
           } },
-          { rotulo: 'Ver as séries', href: '#/series' }
+          { rotulo: tr('site.verAsSeries'), href: '#/series' }
         ]
       }));
       if (estado.termo) anunciar(frase('buscaVazia'));
@@ -2350,10 +2372,10 @@
       tag.async = true;
       tag.addEventListener('load', function () {
         if (window.playerjs) resolve(window.playerjs);
-        else reject(new Error('playerjs carregou sem expor window.playerjs'));
+        else reject(new Error('playerjs carregou sem expor window.playerjs')); /* i18n-ignorar: contrato com a biblioteca, mensagem técnica */
       });
       tag.addEventListener('error', function () {
-        reject(new Error('não foi possível carregar o Player.js'));
+        reject(new Error(tr('site.erroCarregarPlayerJs')));
       });
       document.head.appendChild(tag);
     });
@@ -2374,11 +2396,11 @@
     if (guardada) return guardada;
     var conversa = carregarPlayerjs().then(function (playerjs) {
       return new Promise(function (resolve, reject) {
-        if (!iframe.isConnected) { reject(new Error('a ficha saiu da página')); return; }
+        if (!iframe.isConnected) { reject(new Error(tr('site.fichaSaiu'))); return; }
         var p = new playerjs.Player(iframe);
         p.on('ready', function () {
           if (iframe.isConnected) resolve(p);
-          else reject(new Error('a ficha saiu da página'));
+          else reject(new Error(tr('site.fichaSaiu')));
         });
       });
     });
@@ -2394,8 +2416,8 @@
     if (!caps.length) return null;
 
     var secao = criar('section', 'capitulos');
-    secao.setAttribute('aria-label', 'Capítulos do vídeo');
-    secao.appendChild(criar('h2', 'capitulos-titulo', 'Capítulos'));
+    secao.setAttribute('aria-label', tr('site.capitulosDoVideo'));
+    secao.appendChild(criar('h2', 'capitulos-titulo', tr('site.capitulosTitulo')));
 
     var lista = criar('ol', 'capitulos-lista');
     var botoes = [];
@@ -2502,7 +2524,7 @@
 
   function metaDaFicha(item) {
     var caps = App.capitulos(item).length;
-    return [App.formatarDuracao(item), item.ano, caps ? caps + ' capítulos' : '']
+    return [App.formatarDuracao(item), item.ano, caps ? tr('comum.capitulos', { n: caps }) : '']
       .filter(Boolean).join(' · ');
   }
 
@@ -2517,7 +2539,7 @@
     if (mesa.editavel && (campo === 'titulo' || campo === 'sinopse')) {
       try { no.contentEditable = 'plaintext-only'; } catch (e) { no.contentEditable = 'true'; }
     }
-    if (campo === 'sinopse') no.setAttribute('data-vazio', 'Sinopse ainda não disponível.');
+    if (campo === 'sinopse') no.setAttribute('data-vazio', tr('site.sinopseAusente'));
     return no;
   }
 
@@ -2532,7 +2554,7 @@
     if (!item || !titulo || !sinopse) { renderFicha(id); return; }
     var foco = document.activeElement;
 
-    if (titulo !== foco) titulo.textContent = item.titulo || '(sem título)';
+    if (titulo !== foco) titulo.textContent = item.titulo || tr('comum.semTitulo');
     el.ficha.querySelector('[data-mesa-campo="serie"]').textContent = serieDaFicha(item);
     el.ficha.querySelector('[data-mesa-campo="meta"]').textContent = metaDaFicha(item);
     if (sinopse !== foco) sinopse.textContent = item.sinopse || '';
@@ -2541,7 +2563,7 @@
     /* A linha dele na lista da série, embaixo do vídeo, mostra o título CURTO:
      * sem isto, o nome digitado na mesa mudaria no alto e ficaria velho ali. */
     var naLista = el.ficha.querySelector('.ep-atual .ep-titulo');
-    if (naLista) naLista.textContent = App.tituloCurto(item) || '(sem título)';
+    if (naLista) naLista.textContent = App.tituloCurto(item) || tr('comum.semTitulo');
 
     var pend = el.ficha.querySelector('[data-mesa-campo="pendencia"]');
     if (item.pendencia && pend) {
@@ -2553,7 +2575,7 @@
       pend.parentNode.removeChild(pend);
     }
 
-    document.title = (item.titulo || 'Título') + ' — ' + TITULO_BASE;
+    document.title = (item.titulo || tr('site.tituloPadrao')) + ' — ' + TITULO_BASE;
     pintarSelecao();
   }
 
@@ -2607,17 +2629,17 @@
         titulo: frase('fichaAusente'),
         texto: frase('fichaAusenteAjuda'),
         acoes: [
-          { rotulo: 'Voltar ao início', href: '#/', primario: true },
-          { rotulo: 'Buscar no catálogo', aoClicar: abrirBusca }
+          { rotulo: tr('comum.voltarAoInicio'), href: '#/', primario: true },
+          { rotulo: tr('site.buscarNoCatalogo'), aoClicar: abrirBusca }
         ]
       }));
-      document.title = 'Não encontrado — ' + TITULO_BASE;
+      document.title = tr('site.naoEncontrado') + ' — ' + TITULO_BASE;
       return;
     }
 
-    document.title = (item.titulo || 'Título') + ' — ' + TITULO_BASE;
+    document.title = (item.titulo || tr('site.tituloPadrao')) + ' — ' + TITULO_BASE;
 
-    var voltar = criar('a', 'voltar', '← Voltar ao catálogo');
+    var voltar = criar('a', 'voltar', tr('site.voltarAoCatalogo'));
     voltar.href = '#/';
     el.ficha.appendChild(voltar);
 
@@ -2668,7 +2690,7 @@
     if (fonte && !alvoCapitulos) {
       var iframe = document.createElement('iframe');
       iframe.src = App.urlEmbed(fonte);
-      iframe.title = 'Player — ' + (item.titulo || '');
+      iframe.title = tr('site.tituloDoPlayer', { titulo: item.titulo || '' });
       iframe.loading = 'lazy';
       /* `autoplay` fica DE FORA da permission policy de propósito: é a segunda
        * tranca contra o vídeo tocar sozinho, caso o parâmetro do player falhe. */
@@ -2680,7 +2702,7 @@
 
     if (!fonte) {
       caixa.appendChild(criar('div', 'player-ausente',
-        'Vídeo ainda não disponível. O arquivo pode estar em processamento no servidor de vídeo.'));
+        tr('site.videoEmProcessamento')));
     }
     coluna.appendChild(caixa);
     grade.appendChild(coluna);
@@ -2693,7 +2715,7 @@
      * como até a D6. */
     var lado = criar('div', 'ficha-lado');
     lado.appendChild(campoDaFicha(criar('p', 'destaque-serie ficha-serie', serieDaFicha(item)), item, 'serie'));
-    lado.appendChild(campoDaFicha(criar('h1', null, item.titulo || '(sem título)'), item, 'titulo'));
+    lado.appendChild(campoDaFicha(criar('h1', null, item.titulo || tr('comum.semTitulo')), item, 'titulo'));
 
     lado.appendChild(campoDaFicha(criar('p', 'ficha-meta', metaDaFicha(item)), item, 'meta'));
 
@@ -2711,7 +2733,7 @@
       var continuar = criar('a', 'botao botao-primario destaque-assistir ficha-continuar');
       continuar.href = ponto.link;
       continuar.appendChild(iconePlay());
-      continuar.appendChild(document.createTextNode('Continuar'));
+      continuar.appendChild(document.createTextNode(tr('site.continuar')));
       ligarAssistir(continuar, item.id);
       lado.appendChild(continuar);
       playerAtivo.video.addEventListener('play', function () {
@@ -2728,8 +2750,8 @@
     } else {
       /* Na mesa o parágrafo vazio vira campo: o texto de "não disponível" mora
        * no atributo, e o CSS o mostra só enquanto ninguém digitou. */
-      var vazia = criar('p', 'sinopse sinopse-vazia', mesa.ligada ? '' : 'Sinopse ainda não disponível.');
-      vazia.setAttribute('data-vazio', 'Sinopse ainda não disponível.');
+      var vazia = criar('p', 'sinopse sinopse-vazia', mesa.ligada ? '' : tr('site.sinopseAusente'));
+      vazia.setAttribute('data-vazio', tr('site.sinopseAusente'));
       lado.appendChild(campoDaFicha(vazia, item, 'sinopse'));
     }
 
@@ -2739,9 +2761,9 @@
      * delas é o /admin, onde continuam inteiras. Saíram também da projeção
      * pública da API: campo que o site não desenha não precisa viajar. */
     var dl = criar('dl', 'dados');
-    linhaDados(dl, 'Tema', item.tema);
-    linhaDados(dl, 'Público-alvo', item.publico_alvo);
-    linhaDados(dl, 'Tags', (item.tags || []).join(', '));
+    linhaDados(dl, tr('site.dadoTema'), item.tema);
+    linhaDados(dl, tr('site.dadoPublicoAlvo'), item.publico_alvo);
+    linhaDados(dl, tr('site.dadoTags'), (item.tags || []).join(', '));
     if (dl.childNodes.length) lado.appendChild(dl);
 
     /* Capítulos: a linha do tempo segmentada e o título sob o ponteiro vêm do
@@ -2776,7 +2798,7 @@
      * A navegação continua explícita: muda de episódio quem clica numa linha,
      * ou quem aperta Shift+N / Shift+P, que anda pela mesma ordem. Nada aqui
      * reage ao fim do vídeo. */
-    var daSerie = App.paginaDaSerie(estado.itens, item.serie || 'Sem série', estado.site);
+    var daSerie = App.paginaDaSerie(estado.itens, item.serie || semSerie(), estado.site);
     var outros = daSerie ? daSerie.itens.filter(function (i) { return i.id !== item.id; }).length : 0;
     if (outros) grade.appendChild(secaoEpisodios(daSerie, item.id));
 
@@ -2976,7 +2998,9 @@
   }
 
   function iniciar() {
-    carregarConfigPublica();
+    /* O catálogo e o idioma descem JUNTOS; a primeira tela só é desenhada quando
+     * os dois chegaram (um texto sem catálogo de idioma sairia como chave). */
+    var idiomaPronto = carregarIdioma();
     if (mesa.ligada) ligarMesa();
     ligarTopo();
     ligarAbertura();
@@ -3024,11 +3048,15 @@
     var comecaNaFicha = !!App.rotaDaFicha(hash || '');
     if (comecaNaFicha) carregarPlayer();
 
-    carregar().then(function () {
+    Promise.all([idiomaPronto, carregar()]).then(function () {
       rotear();
       abrirChegada();
       if (!comecaNaFicha) depoisDaCapaPrincipal(carregarPlayer);
     }).catch(function (erro) {
+      /* O texto da falha precisa do idioma já carregado (ele nunca rejeita). */
+      return idiomaPronto.then(function () { return erro; });
+    }).then(function (erro) {
+      if (!erro) return;
       soltarAbertura(false);
       estado.carregado = false;
       limpar(el.grade);
@@ -3047,8 +3075,8 @@
         erro: true,
         titulo: frase('erroCatalogo'),
         texto: frase('erroCatalogoAjuda'),
-        acoes: [{ rotulo: 'Tentar de novo', primario: true, aoClicar: function () { window.location.reload(); } }],
-        detalhe: 'Detalhe técnico: ' + erro.message
+        acoes: [{ rotulo: tr('site.tentarDeNovo'), primario: true, aoClicar: function () { window.location.reload(); } }],
+        detalhe: tr('site.detalheTecnico', { mensagem: erro.message })
       }));
     });
   }

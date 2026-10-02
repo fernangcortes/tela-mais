@@ -18,6 +18,10 @@
 (function (raiz) {
   'use strict';
 
+  /* A tradução (i18n.js): `tr` lê a instância global; sem o i18n.js devolve a chave. */
+  var I18n = raiz.AppI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  function tr(chave, params) { return I18n ? I18n.t(chave, params) : chave; }
+
   /* ================================================================ regras
    *
    * AS TRÊS REGRAS DE PRODUTO. Hoje elas são quatro parâmetros na URL do embed
@@ -858,10 +862,10 @@
    * com o som parado no mesmo lugar — e promessa do projeto tem teste. */
   function rotuloVolume(estado) {
     var e = estado || {};
-    if (e.via === 'nenhuma') return 'Volume: use os botões do aparelho';
+    if (e.via === 'nenhuma') return tr('player.volumeSoAparelho');
     var pct = Math.round((Number(e.volume) || 0) * 100);
-    if (pct > 100) return 'Volume ' + pct + '% · reforço';
-    return 'Volume ' + pct + '%';
+    if (pct > 100) return tr('player.volumeReforco', { pct: pct });
+    return tr('player.volumePct', { pct: pct });
   }
 
   /* Que ação uma tecla virou, ou null quando ela não é nossa.
@@ -1441,10 +1445,11 @@
    * normal, que é a informação de quem acabou de desfazer a ampliação. */
   function rotuloZoom(escala) {
     var e = limitarZoom(escala);
-    if (e === ZOOM_MIN) return 'Tamanho normal';
-    var texto = (Math.round(e * 10) / 10).toFixed(1).replace('.', ',');
-    if (texto.slice(-2) === ',0') texto = texto.slice(0, -2);
-    return 'Zoom ' + texto + '×';
+    if (e === ZOOM_MIN) return tr('player.zoomNormal');
+    /* O separador decimal segue o idioma (1,5× em pt-BR, 1.5× em en). */
+    var texto = I18n ? I18n.numero(Math.round(e * 10) / 10, { maximumFractionDigits: 1 })
+      : String(Math.round(e * 10) / 10);
+    return tr('player.zoom', { escala: texto });
   }
 
   /* ----------------------------------------------------- a máquina de gestos

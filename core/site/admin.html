@@ -13,6 +13,17 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<!-- O IDIOMA da mesa: preload do catálogo de textos do idioma padrão (GERADO por
+     scripts/aplicar-config.mjs; não edite entre os marcadores). A mesa escolhe o
+     idioma de quem edita (?idioma=, escolha guardada, navegador) e só então carrega
+     os scripts dela (mesa-inicio.js). -->
+<!-- i18n:inicio -->
+<link rel="preload" href="locales/pt-BR.json" as="fetch" crossorigin>
+<link rel="preload" href="config.public.json" as="fetch" crossorigin>
+<!-- i18n:fim -->
+<link rel="stylesheet" href="idioma.css">
+<link rel="stylesheet" href="tokens-fixos.css">
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="mesa.css">
 </head>
 <body>
@@ -23,39 +34,43 @@
 
 <section id="tela-entrar" class="entrar" aria-labelledby="entrar-titulo">
   <form id="form-entrar" class="entrar-cartao">
-    <p class="entrar-marca">Plataforma <b>Exemplo</b></p>
-    <h1 id="entrar-titulo">Mesa de Curadoria</h1>
-    <p class="entrar-sub">Entre com a sua conta. O superadmin entra só com a senha.</p>
+    <p class="entrar-marca"><b data-i18n="mesa.nomeDaMarca">Plataforma Exemplo</b></p>
+    <h1 id="entrar-titulo" data-i18n="mesa.tituloDaMesa">Mesa de Curadoria</h1>
+    <p class="entrar-sub" data-i18n="mesa.entrarSub">Entre com a sua conta. O superadmin entra só com a senha.</p>
     <div class="campo">
-      <label for="usuario">Usuário <span class="fraco">— vazio, se você é o superadmin</span></label>
+      <label for="usuario"><span data-i18n="telas.usuario">Usuário</span> <span class="fraco" data-i18n="mesa.vazioSeSuperadmin">— vazio, se você é o superadmin</span></label>
       <input type="text" id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false">
     </div>
     <div class="campo">
-      <label for="senha">Senha</label>
+      <label for="senha" data-i18n="telas.senha">Senha</label>
       <input type="password" id="senha" autocomplete="current-password" required>
     </div>
-    <button type="submit" class="botao botao-verde">Entrar</button>
+    <button type="submit" class="botao botao-verde" data-i18n="mesa.entrar">Entrar</button>
+    <div class="idioma-seletor" id="idioma-entrar" hidden>
+      <label for="idioma-mesa-entrar" data-i18n="site.idioma">Idioma</label>
+      <select id="idioma-mesa-entrar" autocomplete="off"></select>
+    </div>
     <p class="estado" id="estado-entrar" role="status"></p>
   </form>
 </section>
 
 <div class="mesa" id="mesa" hidden>
   <div class="m-grade">
-    <nav class="m-esq" id="esq" aria-label="Menu da mesa"></nav>
-    <main class="m-centro" aria-label="O site e as telas da mesa">
+    <nav class="m-esq" id="esq" aria-label="Menu da mesa" data-i18n-attr="aria-label:mesa.menuDaMesa"></nav>
+    <main class="m-centro" aria-label="O site e as telas da mesa" data-i18n-attr="aria-label:mesa.oSiteEAsTelas">
       <div class="barra" id="barra"></div>
       <div class="palco palco-site" id="palco">
-        <p class="mesa-carregando" id="mesa-carregando" hidden>Lendo o catálogo…</p>
+        <p class="mesa-carregando" id="mesa-carregando" hidden data-i18n="mesa.lendoOCatalogo">Lendo o catálogo…</p>
         <div class="quadro" id="quadro">
           <div class="quadro-barra" id="quadro-barra"></div>
           <div class="quadro-janela" id="quadro-janela">
-            <iframe id="site" title="O site, em modo mesa" src="about:blank"></iframe>
+            <iframe id="site" title="O site, em modo mesa" data-i18n-attr="title:mesa.oSiteEmModoMesa" src="about:blank"></iframe>
           </div>
         </div>
         <div class="palco-admin" id="palco-admin" hidden></div>
       </div>
     </main>
-    <aside class="m-dir" id="dir" aria-label="Dados e edição">
+    <aside class="m-dir" id="dir" aria-label="Dados e edição" data-i18n-attr="aria-label:mesa.dadosEEdicao">
       <div class="dir-cab" id="dir-cab"></div>
       <div class="dir-corpo" id="dir-corpo"></div>
       <div class="rascunho" id="rascunho"></div>
@@ -67,15 +82,14 @@
 
 <datalist id="lista-series"></datalist>
 
-<script src="vendor/tus.min.js"></script>
-<script src="catalogo-core.js"></script>
-<!-- A leitura da legenda e as contas do índice da busca: é a mesa que lê o
-     .srt do envio e condensa em blocos de 30 s, porque a função tem 10 ms de
-     CPU. O mesmo arquivo que o script usa. -->
-<script src="indice-core.js"></script>
-<script src="mesa-base.js"></script>
-<script src="mesa-painel.js"></script>
-<script src="mesa-telas.js"></script>
-<script src="mesa.js"></script>
+<!-- Só estes dois scripts na página. O mesa-inicio.js escolhe o idioma, baixa o
+     catálogo de textos e SÓ DEPOIS carrega, em ordem, o resto da mesa (tus,
+     catalogo-core, indice-core — a leitura da legenda e as contas do índice da
+     busca, que é a mesa que faz porque a função tem 10 ms de CPU —, mesa-base,
+     mesa-painel, mesa-telas e mesa): as constantes de módulo da mesa já nascem
+     com o texto no idioma certo. -->
+<script src="i18n.js"></script>
+<script src="mesa-inicio.js"></script>
+<noscript data-i18n="mesa.precisaDeJavascript">A mesa precisa de JavaScript.</noscript>
 </body>
 </html>

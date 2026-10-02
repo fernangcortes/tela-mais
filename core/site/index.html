@@ -27,6 +27,14 @@
      --fundo do style.css — a barra do Android e a tela de abertura ficam da
      cor da chegada, sem clarão. -->
 <link rel="manifest" href="manifest.webmanifest">
+<!-- O IDIOMA: o catálogo de textos do idioma padrão e a config pública descem já
+     na chegada, em paralelo com o catálogo de vídeos. O bloco é GERADO por
+     scripts/aplicar-config.mjs (idiomas.padrao); não edite entre os marcadores. -->
+<!-- i18n:inicio -->
+<link rel="preload" href="locales/pt-BR.json" as="fetch" crossorigin>
+<link rel="preload" href="config.public.json" as="fetch" crossorigin>
+<!-- i18n:fim -->
+<link rel="stylesheet" href="idioma.css">
 
 <!-- og:image absoluta e og:url são acrescentados por core/worker/home.js a
      partir de APP_SITE_URL; sem a variável, fica a imagem relativa. -->
@@ -74,6 +82,7 @@ try {
   }
 } catch (e) {}
 </script>
+<link rel="stylesheet" href="tokens-fixos.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="theme.css">
 </head>
@@ -86,7 +95,8 @@ try {
      com e sem a camada: 1.955 e 1.892 ms de mediana, a capa pintada aos
      ~170 ms nas duas). Sem a classe `abrindo` ela nem existe na tela. -->
 <div class="abertura" id="abertura" aria-hidden="true">
-  <img class="abertura-marca" src="logo-fundo-escuro.svg" width="117" height="48" alt="">
+  <img class="abertura-marca logo-p-escuro" src="logo-fundo-escuro.svg" width="117" height="48" alt="">
+  <img class="abertura-marca logo-p-claro" src="logo-fundo-claro.svg" width="117" height="48" alt="">
 </div>
 
 <!-- A SENTINELA do cabeçalho (D5): 1 px no alto do documento. Enquanto ela está
@@ -95,7 +105,7 @@ try {
      app.js — nenhum ouvinte de `scroll`. -->
 <div class="topo-sentinela" id="topo-sentinela" aria-hidden="true"></div>
 
-<a class="pular" href="#conteudo" id="pular">Pular para o conteúdo</a>
+<a class="pular" href="#conteudo" id="pular" data-i18n="site.pularParaOConteudo">Pular para o conteúdo</a>
 
 <!-- O CABEÇALHO DE STREAMING (D5): o logo, dois links e a busca, numa linha
      só. `topo-flutuante` é o que o deixa sem fundo no alto da página — o
@@ -107,36 +117,39 @@ try {
      que o JS encha depois de o catálogo chegar. -->
 <header class="topo topo-flutuante" id="topo">
   <div class="limite topo-linha">
-    <!-- O logo é a imagem de compartilhamento recortada no logo: o
-         "Cabeçalho" que veio junto tem o texto da pílula em Calibri viva, e
-         celular não tem Calibri.
-         O <picture> de duas fontes saiu na D1 (14/09): com um tema só, não há
-         o que escolher. O `logo-fundo-claro.svg` continua no site — é o que
-         serve a quem exportar ou imprimir a marca sobre branco, e sai do ar
-         junto com a decisão de ter tema claro, não antes. -->
+    <!-- Dois logos: o de fundo escuro (texto claro) e o de fundo claro (texto
+         escuro). O theme.css gerado decide qual aparece, pelo modo do tema. -->
     <a class="marca" href="#/" data-inicio>
-      <img class="marca-logo" src="logo-fundo-escuro.svg" width="117" height="48"
-           alt="Plataforma Exemplo — catálogo">
+      <img class="marca-logo logo-p-escuro" src="logo-fundo-escuro.svg" width="117" height="48"
+           alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
+      <img class="marca-logo logo-p-claro" src="logo-fundo-claro.svg" width="117" height="48"
+           alt="Plataforma Exemplo — catálogo" data-i18n-attr="alt:site.logoAlt">
     </a>
-    <nav class="topo-nav" aria-label="Seções do catálogo">
-      <a class="topo-link" href="#/" data-inicio>Início</a>
-      <a class="topo-link" href="#/series">Séries</a>
+    <nav class="topo-nav" aria-label="Seções do catálogo" data-i18n-attr="aria-label:site.secoesDoCatalogo">
+      <a class="topo-link" href="#/" data-inicio data-i18n="site.inicio">Início</a>
+      <a class="topo-link" href="#/series" data-i18n="site.tituloSeries">Séries</a>
     </nav>
     <div class="busca" id="busca-caixa">
-      <label class="pular" for="busca">Buscar no catálogo</label>
+      <label class="pular" for="busca" data-i18n="site.buscarNoCatalogo">Buscar no catálogo</label>
       <input id="busca" type="search" autocomplete="off" spellcheck="false"
-             placeholder="Buscar por título, tema ou o que é falado…">
+             placeholder="Buscar por título, tema ou o que é falado…" data-i18n-attr="placeholder:site.buscaPlaceholder">
       <!-- Só no celular, com a busca aberta. Ícone é <path> em currentColor:
            sem fonte de ícone, sem CDN. -->
-      <button type="button" class="topo-botao busca-fechar" id="busca-fechar" aria-label="Fechar a busca">
+      <button type="button" class="topo-botao busca-fechar" id="busca-fechar" aria-label="Fechar a busca" data-i18n-attr="aria-label:site.fecharBusca">
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </div>
     <!-- Só no celular: o campo recolhido atrás de um botão. Aberto, ele toma o
          lugar do logo e dos links, e a linha continua com a mesma altura. -->
-    <button type="button" class="topo-botao busca-abrir" id="busca-abrir" aria-controls="busca-caixa" aria-expanded="false" aria-label="Buscar no catálogo">
+    <button type="button" class="topo-botao busca-abrir" id="busca-abrir" aria-controls="busca-caixa" aria-expanded="false" aria-label="Buscar no catálogo" data-i18n-attr="aria-label:site.buscarNoCatalogo">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10.5 4 a6.5 6.5 0 1 0 0 13 a6.5 6.5 0 1 0 0 -13 Z M15.2 15.2 L20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
+    <!-- O SELETOR DE IDIOMA: nasce escondido e o app.js o mostra quando há mais de
+         um idioma em `idiomas.disponiveis` (e `seletorVisivel` não o esconde). -->
+    <div class="topo-idioma" id="idioma-caixa" hidden>
+      <label class="pular" for="idioma" data-i18n="site.idioma">Idioma</label>
+      <select id="idioma" autocomplete="off"></select>
+    </div>
   </div>
 </header>
 
@@ -151,7 +164,7 @@ try {
        qualquer tela, e já no início quando a rota não é a chegada.
        Nenhum retângulo é candidato a LCP (não é imagem nem texto), e ele sai
        inteiro de uma vez: nada que já estava na tela é deslocado. -->
-  <div id="conteudo-grade"><div class="esqueleto" role="status"><span class="pular">Carregando o catálogo…</span><div aria-hidden="true">
+  <div id="conteudo-grade"><div class="esqueleto" role="status"><span class="pular" data-i18n="site.carregandoCatalogo">Carregando o catálogo…</span><div aria-hidden="true">
     <div class="esq-destaque"><div class="esq-texto"><span class="esq-linha esq-l1"></span><span class="esq-linha esq-l2"></span><span class="esq-linha esq-l3"></span><span class="esq-linha"></span><span class="esq-linha"></span><span class="esq-botao"></span></div><div class="esq-capa"></div></div>
     <div class="esq-prateleira"><span class="esq-linha esq-rotulo"></span><div class="esq-pista"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
     <div class="esq-prateleira"><span class="esq-linha esq-rotulo"></span><div class="esq-pista"><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
@@ -161,8 +174,8 @@ try {
 
 <footer class="rodape">
   <div class="limite">
-    Plataforma Exemplo. ·
-    <a href="admin.html">Administração</a>
+    <span id="rodape-texto" data-i18n="site.rodape">Plataforma Exemplo.</span> ·
+    <a href="admin.html" data-i18n="site.administracao">Administração</a>
   </div>
 </footer>
 
@@ -171,6 +184,7 @@ try {
      da capa do destaque — que é o LCP. Quem os pede é o app.js
      (`carregarPlayer`): depois da capa do destaque, ou já no início quando
      o link é de uma ficha. O hls.js, o player.js pede só na ficha. -->
+<script src="i18n.js"></script>
 <script src="catalogo-core.js"></script>
 <script src="app.js"></script>
 </body>

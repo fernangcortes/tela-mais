@@ -13,11 +13,12 @@
  * `cadastro` e `privado` é ser da equipe/admin: contas de espectador são do M5. */
 import { obterConfig as obterConfigPadrao } from './_lib/config.js';
 import { comCabecalhos } from './_lib/seguranca.js';
-import { json } from './_lib/sessao.js';
+import { json, erro } from './_lib/sessao.js';
 import { autorizar, normalizarCaminho } from './middleware.js';
 import { handlerDe } from './rotas.js';
 import { modoSeguro } from './permissoes.js';
 import { onRequestGet as homeGet } from './home.js';
+import { localizarResposta } from './_lib/mensagens.js';
 
 async function modoDoAcesso(env, obterConfig) {
   try {
@@ -29,7 +30,7 @@ async function modoDoAcesso(env, obterConfig) {
 }
 
 export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
-  async function responder(request, env, ctx) {
+  async function responder(request, env, ctx, lugar) {
     const url = new URL(request.url);
     const caminho = normalizarCaminho(url.pathname);
     /* HEAD é um GET sem corpo: o handler não precisa saber. */
@@ -39,10 +40,11 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
     if (!ehApi && caminho !== '/') {
       /* Chegou aqui sem ser rota do Worker (dev local, ou run_worker_first
        * mais largo): arquivo estático, sem tabela. */
-      return env.ASSETS ? env.ASSETS.fetch(request) : json(404, { erro: 'não encontrado' });
+      return env.ASSETS ? env.ASSETS.fetch(request) : erro(404, 'nao-encontrado');
     }
 
     const { modo, config } = await modoDoAcesso(env, obterConfig);
+    lugar.config = config;
     const decisao = await autorizar({ request, env, caminho, metodo, modo });
     if (!decisao.permitido) return decisao.resposta;
 
@@ -53,7 +55,7 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
     if (caminho === '/') return homeGet(contexto);
 
     const handler = handlerDe(caminho, metodo);
-    if (!handler) return json(405, { erro: 'método não permitido' });
+    if (!handler) return erro(405, 'metodo-nao-permitido');
     const resposta = await handler(contexto);
 
     /* `no-store` em tudo, menos nas leituras da busca que dizem o próprio
@@ -72,13 +74,15 @@ export function criarWorker({ obterConfig = obterConfigPadrao } = {}) {
     async fetch(request, env, ctx) {
       const caminho = normalizarCaminho(new URL(request.url).pathname);
       const ehApi = caminho === '/api' || caminho.startsWith('/api/');
+      const lugar = { config: null };
       let resposta;
       try {
-        resposta = await responder(request, env, ctx);
+        resposta = await responder(request, env, ctx, lugar);
       } catch (e) {
-        console.error('erro não tratado:', e && e.message);
-        resposta = json(500, { erro: 'erro interno' });
+        console.error('erro não tratado:', e && e.message); /* i18n-ignorar: log técnico, não vai à tela */
+        resposta = erro(500, 'erro-interno');
       }
+      if (ehApi) resposta = await localizarResposta(resposta, request, lugar.config);
       return comCabecalhos(resposta, env, { api: ehApi });
     }
   };

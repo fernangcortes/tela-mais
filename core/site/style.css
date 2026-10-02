@@ -1,101 +1,36 @@
 /* Plataforma Exemplo — folha de estilo do catálogo.
- * Sem framework, sem build. Trocar a marca = trocar o bloco :root abaixo.
+ * Sem framework, sem build.
  *
- * UM TEMA SÓ, E ELE É ESCURO. Antes daqui o site
- * seguia o aparelho por `prefers-color-scheme`, e quem usa o tema claro no
- * celular — o padrão de muita gente — via o catálogo claro. Streaming é escuro
- * para todo mundo, e um tema só é um tema só para desenhar, medir e testar.
+ * AQUI NÃO HÁ COR LITERAL. Toda cor, tamanho de letra, espaço, raio e fonte vem de
+ * variável CSS, e as variáveis moram em dois arquivos:
  *
- * Os valores são os que o bloco escuro já tinha: eles estavam no ar e
- * conferidos, e a fase D1 não era hora de estrear cor. O que entrou de novo
- * são `--contorno` (a conta está logo abaixo) e as duas cores da marca.
+ *   theme.css         GERADO de config/site.json (tema.preset + o que o cliente
+ *                     trocou): a paleta de cada modo (escuro/claro/auto), as
+ *                     formas, a escala de tipo, as pilhas de fonte e os @font-face.
+ *   tokens-fixos.css  o que NÃO muda com o tema: o preto do player, o branco dos
+ *                     controles sobre vídeo, as sombras e os véus translúcidos.
  *
- * `color-scheme: dark` não é enfeite: é o que faz o navegador pintar de
- * escuro o que a folha não alcança — barra de rolagem, campo de busca nativo,
- * menu de `<select>` do /admin. Sem ele sobram retângulos brancos.
+ * Trocar a marca = mudar tema.* no config e rodar `node scripts/aplicar-config.mjs`;
+ * nunca editar cor aqui. tests/tema.test.js varre este arquivo e reprova qualquer
+ * #hex, rgb(), rgba() ou hsl() fora de comentário.
  *
- * CONTRASTE MEDIDO (WCAG 2.x, 14/09) — nenhuma cor entra aqui sem a conta:
+ * `color-scheme` (no theme.css) não é enfeite: é o que faz o navegador pintar de
+ * escuro (ou de claro) o que a folha não alcança — barra de rolagem, campo de busca
+ * nativo, menu de `<select>` do /admin. Sem ele sobram retângulos da cor errada.
  *
- *   --texto       #eceff4  sobre --fundo 16,39:1 · sobre --superficie 15,13:1
- *   --texto-fraco #98a2ad  sobre --fundo  7,29:1 · sobre --superficie  6,73:1
- *   --marca       #6aa6ff  sobre --fundo  7,66:1 · sobre --superficie  7,07:1
- *   --marca-alt   #4f8de0  sobre --fundo  5,60:1 · sobre --superficie  5,17:1
- *   --marca-destaque #f5c542 sobre --superficie 10,75:1
- *   --alerta      #e0b356  sobre --alerta-fundo 7,90:1
- *   --erro        #f08c86  sobre --erro-fundo   7,04:1
- *   #07101c sobre --marca (o chip ligado)        7,74:1
+ * DOIS tokens de linha, porque são duas funções diferentes e só uma deve contraste:
  *
- * Todas passam os 4,5:1 de texto. A cor da marca padrão passa com folga no tema
- * escuro, o que não aconteceria sobre branco. */
-
-:root {
-  color-scheme: dark;
-
-  --marca: #6aa6ff;
-  --marca-clara: #8dbcff;
-  --marca-fraca: #151d2b;
-
-  /* As duas cores secundárias da marca, para destaque. Ficam como token desde a
-   * D1 para que a D2 e a D4 não tenham que inventar cor — e já medidas. */
-  --marca-alt: #4f8de0;
-  --marca-destaque: #f5c542;
-
-  --fundo: #0f1115;
-  --superficie: #171a1f;
-
-  /* DOIS tokens de linha, porque são duas funções diferentes e só uma delas
-   * deve contraste a alguém:
-   *
-   *   --borda    separador decorativo — divisória de seção, rodapé, contorno
-   *              de caixa. A WCAG não cobra 3:1 disto, e cobrar deixaria a
-   *              tela com cara de arame.
-   *   --contorno o que DESENHA UM CONTROLE: o campo de busca, o chip, os
-   *              campos do /admin. Aí o 3:1 da 1.4.11 vale, e vale mesmo:
-   *              --fundo e --superficie estão a 1,08:1 um do outro, então o
-   *              preenchimento do campo não o distingue de nada — a linha é o
-   *              único sinal de que ali existe um controle.
-   *
-   * #656f78 dá 3,69:1 sobre --fundo e 3,40:1 sobre --superficie. O #2a2f36 da
-   * --borda dá 1,40:1 e 1,29:1: serve de divisória, nunca de contorno. */
-  --borda: #2a2f36;
-  --contorno: #656f78;
-
-  --texto: #eceff4;
-  --texto-fraco: #98a2ad;
-  --alerta: #e0b356;
-  --alerta-fundo: #2a2415;
-  --erro: #f08c86;
-  --erro-fundo: #2c1817;
-  --raio: 10px;
-  --sombra: none;
-  /* A grade única do catálogo ocupa esta largura inteira; em 1180px sobrava
-   * uma faixa vazia à direita nos monitores de trabalho. */
-  --largura: 1400px;
-
-  /* ESCALA DE ESPAÇO, base 4. Existe para o desenho novo — prateleira,
-   * cartão, destaque — não para reescrever o que já está medido: as
-   * distâncias do player saíram de medição no aparelho e não
-   * se mexem por causa deste plano. Token novo, uso novo. */
-  --esp-1: 4px;
-  --esp-2: 8px;
-  --esp-3: 12px;
-  --esp-4: 16px;
-  --esp-5: 24px;
-  --esp-6: 32px;
-  --esp-7: 48px;
-  --esp-8: 64px;
-
-  /* ESCALA DE TIPO. --tipo-base é o 16px que o `body` já usava; os degraus
-   * abaixo dele são os tamanhos que a folha já praticava (12, 13, 15), para
-   * que adotar o token não mude nada de lugar. */
-  --tipo-micro: 12px;
-  --tipo-menor: 13px;
-  --tipo-corpo: 15px;
-  --tipo-base: 16px;
-  --tipo-maior: 18px;
-  --tipo-titulo: 20px;
-  --tipo-secao: 22px;
-}
+ *   --borda    separador decorativo — divisória de seção, rodapé, contorno de
+ *              caixa. A WCAG não cobra 3:1 disto, e cobrar deixaria a tela com
+ *              cara de arame.
+ *   --contorno o que DESENHA UM CONTROLE: o campo de busca, o chip, os campos do
+ *              /admin. Aí o 3:1 da 1.4.11 vale: --fundo e --superficie ficam
+ *              quase iguais, então a linha é o único sinal de que ali existe um
+ *              controle. O validador do config recusa paleta cujo --contorno não
+ *              dê 3:1 sobre o fundo (core/worker/_lib/contraste.mjs).
+ *
+ * O destaque (--marca-destaque) e a marca (--marca) também são medidos: a paleta
+ * inteira passa por 4,5:1 (texto) e 3:1 (controles) antes de virar CSS. */
 
 * { box-sizing: border-box; }
 
@@ -105,10 +40,20 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--fonte-corpo);
+  font-size: var(--tipo-base);
+  line-height: 1.55;
 }
 
 a { color: var(--marca); }
+
+/* A fonte do título é outra variável: sem tipografia.titulo no config ela é a do
+ * texto, e o site fica como sempre foi. */
+h1, h2, h3, h4,
+.card-titulo, .destaque-titulo, .prateleira-titulo, .pop-titulo, .pcard-titulo,
+.grade-titulo, .ep-titulo, .serie-caixa-titulo, .vazio-titulo, .capitulos-titulo {
+  font-family: var(--fonte-titulo);
+}
 
 img { max-width: 100%; display: block; }
 
@@ -151,6 +96,9 @@ img { max-width: 100%; display: block; }
 /* O logo do index.html (o admin.html continua com a marca em texto). A altura
  * é a do desenho inteiro, com a pílula do "Catálogo Interno" dentro. */
 .marca-logo { height: 48px; width: auto; }
+/* Só um dos dois logos aparece: quem decide é o theme.css (--logo-fundo-*). */
+.logo-p-escuro { display: var(--logo-fundo-escuro, inline-block); }
+.logo-p-claro { display: var(--logo-fundo-claro, none); }
 
 .busca { flex: 1 1 260px; min-width: 0; position: relative; }
 
@@ -315,7 +263,7 @@ img { max-width: 100%; display: block; }
 /* #07101c e não #fff: sobre a cor da marca o texto escuro dá 7,74:1, e o
  * branco daria bem menos. Era a regra do tema escuro; com um tema só, é A regra. */
 .chip[aria-pressed="true"] {
-  background: var(--marca); border-color: var(--marca); color: #07101c; font-weight: 500;
+  background: var(--marca); border-color: var(--marca); color: var(--texto-sobre-marca); font-weight: 500;
 }
 
 /* --------------------------------------------------------------- conteúdo */
@@ -343,7 +291,7 @@ main { padding: 24px 0 64px; }
 }
 .card:hover, .card:focus-visible {
   transform: translateY(-2px); border-color: var(--marca);
-  box-shadow: 0 4px 14px rgba(16, 24, 40, .1);
+  box-shadow: 0 4px 14px var(--preto-10);
 }
 .card:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
 
@@ -378,7 +326,7 @@ main { padding: 24px 0 64px; }
 
 .card-duracao {
   position: absolute; right: 8px; bottom: 8px; z-index: 2;
-  background: rgba(0, 0, 0, .78); color: #fff;
+  background: var(--preto-78); color: var(--player-texto);
   font-size: 12px; padding: 1px 6px; border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
@@ -776,7 +724,7 @@ main { padding: 24px 0 64px; }
   position: absolute; z-index: 5;
   background: var(--superficie);
   border: 1px solid var(--borda); border-radius: var(--raio);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  box-shadow: 0 16px 40px var(--preto-55);
   overflow: hidden;
   opacity: 0; transform: scale(var(--pop-partida, .74));
   transition: transform .22s cubic-bezier(.2, .7, .2, 1), opacity .12s ease;
@@ -811,8 +759,8 @@ main { padding: 24px 0 64px; }
  * pedaço do próximo cartão que já aparece. */
 @media (hover: none), (pointer: coarse) {
   .prateleira-pista:not(.pista-no-fim) {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+    -webkit-mask-image: linear-gradient(to right, var(--mascara) calc(100% - 48px), transparent);
+    mask-image: linear-gradient(to right, var(--mascara) calc(100% - 48px), transparent);
   }
 }
 
@@ -832,13 +780,13 @@ main { padding: 24px 0 64px; }
      * caía justo onde já havia metade da capa aparecendo: sobre a capa clara
      * de um nome curto ele praticamente sumia. */
     background: linear-gradient(to right,
-      rgba(16, 19, 21, .96), rgba(16, 19, 21, .72) 60%, rgba(16, 19, 21, 0));
+      var(--fundo-96), var(--fundo-72) 60%, transparent);
     opacity: 0; transition: opacity .12s ease;
   }
   .prateleira-seta-dir {
     right: 0;
     background: linear-gradient(to left,
-      rgba(16, 19, 21, .96), rgba(16, 19, 21, .72) 60%, rgba(16, 19, 21, 0));
+      var(--fundo-96), var(--fundo-72) 60%, transparent);
   }
   .prateleira-seta-esq { left: 0; }
 
@@ -1207,14 +1155,14 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 }
 
 .player {
-  aspect-ratio: 16 / 9; width: 100%; background: #000;
+  aspect-ratio: 16 / 9; width: 100%; background: var(--player-fundo);
   border-radius: var(--raio); overflow: hidden; border: 1px solid var(--borda);
 }
 .player iframe { width: 100%; height: 100%; border: 0; display: block; }
 
 .player-ausente {
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  color: #cfd6dd; font-size: 14px; text-align: center; padding: 24px;
+  color: var(--player-texto-fraco); font-size: 14px; text-align: center; padding: 24px;
 }
 
 /* ------------------------------------------------- o player nosso (fase 0)
@@ -1229,7 +1177,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .player-nosso { position: relative; }
 
 .pl {
-  position: relative; width: 100%; height: 100%; background: #000;
+  position: relative; width: 100%; height: 100%; background: var(--player-fundo);
   /* Gestos (fase 5). `pan-y` entrega a rolagem VERTICAL da página ao
      navegador e fica com o resto: é o que faz o arrasto horizontal da linha
      do tempo (item 11) funcionar sem que o vídeo vire um buraco onde a ficha
@@ -1305,10 +1253,10 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   position: absolute; left: 0; right: 0; bottom: 0;
   display: flex; align-items: center; gap: 10px;
   padding: 26px 12px 10px;
-  color: #fff;
+  color: var(--player-texto);
   /* Degradê e não faixa sólida: o rodapé do quadro tem imagem, e uma barra
      opaca cortaria legenda queimada e crédito. */
-  background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, 0));
+  background: linear-gradient(to top, var(--preto-78), transparent);
 }
 
 .pl-b {
@@ -1317,8 +1265,8 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
   border-radius: 999px;
 }
-.pl-b:hover { background: rgba(255, 255, 255, .16); }
-.pl-b:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.pl-b:hover { background: var(--branco-16); }
+.pl-b:focus-visible { outline: 2px solid var(--player-texto); outline-offset: -3px; }
 
 .pl-ic { width: 24px; height: 24px; display: block; }
 .pl-ic-pause, .pl-ic-mudo { display: none; }
@@ -1330,11 +1278,11 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 /* Botão CC (fase 2). "CC" escrito num retângulo — o símbolo que todo mundo
    reconhece. Preenchido quando a legenda está ligada. */
 .pl-cc-marca {
-  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 700 11px/1 var(--fonte-corpo);
   letter-spacing: .04em; padding: 3px 4px; border-radius: 3px;
   border: 1.5px solid currentColor;
 }
-.pl-legenda-ativa .pl-cc-marca { background: #fff; color: #000; border-color: #fff; }
+.pl-legenda-ativa .pl-cc-marca { background: var(--player-texto); color: var(--player-fundo); border-color: var(--player-texto); }
 .pl-b:disabled { opacity: .4; cursor: default; }
 .pl-b:disabled:hover { background: none; }
 
@@ -1345,7 +1293,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
    que travar a tela serve para alguma coisa. */
 .pl-trava { display: none; }
 .pl-cheia .pl-trava { display: inline-flex; }
-.pl-trava[aria-pressed="true"] { background: rgba(255, 255, 255, .22); }
+.pl-trava[aria-pressed="true"] { background: var(--branco-22); }
 
 /* Travado, os controles somem inteiros: é isso que um bloqueio de tela é.
    O caminho de volta é o toque duplo, e o cadeado no canto é quem diz que o
@@ -1355,7 +1303,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   position: absolute; right: 12px; top: 12px;
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; border-radius: 999px;
-  color: #fff; background: rgba(0, 0, 0, .62); pointer-events: none;
+  color: var(--player-texto); background: var(--preto-62); pointer-events: none;
 }
 .pl-cadeado[hidden] { display: none; }
 
@@ -1400,10 +1348,10 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   /* Fundo sólido, ao contrário do degradê da barra: aqui há texto pequeno e
      uma caixinha de marcar, que precisam de contraste garantido sobre
      qualquer quadro. */
-  background: rgba(18, 18, 18, .96);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
-  color: #fff;
-  font: 400 13px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--player-caixa);
+  box-shadow: 0 6px 24px var(--preto-50);
+  color: var(--player-texto);
+  font: 400 13px/1.3 var(--fonte-corpo);
 }
 /* ARMADILHA JÁ PAGA na fase 3: `display` do autor ganha do `hidden` do
    navegador. Sem esta linha o painel nasceria aberto e não fecharia nunca. */
@@ -1418,12 +1366,12 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   display: inline-flex; align-items: center; justify-content: center;
   border: 1.5px solid currentColor; border-radius: 4px;
   background: none; color: inherit; cursor: pointer;
-  font: 600 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 600 11px/1 var(--fonte-corpo);
   letter-spacing: .04em;
 }
-.pl-som-mudo:hover { background: rgba(255, 255, 255, .16); }
-.pl-som-mudo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.pl-som-mudo[aria-pressed="true"] { background: #fff; color: #000; border-color: #fff; }
+.pl-som-mudo:hover { background: var(--branco-16); }
+.pl-som-mudo:focus-visible { outline: 2px solid var(--player-texto); outline-offset: 2px; }
+.pl-som-mudo[aria-pressed="true"] { background: var(--player-texto); color: var(--player-fundo); border-color: var(--player-texto); }
 
 /* `margin: 0` NÃO é enfeite: o navegador dá 2 px de margem de brinde a todo
    `input[type=range]`, e com eles a linha do volume mede 30 px em vez de 26 —
@@ -1431,7 +1379,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
    cada navegador. Zerando, a conta dos 9 px de padding fecha e fecha igual em
    todos. Medido no navegador em 04/09. */
 .pl-som-faixa {
-  flex: 1 1 auto; min-width: 0; height: 26px; margin: 0; accent-color: #fff;
+  flex: 1 1 auto; min-width: 0; height: 26px; margin: 0; accent-color: var(--player-texto);
 }
 .pl-som-faixa:disabled { opacity: .4; }
 
@@ -1443,10 +1391,10 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 }
 /* Acima de 100% o número muda de cor. Reforço tem que ser VISÍVEL: um 200%
    guardado da sessão passada, invisível, vira susto no próximo vídeo. */
-.pl-reforco .pl-som-valor { color: #ffd166; font-weight: 700; }
+.pl-reforco .pl-som-valor { color: var(--player-realce); font-weight: 700; }
 
 .pl-som-rotulo { cursor: pointer; gap: 8px; }
-.pl-som-caixinha { flex: none; width: 16px; height: 16px; accent-color: #fff; }
+.pl-som-caixinha { flex: none; width: 16px; height: 16px; accent-color: var(--player-texto); }
 .pl-som-caixinha:disabled { opacity: .4; }
 
 .pl-som-recado { font-size: 12px; line-height: 1.35; opacity: .85; }
@@ -1467,8 +1415,8 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   /* --pl-leg é o multiplicador das teclas + e -, escrito pelo player. */
   font-size: calc(var(--pl-leg, 1) * 19px);
   line-height: 1.34;
-  color: #fff;
-  background: rgba(0, 0, 0, .78);
+  color: var(--player-texto);
+  background: var(--preto-78);
   padding: .1em .38em; border-radius: 4px;
   /* A legenda do Bunny é ASR: vem em caixa baixa e sem pontuação confiável.
      Nada de `text-transform` aqui — o texto é o que é. */
@@ -1590,13 +1538,13 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 }
 .pl-seg {
   position: absolute; top: 0; height: 100%; overflow: hidden;
-  background: rgba(255, 255, 255, .3); border-radius: 2px;
+  background: var(--branco-30); border-radius: 2px;
   transition: top .12s ease, height .12s ease;
 }
 .pl-seg-carregado, .pl-seg-tocado {
   position: absolute; left: 0; top: 0; height: 100%; width: 0;
 }
-.pl-seg-carregado { background: rgba(255, 255, 255, .45); }
+.pl-seg-carregado { background: var(--branco-45); }
 .pl-seg-tocado { background: var(--marca-clara); }
 /* O pedaço sob o ponteiro engorda. Sem esse retorno os vãos parecem sujeira
    na barra em vez de divisões — e o capítulo que se vai clicar fica sem
@@ -1609,8 +1557,8 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
   position: absolute; bottom: 22px; left: 0;
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   max-width: 260px; padding: 5px 9px;
-  border-radius: 6px; background: rgba(0, 0, 0, .82);
-  color: #fff; font-size: 12px; line-height: 1.3; white-space: nowrap;
+  border-radius: 6px; background: var(--preto-82);
+  color: var(--player-texto); font-size: 12px; line-height: 1.3; white-space: nowrap;
   /* A dica fica DENTRO da barra, que é quem recebe o arrasto: sem isto ela
      roubaria o ponteiro do próprio controle que está descrevendo. */
   pointer-events: none;
@@ -1633,12 +1581,12 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .pl-barra:hover .pl-barra-bolinha,
 .pl-barra:focus-visible .pl-barra-bolinha,
 .pl-barra-ativa .pl-barra-bolinha { transform: scale(1); }
-.pl-barra:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 2px; }
+.pl-barra:focus-visible { outline: 2px solid var(--player-texto); outline-offset: 2px; border-radius: 2px; }
 
 .pl-recado {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  max-width: 80%; text-align: center; color: #fff; font-size: 14px;
-  background: rgba(0, 0, 0, .72); padding: 10px 14px; border-radius: var(--raio);
+  max-width: 80%; text-align: center; color: var(--player-texto); font-size: 14px;
+  background: var(--preto-72); padding: 10px 14px; border-radius: var(--raio);
 }
 
 /* Selo passageiro do teclado (fase 1) e, depois, do zoom (fase 8).
@@ -1646,8 +1594,8 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
    nem cobrir legenda, que na fase 2 vem embaixo. */
 .pl-selo {
   position: absolute; left: 12px; top: 12px;
-  color: #fff; font-size: 14px; font-weight: 600; letter-spacing: .01em;
-  background: rgba(0, 0, 0, .72); padding: 7px 12px; border-radius: 999px;
+  color: var(--player-texto); font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  background: var(--preto-72); padding: 7px 12px; border-radius: 999px;
   pointer-events: none; white-space: nowrap;
   /* O selo passou a mostrar título de capítulo (fase 3), que é texto de
      tamanho livre vindo do catálogo — sem o corte, um título comprido
@@ -1665,8 +1613,8 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .pl-previa {
   position: absolute; left: 12px; top: 12px;
   border-radius: 6px; overflow: hidden; pointer-events: none;
-  background: rgba(0, 0, 0, .82);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+  background: var(--preto-82);
+  box-shadow: 0 2px 10px var(--preto-45);
   /* A LARGURA é a do quadro, e não a do texto (04/09). Sem isto um título de
      capítulo comprido esticava a moldura para além da imagem — 269 px de caixa
      para 200 px de quadro, medido no navegador —, e sobrava uma faixa preta à
@@ -1682,7 +1630,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .pl-previa[hidden] { display: none; }
 .pl-previa-quadro {
   width: 200px; max-width: 100%; aspect-ratio: 16 / 9;
-  object-fit: contain; background: #000;
+  object-fit: contain; background: var(--player-fundo);
   /* Enquanto o primeiro quadro não chega, o vídeo é um retângulo preto que
      parece defeito. A moldura só mostra a imagem depois do primeiro `seeked`;
      até lá sobram o capítulo e o relógio, que já valem sozinhos. */
@@ -1691,7 +1639,7 @@ a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
 .pl-previa-viva .pl-previa-quadro { display: block; }
 .pl-previa-cap {
   display: flex; flex-direction: column; gap: 1px;
-  padding: 5px 9px 6px; color: #fff; font-size: 13px; line-height: 1.3;
+  padding: 5px 9px 6px; color: var(--player-texto); font-size: 13px; line-height: 1.3;
 }
 .pl-previa-titulo {
   font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1762,7 +1710,7 @@ body.app-teatro .player { border-radius: 0; border-left: 0; border-right: 0; }
 .pl-esperando::after {
   content: ''; position: absolute; left: 50%; top: 50%;
   width: 36px; height: 36px; margin: -18px 0 0 -18px;
-  border: 3px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+  border: 3px solid var(--branco-35); border-top-color: var(--player-texto);
   border-radius: 50%; animation: pl-girar .8s linear infinite;
 }
 @keyframes pl-girar { to { transform: rotate(360deg); } }
@@ -1887,9 +1835,9 @@ body.app-teatro .player { border-radius: 0; border-left: 0; border-right: 0; }
  * #07101c dá 7,74:1 sobre --marca e 9,79:1 sobre --marca-clara — é a cor que
  * o chip ligado já usava pelo mesmo motivo. */
 .botao-primario {
-  background: var(--marca); border-color: var(--marca); color: #07101c; font-weight: 500;
+  background: var(--marca); border-color: var(--marca); color: var(--texto-sobre-marca); font-weight: 500;
 }
-.botao-primario:hover { background: var(--marca-clara); border-color: var(--marca-clara); color: #07101c; }
+.botao-primario:hover { background: var(--marca-clara); border-color: var(--marca-clara); color: var(--texto-sobre-marca); }
 .botao:disabled, .botao[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 
 .aviso {

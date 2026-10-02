@@ -34,6 +34,15 @@ exemplo/              catálogo de exemplo fictício
 .github/workflows/    integração contínua
 ```
 
+## Personalizar tema, cores, fontes e textos
+
+Tudo em `config/site.json`, depois `node scripts/aplicar-config.mjs`:
+
+- **Tema:** `tema.preset` (`cinema`, `claro`, `alto-contraste`, `institucional`, `vibrante`, `aconchegante`) e `tema.modo` (`auto`, `escuro`, `claro`). Detalhes em `core/presets/temas/LEIA-ME.md`.
+- **Cores:** `tema.cores.escuro` / `tema.cores.claro` sobrescrevem o preset. Paleta sem contraste 4,5:1 (texto) ou 3:1 (controles) é recusada, com sugestão de cor.
+- **Fontes:** coloque woff2 em `config/fontes/` e aponte em `tema.tipografia` (origem `arquivo`); sem arquivo, usa fontes do sistema. Veja `config/fontes/LEIA-ME.md`.
+- **Textos:** `textos.<idioma>` em `site.json` ou arquivo `config/locales/<idioma>.json`. Idiomas de fábrica: pt-BR, en, es (`core/locales/LEIA-ME.md`). O seletor de idioma aparece quando há mais de um.
+
 ## Como rodar os testes
 
 Requer Node 22 ou mais novo. Não há dependências para instalar.

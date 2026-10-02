@@ -29,5 +29,7 @@ for usá-los). Rode sempre da **raiz do repositório**: `node scripts/<nome>.mjs
 | `mesa-local.mjs` | a mesa de administração em `http://127.0.0.1:8790`, com API de mentira em memória |
 | `gerar-marca-neutra.mjs` | regera os ícones e logos da marca neutra em `core/site/` |
 | `anti-marca.mjs` | varredura que garante que nenhuma referência a um cliente anterior volte |
+| `i18n-faltando.mjs` | confere que `en` e `es` têm todas as chaves do `pt-BR` (e os mesmos `{parâmetros}` e plurais); sai com 1 se faltar |
+| `i18n-literais.mjs` | conta texto de interface em português escrito no código, fora de `core/locales/`; sai com 1 acima do limite |
 
 Quase todos aceitam `--simular` (mostra o plano sem gravar nada).

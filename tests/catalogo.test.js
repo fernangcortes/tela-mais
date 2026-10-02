@@ -10,6 +10,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const App = require('../core/site/catalogo-core.js');
+/* Os textos vêm do catálogo pt-BR; {marca} é o nome do exemplo, como no config/site.json. */
+require('../core/site/i18n.js').definirGlobais({ marca: 'Plataforma Exemplo', marcaCurta: 'Exemplo', organizacao: 'Organização Exemplo' });
 const SITE = path.join(__dirname, '..', 'core', 'site');
 const WORKER = path.join(__dirname, '..', 'core', 'worker');
 
@@ -621,7 +623,7 @@ test('a resposta conta os trechos, e o vazio só aparece quando nada responde', 
   /* D7: com o vazio na tela, a contagem sai — "0 títulos de 69" repetia o
    * título do estado, em língua de programador. */
   assert.match(grade, /if \(!vazia\) el\.grade\.appendChild\(criar\('p', 'contagem', contagem\)\);/);
-  assert.match(grade, /' · ' \+ trechos\.length \+ \(trechos\.length === 1 \? ' trecho' : ' trechos'\)/);
+  assert.match(grade, /' · ' \+ tr\('comum\.trechos', \{ n: trechos\.length \}\)/);
   assert.match(grade, /secaoTrechos\(trechos, resposta\.casadas\)/);
   /* O anúncio: um nó que nasce na partida, antes de haver o que anunciar. */
   const iniciar = app.match(/function iniciar\(\) \{([\s\S]*?)\n  \}/)[1];
@@ -1916,7 +1918,7 @@ test('o player desce depois da chegada, e a queda para o iframe continua', () =>
   assert.ok(!/<script src="player(-core)?\.js"/.test(html),
     'o player voltou ao index.html — 77 KB na frente da capa do destaque, que é o LCP');
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(scripts, ['catalogo-core.js', 'app.js']);
+  assert.deepEqual(scripts, ['i18n.js', 'catalogo-core.js', 'app.js']);
 
   const app = semComentarios(lerTexto(path.join(SITE, 'app.js')));
 
@@ -1993,7 +1995,9 @@ test('o tus-js-client é vendorizado e o admin não carrega script de CDN', () =
   assert.ok(fs.existsSync(path.join(SITE, 'vendor', 'tus-LICENSE.txt')));
   const admin = lerTexto(path.join(SITE, 'admin.html'));
   assert.ok(!/<script[^>]+src="https?:/i.test(admin), 'o admin não pode carregar script de terceiros por CDN');
-  assert.match(admin, /src="vendor\/tus\.min\.js"/);
+  /* O admin só carrega i18n.js e mesa-inicio.js; este é quem põe o resto, em ordem, depois do idioma. */
+  assert.match(lerTexto(path.join(SITE, 'mesa-inicio.js')), /'vendor\/tus\.min\.js'/);
+  assert.ok(!/<script[^>]+src="https?:/i.test(lerTexto(path.join(SITE, 'mesa-inicio.js'))));
 });
 
 /* ================= teclado do player — fase 1 ===========================
@@ -2524,7 +2528,7 @@ test('sem caminho para o volume, o painel manda usar os botões do aparelho', ()
   assert.match(sincronizar[1], /var semSaida = !som\.obedece && !som\.ativo && !som\.possivel/);
   assert.match(sincronizar[1], /faixaVol\.disabled = semSaida/);
   assert.match(sincronizar[1], /caixaEstavel\.disabled = !som\.ativo && !som\.possivel/);
-  assert.match(sincronizar[1], /dizerNoPainel\('Use os botões do aparelho\.'\)/);
+  assert.match(sincronizar[1], /dizerNoPainel\(tr\('player\.useBotoesDoAparelho'\)\)/);
 });
 
 /* Medir o som no aparelho não pode ser um jeito de silenciá-lo: `disconnect()`
@@ -2838,7 +2842,7 @@ test('título sem legenda desliga o botão em vez de quebrar', () => {
   assert.match(corpo[1], /indisponivel = true/);
   /* Aberto pela preferência guardada, um título sem legenda não pode xingar
    * quem só abriu a ficha: o aviso é só quando alguém apertou C. */
-  assert.match(corpo[1], /if \(!calada\) mostrarSelo\('Este título não tem legenda'\)/);
+  assert.match(corpo[1], /if \(!calada\) mostrarSelo\(tr\('player\.semLegenda'\)\)/);
 });
 
 test('a faixa de legenda é desmontada ao sair da ficha', () => {
@@ -3153,8 +3157,8 @@ test('o Ctrl+seta posiciona o vídeo — nunca manda tocar', () => {
 test('Ctrl+seta num título sem capítulos avisa em vez de não fazer nada', () => {
   const fn = PLAYER_CODIGO.match(/function irParaCapitulo\(direcao\)\s*\{([\s\S]*?)\n    \}/);
   assert.match(fn[1], /if \(!caps\.length\) \{ mostrarSelo\(/);
-  assert.match(fn[1], /Último capítulo/);
-  assert.match(fn[1], /Primeiro capítulo/);
+  assert.match(fn[1], /player\.ultimoCapitulo/);
+  assert.match(fn[1], /player\.primeiroCapitulo/);
 });
 /* ================= gestos do player — fase 5 =============================
  *
@@ -5129,8 +5133,8 @@ test('titularidade e evidência só existem no /admin', () => {
  * entrar num commit. Este teste é a rede: arquivo estranho aqui reprova antes
  * de virar ativo público. */
 test('em site/ só mora o que pode ir para o ar', () => {
-  const pastas = ['vendor'];
-  const extensoes = ['.html', '.js', '.css', '.svg', '.png', '.ico', '.txt', '.webmanifest'];
+  const pastas = ['vendor', 'fontes', 'locales'];   /* locales: catálogos de texto gerados por idioma; fontes: woff2 do cliente, copiados de config/fontes/ pelo aplicar-config */
+  const extensoes = ['.html', '.js', '.css', '.svg', '.png', '.ico', '.txt', '.webmanifest', '.woff2'];
   const especiais = ['_headers', 'config.public.json'];   /* config.public.json: gerado por scripts/aplicar-config.mjs, sem segredos */   /* cabeçalhos de segurança do Static Assets: não é servido como arquivo */
   const estranhos = fs.readdirSync(SITE).filter((nome) => {
     if (nome.startsWith('.') || nome === 'node_modules') return true;
@@ -5817,34 +5821,33 @@ test('destacar na mesa grava o id e apaga as marcas antigas, num rascunho só', 
 
   /* E o botão só existe para título no ar: destacar um fora do ar o vazaria. */
   const painel = semComentarios(lerTexto(path.join(SITE, 'mesa-painel.js')));
-  assert.match(painel, /if \(it\.publicar === true\) \{[\s\S]{0,900}'f-destaque'/,
+  assert.match(painel, /if \(it\.publicar === true\) \{[\s\S]{0,1400}'f-destaque'/,
     'o botão de destacar aparece para título fora do ar');
 });
 
-/* ============================ o tema: um só, e escuro (D1) ============== */
+/* ============================ o tema vem do config (M3) ================= */
 
-/* Decisão de projeto: escuro para TODO MUNDO, e não o tema do
- * aparelho. O motivo é de produto — quem usa o tema claro no celular via o
- * catálogo claro, e streaming é escuro para todo mundo —, mas o motivo de
- * haver um TESTE é outro: um `@media (prefers-color-scheme: light)` acrescentado
- * sem querer volta a criar um segundo tema, e um segundo tema é um segundo
- * conjunto de contrastes para medir, desenhar e conferir. Ninguém percebe pela
- * tela, porque quem desenvolve costuma estar no escuro. */
-test('o site tem um tema só, e ele é escuro', () => {
-  const css = lerTexto(path.join(SITE, 'style.css'));
+/* Era "um tema só, e escuro" (D1). Desde o M3 o tema é escolha do cliente — preset,
+ * modo claro/escuro/auto, cores —, e quem DECIDE é o theme.css, gerado do config.
+ * O que o teste protege agora é a divisão de trabalho: a folha do catálogo e a da
+ * mesa não decidem tema (nada de `color-scheme` nem de `prefers-color-scheme` fora
+ * do theme.css), senão o config deixa de mandar; e o padrão do repositório continua
+ * sendo o cinema escuro. A varredura de cor literal e o contraste de cada preset
+ * moram em tests/tema.test.js. */
+test('o tema vem do theme.css gerado; as folhas do site e da mesa não escolhem tema', () => {
+  const tema = lerTexto(path.join(SITE, 'theme.css'));
   const html = lerTexto(path.join(SITE, 'index.html'));
 
-  assert.match(css, /--fundo:\s*#0f1115/, 'o :root perdeu o fundo escuro');
-  assert.match(css, /color-scheme:\s*dark/,
-    'sem `color-scheme: dark` o navegador pinta de branco a barra de rolagem e os controles nativos');
+  assert.match(tema, /--fundo:\s*#0f1115/, 'o padrão do repositório deixou de ser o cinema escuro');
+  assert.match(tema, /color-scheme:\s*dark/,
+    'sem `color-scheme` o navegador pinta de branco a barra de rolagem e os controles nativos');
 
-  /* Procura o USO, não a palavra: os comentários do `:root` e do cabeçalho
-   * explicam por que o `prefers-color-scheme` saiu, e um teste que casasse com
-   * a menção reprovaria a própria explicação. O que não pode voltar é a
-   * media query em CSS e o atributo `media` de um <source>. */
-  assert.ok(!/@media[^{]*prefers-color-scheme/.test(css),
-    'style.css voltou a ter dois temas — a D1 decidiu que é um só');
-  assert.ok(!/media\s*=\s*"[^"]*prefers-color-scheme/.test(html),
+  for (const arquivo of ['style.css', 'mesa.css']) {
+    const css = semComentarios(lerTexto(path.join(SITE, arquivo)));
+    assert.ok(!/@media[^{]*prefers-color-scheme/.test(css), arquivo + ' escolhe tema por conta própria — isso é do theme.css');
+    assert.ok(!/color-scheme\s*:/.test(css), arquivo + ' define color-scheme — isso é do theme.css');
+  }
+  assert.ok(!/media\s*=\s*"[^"]*prefers-color-scheme/.test(html.replace(/<meta name="theme-color"[^>]*>/g, '')),
     'index.html voltou a escolher recurso por tema (era o <picture> do logo)');
 });
 
@@ -5871,7 +5874,7 @@ const contraste = (a, b) => {
 };
 
 test('todo token de cor passa o contraste da WCAG sobre o fundo em que é usado', () => {
-  const css = lerTexto(path.join(SITE, 'style.css'));
+  const css = lerTexto(path.join(SITE, 'theme.css'));
   const raiz = css.slice(css.indexOf(':root'), css.indexOf('}', css.indexOf(':root')));
   const cor = (nome) => {
     const m = raiz.match(new RegExp('--' + nome + ':\\s*(#[0-9a-fA-F]{3,8})'));
@@ -5904,7 +5907,7 @@ test('todo token de cor passa o contraste da WCAG sobre o fundo em que é usado'
   }
 
   /* O chip ligado pinta texto ESCURO sobre a cor da marca: branco ali dá contraste insuficiente. */
-  assert.ok(contraste('#07101c', cor('marca')) >= 4.5,
+  assert.ok(contraste(cor('texto-sobre-marca'), cor('marca')) >= 4.5,
     'o texto do chip ligado não contrasta com a cor da marca');
 });
 
@@ -5924,24 +5927,33 @@ test('todo token de cor passa o contraste da WCAG sobre o fundo em que é usado'
  * preto. */
 test('toda cor de texto fixa numa regra contrasta com o fundo da mesma regra', () => {
   const css = semComentarios(lerTexto(path.join(SITE, 'style.css')));
-  const raiz = css.slice(css.indexOf(':root'), css.indexOf('}', css.indexOf(':root')));
+  /* Desde o M3 a cor vem de var(--token): os valores estão no theme.css (paleta)
+   * e no tokens-fixos.css (player). */
   const tokens = Object.create(null);
-  for (const m of raiz.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,6})\b/g)) tokens[m[1]] = m[2];
+  for (const arquivo of ['tokens-fixos.css', 'theme.css']) {
+    const t = semComentarios(lerTexto(path.join(SITE, arquivo)));
+    const raiz = t.slice(t.indexOf(':root'), t.indexOf('}', t.indexOf(':root')));
+    for (const m of raiz.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,6})\s*;/g)) tokens[m[1]] = m[2];
+  }
+  const resolver = (valor) => {
+    const token = valor.match(/^var\(--([\w-]+)\)$/);
+    if (token) return tokens[token[1]] || null;
+    return /^#[0-9a-fA-F]{3,6}$/.test(valor) ? valor : null;
+  };
 
   let medidas = 0;
   for (const [, seletor, corpo] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-    const cor = corpo.match(/(?:^|[;\s])color:\s*(#[0-9a-fA-F]{3,6})\b/);
+    const cor = corpo.match(/(?:^|[;\s])color:\s*([^;]+)/);
     const fundo = corpo.match(/background(?:-color)?:\s*([^;]+)/);
     if (!cor || !fundo) continue;
 
-    const valor = fundo[1].trim();
-    const token = valor.match(/^var\(--([\w-]+)\)$/);
-    const hex = token ? tokens[token[1]] : (/^#[0-9a-fA-F]{3,6}$/.test(valor) ? valor : null);
-    if (!hex) continue;
+    const hexFundo = resolver(fundo[1].trim());
+    const hexCor = resolver(cor[1].trim());
+    if (!hexFundo || !hexCor) continue;
 
-    const r = contraste(cor[1], hex);
+    const r = contraste(hexCor, hexFundo);
     assert.ok(r >= 4.5,
-      seletor.trim() + ' pinta ' + cor[1] + ' sobre ' + valor + ' (' + hex + '): ' +
+      seletor.trim() + ' pinta ' + cor[1].trim() + ' (' + hexCor + ') sobre ' + fundo[1].trim() + ' (' + hexFundo + '): ' +
       r.toFixed(2) + ':1, abaixo dos 4,5:1 de texto');
     medidas++;
   }
@@ -6342,19 +6354,22 @@ test('cada conta troca a própria senha; a do superadmin é a do ambiente', asyn
 /* A mesa (15/09) usa os MESMOS tokens do site e acrescenta só as superfícies
  * dela, mais escuras. A conta é a mesma do site, recalculada dos valores do
  * arquivo, sobre as superfícies onde a mesa pinta cada cor. */
-test('os tokens da mesa passam o contraste, e não divergem dos do site', () => {
-  const css = lerTexto(path.join(SITE, 'mesa.css'));
-  assert.match(css, /color-scheme:\s*dark/);
-  assert.ok(!/@media[^{]*prefers-color-scheme/.test(css), 'a mesa ganhou um segundo tema');
+test('os tokens da mesa passam o contraste, e são os mesmos do site', () => {
+  const css = semComentarios(lerTexto(path.join(SITE, 'mesa.css')));
+  assert.ok(!/color-scheme\s*:/.test(css), 'a mesa define color-scheme — isso é do theme.css');
+  assert.ok(!/@media[^{]*prefers-color-scheme/.test(css), 'a mesa decide tema por conta própria');
+  /* Um token com o mesmo nome e outro valor seriam dois sistemas de cor fingindo
+   * ser um: a mesa NÃO redeclara cor, ela usa a do theme.css. */
+  assert.ok(!/--(texto|texto-fraco|borda|contorno|marca|marca-fraca|marca-destaque|alerta|erro|painel|painel-alto|mesa-fundo)\s*:/.test(css),
+    'mesa.css redeclarou um token de cor do tema');
 
-  const raizDe = (texto) => texto.slice(texto.indexOf(':root'), texto.indexOf('}', texto.indexOf(':root')));
-  const corEm = (raiz, nome, arquivo) => {
+  const tema = semComentarios(lerTexto(path.join(SITE, 'theme.css')));
+  const raiz = tema.slice(tema.indexOf(':root'), tema.indexOf('}', tema.indexOf(':root')));
+  const cor = (nome) => {
     const m = raiz.match(new RegExp('--' + nome + ':\\s*(#[0-9a-fA-F]{3,8})'));
-    assert.ok(m, 'o :root de ' + arquivo + ' perdeu o token --' + nome);
+    assert.ok(m, 'o theme.css perdeu o token --' + nome);
     return m[1].toLowerCase();
   };
-  const mesa = raizDe(css);
-  const cor = (nome) => corEm(mesa, nome, 'mesa.css');
 
   const pares = [
     ['texto', 'painel', 4.5], ['texto', 'painel-alto', 4.5],
@@ -6366,13 +6381,6 @@ test('os tokens da mesa passam o contraste, e não divergem dos do site', () => 
   for (const [frente, atras, minimo] of pares) {
     const r = contraste(cor(frente), cor(atras));
     assert.ok(r >= minimo, '--' + frente + ' sobre --' + atras + ' na mesa dá ' + r.toFixed(2) + ':1, abaixo de ' + minimo + ':1');
-  }
-
-  /* Um token com o mesmo nome e outro valor seriam dois sistemas de cor
-   * fingindo ser um. */
-  const site = raizDe(lerTexto(path.join(SITE, 'style.css')));
-  for (const nome of ['texto', 'texto-fraco', 'borda', 'contorno', 'marca', 'marca-fraca', 'marca-destaque', 'alerta', 'erro']) {
-    assert.equal(cor(nome), corEm(site, nome, 'style.css'), '--' + nome + ' da mesa divergiu do site');
   }
 });
 
@@ -6498,9 +6506,9 @@ test('o cabeçalho tem o logo, dois links e a busca — e nenhuma caixa vazia', 
     .map(m => [m[1], m[2].trim()]);
   assert.deepEqual(links, [['#/', 'Início'], ['#/series', 'Séries']],
     'o cabeçalho tem que ter exatamente Início e Séries');
-  assert.match(topo[1], /<nav class="topo-nav" aria-label="[^"]+">/, 'os links saíram de um <nav> rotulado');
+  assert.match(topo[1], /<nav class="topo-nav" aria-label="[^"]+"[^>]*>/, 'os links saíram de um <nav> rotulado');
   assert.match(topo[1], /<a class="marca" href="#\/" data-inicio>/, 'o logo deixou de levar ao início');
-  assert.match(topo[1], /<label class="pular" for="busca">/, 'a busca perdeu o rótulo do leitor de tela');
+  assert.match(topo[1], /<label class="pular" for="busca"[^>]*>/, 'a busca perdeu o rótulo do leitor de tela');
   assert.match(topo[1], /<input id="busca" type="search"/, 'a busca saiu do cabeçalho');
 
   assert.ok(!/<(div|nav|ul|span|section)\b[^>]*>\s*<\/\1>/.test(topo[1]),
@@ -6866,7 +6874,7 @@ test('44 px no "Voltar" e no "Administração" — e o rodapé não cresce por i
   assert.ok(pad && marg, 'o "Administração" perdeu o padding ou a margem que o compensa');
   assert.equal(pad[1], marg[1], 'a margem não devolve o padding inteiro — o rodapé muda de altura');
   const letra = Number(regra('.rodape').match(/font-size:\s*([\d.]+)px/)[1]);
-  const entrelinha = Number(regra('body').match(/font:\s*[\d.]+px\/([\d.]+)/)[1]);
+  const entrelinha = Number(regra('body').match(/line-height:\s*([\d.]+)/)[1]);
   assert.ok(letra * entrelinha + 2 * Number(pad[1]) >= 44,
     'o "Administração" tem ' + (letra * entrelinha + 2 * Number(pad[1])).toFixed(1) + ' px de alvo');
   assert.match(link, /display:\s*inline-block/, 'padding vertical em elemento inline não cresce o alvo de todo navegador');
@@ -6941,7 +6949,7 @@ test('Início volta para a chegada mesmo quando o endereço já é #/', () => {
  * não podem regredir; ele já tinha regredido, e ninguém tinha apertado. */
 test('o atalho de pular leva o foco ao conteúdo sem passar pelo roteador', () => {
   const html = lerTexto(path.join(SITE, 'index.html'));
-  assert.match(html, /<a class="pular" href="#conteudo" id="pular">/, 'sumiu o atalho de pular');
+  assert.match(html, /<a class="pular" href="#conteudo" id="pular"[^>]*>/, 'sumiu o atalho de pular');
   assert.match(html, /<main id="conteudo" class="limite" tabindex="-1">/,
     'o <main> não aceita foco — o atalho não tem onde pousar');
 
@@ -6991,9 +6999,9 @@ test('a busca do celular abre pelo botão, diz que abriu e fecha com Esc', () =>
   const html = lerTexto(path.join(SITE, 'index.html'));
   assert.match(html, /<div class="busca" id="busca-caixa">/, 'a caixa da busca perdeu o id que o botão controla');
   assert.match(html,
-    /<button type="button" class="topo-botao busca-abrir" id="busca-abrir" aria-controls="busca-caixa" aria-expanded="false" aria-label="[^"]+">/,
+    /<button type="button" class="topo-botao busca-abrir" id="busca-abrir" aria-controls="busca-caixa" aria-expanded="false" aria-label="[^"]+"[^>]*>/,
     'o botão de abrir a busca perdeu o estado ou o rótulo');
-  assert.match(html, /<button type="button" class="topo-botao busca-fechar" id="busca-fechar" aria-label="[^"]+">/,
+  assert.match(html, /<button type="button" class="topo-botao busca-fechar" id="busca-fechar" aria-label="[^"]+"[^>]*>/,
     'o botão de fechar a busca perdeu o rótulo');
 
   const app = semComentarios(lerTexto(path.join(SITE, 'app.js')));
@@ -7081,7 +7089,7 @@ test('o manifest abre a chegada, sozinho, na cor do --fundo', () => {
 
   /* A cor da barra e da tela de abertura é a do fundo da chegada: outra cor
    * pisca antes do primeiro quadro. */
-  const css = semComentarios(lerTexto(path.join(SITE, 'style.css')));
+  const css = semComentarios(lerTexto(path.join(SITE, 'theme.css')));
   const fundo = css.match(/--fundo:\s*(#[0-9a-f]{6})/i)[1].toLowerCase();
   assert.equal(m.background_color.toLowerCase(), fundo, 'background_color não é o --fundo');
   assert.equal(m.theme_color.toLowerCase(), fundo, 'theme_color não é o --fundo');
@@ -8112,8 +8120,8 @@ test('sem a permissão estrutura, a tela não oferece o que o servidor recusa', 
  * item existe e abre o vazio, ou a tela existe e ninguém chega nela. */
 test('a tela Estrutura está no menu, na trilha e no centro', () => {
   const mesa = semComentarios(lerTexto(path.join(SITE, 'mesa.js')));
-  assert.match(mesa, /itemMenu\('estrutura', 'estrutura', 'Estrutura'\)/);
-  assert.match(mesa, /st\.tela === 'estrutura' \? \['Ajustes', 'Estrutura'\]/);
+  assert.match(mesa, /itemMenu\('estrutura', 'estrutura', tr\('mesa\.estrutura'\)\)/);
+  assert.match(mesa, /st\.tela === 'estrutura' \? \[tr\('mesa\.ajustes'\), tr\('mesa\.estrutura'\)\]/);
   assert.match(mesa, /st\.tela === 'estrutura' \? M\.telaEstrutura\(cat\)/);
   /* E ela NÃO é uma tela do quadro: o centro dela é a lista, não o site. */
   const noQuadro = mesa.match(/var NO_QUADRO = \{([^}]*)\}/);
@@ -8448,8 +8456,8 @@ test('a tela do histórico desfaz pelo rascunho, e restaura pelo servidor', () =
   assert.match(telas, /'data-acao': 'hist-restaurar'[\s\S]{0,120}disabled: !M\.pode\('historico'\)/);
 
   /* E a tela existe nas três pontas: menu, trilha e centro. */
-  assert.match(mesa, /itemMenu\('historico', 'desfazer', 'Histórico'\)/);
-  assert.match(mesa, /st\.tela === 'historico' \? \['Catálogo', 'Histórico'\]/);
+  assert.match(mesa, /itemMenu\('historico', 'desfazer', tr\('mesa\.historico'\)\)/);
+  assert.match(mesa, /st\.tela === 'historico' \? \[tr\('mesa\.catalogo'\), tr\('mesa\.historico'\)\]/);
   assert.match(mesa, /st\.tela === 'historico' \? M\.telaHistorico\(cat\)/);
   const noQuadro = mesa.match(/var NO_QUADRO = \{([^}]*)\}/);
   assert.ok(noQuadro && !noQuadro[1].includes('historico'));
@@ -8462,7 +8470,7 @@ test('ver o histórico é de todo admin; restaurar é que pede permissão', () =
   const get = rota.match(/export async function onRequestGet\(([\s\S]*?)\n\}/);
   assert.ok(get, 'não achei o GET do histórico');
   assert.ok(!/contaPode/.test(get[1]), 'o GET do histórico passou a exigir permissão, e todo admin vê tudo');
-  assert.match(get[1], /if \(!data\.admin\) return json\(401/);
+  assert.match(get[1], /if \(!data\.admin\) return erro\(401/);
 
   const post = rota.match(/export async function onRequestPost\(([\s\S]*?)\n\}/);
   assert.ok(post, 'não achei o POST do histórico');
@@ -9002,7 +9010,8 @@ test('a mesa põe na busca no envio, depois do Publicar, e pelo botão da visão
   assert.match(mesa, /M\.carregarBusca\(\)/, 'a mesa não lê o índice da busca ao abrir');
 
   /* E a mesa carrega o mesmo indice-core.js do script. */
-  assert.match(lerTexto(path.join(SITE, 'admin.html')), /<script src="indice-core\.js"><\/script>/);
+  assert.match(lerTexto(path.join(SITE, 'mesa-inicio.js')), /'indice-core\.js'/);
+  assert.match(lerTexto(path.join(SITE, 'admin.html')), /<script src="mesa-inicio\.js"><\/script>/);
 });
 
 /* A fala desce na primeira busca, e nunca na chegada. */
@@ -9257,7 +9266,7 @@ test('o esqueleto da chegada está no HTML, fala uma frase só e para com menos 
   const grade = html.match(/<div id="conteudo-grade">([\s\S]*?)<\/main>/);
   assert.ok(grade, 'não achei o #conteudo-grade no index.html');
   assert.match(grade[1], /class="esqueleto" role="status"/, 'o esqueleto saiu do #conteudo-grade, ou perdeu o role="status"');
-  assert.match(grade[1], /<span class="pular">Carregando[^<]*<\/span><div aria-hidden="true">/,
+  assert.match(grade[1], /<span class="pular"[^>]*>Carregando[^<]*<\/span><div aria-hidden="true">/,
     'o esqueleto não diz "carregando" a quem ouve, ou os retângulos deixaram de ser escondidos do leitor de tela');
   assert.ok(!/<img\b/.test(grade[1]), 'o esqueleto ganhou imagem — ela viraria o LCP e um pedido a mais');
 
@@ -9291,12 +9300,12 @@ test('os estados vazios e de erro passam todos pela mesma peça, com saída à m
     const i = app.indexOf(marca);
     return app.slice(app.lastIndexOf('estadoVazio({', i), app.indexOf('}));', i));
   };
-  assert.match(fatia("titulo: frase('buscaVazia')"), /rotulo: 'Limpar a busca'/);
-  assert.match(fatia("titulo: frase('fichaAusente')"), /rotulo: 'Voltar ao início'/);
+  assert.match(fatia("titulo: frase('buscaVazia')"), /rotulo: tr\('site\.limparBusca'\)/);
+  assert.match(fatia("titulo: frase('fichaAusente')"), /rotulo: tr\('comum\.voltarAoInicio'\)/);
   const erro = fatia("titulo: frase('erroCatalogo')");
-  assert.match(erro, /rotulo: 'Tentar de novo'[\s\S]*window\.location\.reload\(\)/);
+  assert.match(erro, /rotulo: tr\('site\.tentarDeNovo'\)[\s\S]*window\.location\.reload\(\)/);
   assert.match(erro, /erro: true/, 'a falha de rede deixou de ser role="alert"');
-  assert.match(erro, /detalhe: 'Detalhe técnico: ' \+ erro\.message/,
+  assert.match(erro, /detalhe: tr\('site\.detalheTecnico', \{ mensagem: erro\.message \}\)/,
     'a mensagem técnica sumiu, ou voltou para dentro da frase editável');
 
   /* O filtro de série só oferece série que está na resposta (D8): com ele
@@ -9537,7 +9546,7 @@ test('o app.js tira a camada: com o cinema depois da capa, sem ele em todo o res
   assert.match(abrir[1], /addEventListener\('error', pronto\)/, 'a capa que falha prenderia a camada até o teto');
   const iniciar = app.match(/function iniciar\(\)\s*\{([\s\S]*?)\n  \}/)[1];
   assert.match(iniciar, /rotear\(\);\s*abrirChegada\(\);/, 'a chegada desenhada não chama a abertura');
-  assert.match(iniciar, /\.catch\(function \(erro\) \{\s*soltarAbertura\(false\);/,
+  assert.match(iniciar, /\.then\(function \(erro\) \{\s*if \(!erro\) return;\s*soltarAbertura\(false\);/,
     'o catálogo que falha deixa a camada por cima da mensagem de erro');
   assert.ok(!/abertura[\s\S]{0,80}\.style\.opacity/.test(app), 'o app.js mexe na opacidade pela abertura');
 });

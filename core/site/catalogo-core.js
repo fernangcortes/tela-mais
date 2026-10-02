@@ -13,20 +13,35 @@
   var PREFIXO = (raiz && typeof raiz.APP_PREFIXO === 'string' &&
     /^[A-Za-z0-9_-]{1,12}$/.test(raiz.APP_PREFIXO)) ? raiz.APP_PREFIXO : 'tm';
 
+  /* A tradução (i18n.js): `t()` lê a instância global, que o app.js (site), a mesa
+   * ou o Worker/teste (pt-BR embutido) já preencheram. Quem usa este arquivo sem
+   * o i18n.js carregado recebe a própria chave de volta — feio, mas sem quebrar. */
+  var I18n = raiz.AppI18n || (typeof require === 'function' ? require('./i18n.js') : null);
+  function tr(chave, params) { return I18n ? I18n.t(chave, params) : chave; }
+  function idiomaAtual() { return I18n ? I18n.idioma() : 'pt-BR'; }
+  /* Tabelas de rótulos como objeto: cada leitura `TABELA[chave]` resolve o texto
+   * NA HORA, no idioma de agora (getter), então a troca de idioma vale sem
+   * recarregar e o código antigo, que lia `ROTULO[x]`, segue igual. */
+  function tabelaT(prefixo, chaves) {
+    var tabela = {};
+    chaves.forEach(function (k) {
+      Object.defineProperty(tabela, k, { enumerable: true, get: function () { return tr(prefixo + k); } });
+    });
+    return tabela;
+  }
+  /* O nome de quem não tem série: é rótulo de tela E chave de agrupamento, por
+   * isso vem sempre desta função. */
+  function semSerie() { return tr('catalogo.semSerie'); }
+
   var PLAYER_BASE = 'https://player.mediadelivery.net/embed';
 
   /* Rótulos de triagem — não são séries de verdade, vão para o fim da grade. */
-  var SERIES_AO_FIM = ['A classificar', 'A identificar'];
+  var SERIES_AO_FIM = ['A classificar', 'A identificar']; /* i18n-ignorar: nome de série (dado do acervo) */
 
-  var ROTULO_PENDENCIA = {
-    audio_sem_trilha: 'Áudio sem trilha',
-    sem_identificacao: 'Sem identificação',
-    direitos_a_verificar: 'Direitos a verificar',
-    piloto_decidir: 'Piloto — publicação a decidir',
-    material_bruto: 'Material bruto — não publicar',
-    versao_duplicada: 'Versão duplicada — escolher uma',
-    nao_e_conteudo: 'Não é conteúdo — cartela ou sobra'
-  };
+  var ROTULO_PENDENCIA = tabelaT('pendencia.', [
+    'audio_sem_trilha', 'sem_identificacao', 'direitos_a_verificar', 'piloto_decidir',
+    'material_bruto', 'versao_duplicada', 'nao_e_conteudo'
+  ]);
 
   /* ---------------------------------------------------------------- texto */
 
@@ -132,10 +147,8 @@
     var s = Number(segundos);
     if (segundos == null || !isFinite(s) || s <= 0) return '';
     var min = Math.max(1, Math.round(s / 60));
-    if (min < 60) return min + ' min';
-    var h = Math.floor(min / 60);
-    var resto = min % 60;
-    return resto ? h + ' h ' + resto + ' min' : h + ' h';
+    /* "5 min", "1 h 5 min": as unidades vêm do Intl, no idioma de agora. */
+    return I18n ? I18n.formatarDuracao(min * 60, idiomaAtual()) : min + ' min';
   }
 
   /* "Parte 3", "Episódio 2" — o número que `tituloCurto` tirou do nome.
@@ -147,11 +160,11 @@
    * outros. */
   function rotuloNumero(item) {
     var m = String((item && item.titulo) || '')
-      .match(/\((epis[oó]dio|parte)\s+([^)]+)\)\s*$/i);
+      .match(/\((epis[oó]dio|episode|parte|part)\s+([^)]+)\)\s*$/i);
     if (m) {
-      return (normalizar(m[1]) === 'parte' ? 'Parte ' : 'Episódio ') + m[2].trim();
+      return tr(/^part/.test(normalizar(m[1])) ? 'catalogo.parte' : 'catalogo.episodio', { n: m[2].trim() });
     }
-    if (item && item.episodio != null) return 'Episódio ' + item.episodio;
+    if (item && item.episodio != null) return tr('catalogo.episodio', { n: item.episodio });
     return '';
   }
 
@@ -372,7 +385,7 @@
   }
 
   function chaveSerie(serie) {
-    var nome = serie || 'Sem série';
+    var nome = serie || semSerie();
     var atrasa = SERIES_AO_FIM.indexOf(nome) >= 0 ? 1 : 0;
     return atrasa + '' + normalizar(nome);
   }
@@ -390,7 +403,7 @@
       var ea = a.episodio == null ? alto : a.episodio;
       var eb = b.episodio == null ? alto : b.episodio;
       if (ea !== eb) return ea - eb;
-      return normalizar(a.titulo).localeCompare(normalizar(b.titulo), 'pt');
+      return normalizar(a.titulo).localeCompare(normalizar(b.titulo), idiomaAtual());
     });
   }
 
@@ -454,7 +467,7 @@
     return lista.sort(function (a, b) {
       var ka = chave(a), kb = chave(b);
       if (ka == null || kb == null) return ka == null ? (kb == null ? 0 : 1) : -1;
-      return sinal * (typeof ka === 'string' ? ka.localeCompare(kb, 'pt') : ka - kb);
+      return sinal * (typeof ka === 'string' ? ka.localeCompare(kb, idiomaAtual()) : ka - kb);
     });
   }
 
@@ -462,7 +475,7 @@
     var grupos = [];
     var indice = Object.create(null);
     ordenar(itens).forEach(function (item) {
-      var nome = item.serie || 'Sem série';
+      var nome = item.serie || semSerie();
       if (!(nome in indice)) {
         indice[nome] = grupos.length;
         grupos.push({ serie: nome, itens: [] });
@@ -508,20 +521,10 @@
    * NÃO moram aqui: o `app.js` os põe em linha própria. Um texto editável com
    * um buraco no meio é um texto que a próxima pessoa reescreve sem o buraco,
    * e aí o detalhe some. */
-  var TEXTOS_PADRAO = {
-    rodape: 'Plataforma Exemplo.',
-    semCapa: 'Sem imagem',
-    videoIndisponivel: 'Vídeo indisponível',
-    buscaVazia: 'Nenhum vídeo encontrado',
-    buscaVaziaAjuda: 'Confira a grafia ou tente uma palavra só. ' +
-      'A busca também procura no que é falado nos vídeos.',
-    fichaAusente: 'Este vídeo não está no catálogo',
-    fichaAusenteAjuda: 'O link pode estar incompleto, ou o vídeo saiu do ar. ' +
-      'Procure pelo nome na busca.',
-    erroCatalogo: 'O catálogo não carregou',
-    erroCatalogoAjuda: 'Pode ser a conexão. Tente de novo em alguns instantes; ' +
-      'se continuar, avise a equipe técnica.'
-  };
+  var TEXTOS_PADRAO = tabelaT('site.', [
+    'rodape', 'semCapa', 'videoIndisponivel', 'buscaVazia', 'buscaVaziaAjuda',
+    'fichaAusente', 'fichaAusenteAjuda', 'erroCatalogo', 'erroCatalogoAjuda'
+  ]);
 
   /* Texto de tela, não de artigo: o maior padrão tem 118 caracteres. O limite
    * é o que impede que um `paste` de uma página inteira vá para o KV e volte
@@ -673,7 +676,7 @@
     if (!nome) return null;
     var dado = siteSaneado(site).series[nome];
     if (!dado) return null;
-    var daSerie = publicaveis(itens).filter(function (i) { return (i.serie || 'Sem série') === nome; });
+    var daSerie = publicaveis(itens).filter(function (i) { return (i.serie || semSerie()) === nome; });
     if (!daSerie.length) return null;
 
     var comeco = dado.comeco ? porId(daSerie, dado.comeco) : null;
@@ -709,7 +712,7 @@
     var algum = Object.keys(series).some(function (n) { return (series[n].temas || []).length; });
     if (!algum) return itens || [];
     return (itens || []).map(function (i) {
-      var s = i && series[i.serie || 'Sem série'];
+      var s = i && series[i.serie || semSerie()];
       if (!s || !(s.temas || []).length) return i;
       var copia = Object.assign({}, i);
       copia.tags = (Array.isArray(i.tags) ? i.tags : []).concat(s.temas);
@@ -787,7 +790,7 @@
     var m = ondeParouSaneado(mapa);
     var melhor = null;
     publicaveis(itens).forEach(function (i) {
-      if ((i.serie || 'Sem série') !== nome) return;
+      if ((i.serie || semSerie()) !== nome) return;
       var e = m[i.id];
       if (!e || pertoDoFim(e.t, e.d)) return;
       if (!melhor || e.q > melhor.q) melhor = { item: i, t: e.t, q: e.q, link: linkDaFicha(i.id, e.t) };
@@ -899,7 +902,7 @@
    * "Mais séries" — o site não pode esconder título por causa de uma lista
    * desatualizada. Quem avisa é o teste, não a tela. */
   var SERIES_INSTITUCIONAIS = [
-    'Institucional', 'Eventos', 'Bastidores', 'A classificar'
+    'Institucional', 'Eventos', 'Bastidores', 'A classificar'   /* i18n-ignorar: nomes de série (dado do acervo), não texto de tela */
   ];
 
   /* Séries de UM título, de poucos minutos cada. Juntas viram uma prateleira;
@@ -960,7 +963,7 @@
         i.duracao_seg > 0 && i.duracao_seg <= SEGUNDOS_CURTO;
     });
     if (curtos.length >= MINIMO_PRATELEIRA) {
-      saida.push({ id: 'curtos', titulo: 'Até 5 minutos', itens: curtos });
+      saida.push({ id: 'curtos', titulo: tr('catalogo.ate', { min: SEGUNDOS_CURTO / 60 }), itens: curtos });
     }
 
     /* As séries pedagógicas que não são curtas, agrupadas. */
@@ -968,7 +971,7 @@
     var indice = Object.create(null);
     base.forEach(function (i) {
       if (ehInstitucional(i, site) || ehCurta(i, site)) return;
-      var nome = i.serie || 'Sem série';
+      var nome = i.serie || semSerie();
       if (!(nome in indice)) { indice[nome] = porSerie.length; porSerie.push({ serie: nome, itens: [] }); }
       porSerie[indice[nome]].itens.push(i);
     });
@@ -976,7 +979,7 @@
     var grandes = porSerie.filter(function (g) { return g.itens.length >= MINIMO_PRATELEIRA; });
     grandes.sort(function (a, b) {
       if (a.itens.length !== b.itens.length) return b.itens.length - a.itens.length;
-      return normalizar(a.serie).localeCompare(normalizar(b.serie), 'pt');
+      return normalizar(a.serie).localeCompare(normalizar(b.serie), idiomaAtual());
     });
     grandes.forEach(function (g) {
       saida.push({ id: 'serie:' + g.serie, titulo: g.serie, itens: g.itens });
@@ -991,13 +994,13 @@
     porSerie.forEach(function (g) {
       if (g.itens.length < MINIMO_PRATELEIRA) restos = restos.concat(g.itens);
     });
-    if (restos.length) saida.push({ id: 'mais-series', titulo: 'Mais séries', itens: ordenar(restos) });
+    if (restos.length) saida.push({ id: 'mais-series', titulo: tr('catalogo.maisSeries'), itens: ordenar(restos) });
 
     var curtas = base.filter(function (i) { return ehCurta(i, site); });
-    if (curtas.length) saida.push({ id: 'curtas', titulo: 'Curtas', itens: curtas });
+    if (curtas.length) saida.push({ id: 'curtas', titulo: tr('catalogo.curtas'), itens: curtas });
 
     var inst = base.filter(function (i) { return ehInstitucional(i, site); });
-    if (inst.length) saida.push({ id: 'institucional', titulo: 'Institucional', itens: inst });
+    if (inst.length) saida.push({ id: 'institucional', titulo: tr('catalogo.institucional'), itens: inst });
 
     return comEscolhasDaMesa(saida, site);
   }
@@ -1117,13 +1120,15 @@
    * para as séries em geral (pedagógicas e curtas) e o que é institucional.
    * A página Séries agrupa por eles, e a página de uma série diz de que lado
    * ela está — um nome só para as duas telas. */
-  var GRUPOS_DE_SERIE = [
-    { id: 'series', titulo: 'Séries' },
-    { id: 'institucional', titulo: 'Institucional' }
-  ];
+  function gruposDeSerie() {
+    return [
+      { id: 'series', titulo: tr('catalogo.series') },
+      { id: 'institucional', titulo: tr('catalogo.institucional') }
+    ];
+  }
 
   function grupoDaSerie(nome, site) {
-    return GRUPOS_DE_SERIE[classeDaSerie(nome, site) === 'institucional' ? 1 : 0];
+    return gruposDeSerie()[classeDaSerie(nome, site) === 'institucional' ? 1 : 0];
   }
 
   /* Abaixo disto a série não tem página própria — uma decisão de
@@ -1151,7 +1156,7 @@
     var porNome = Object.create(null);
     var nomes = [];
     ordenar(publicaveis(itens)).forEach(function (i) {
-      var nome = i.serie || 'Sem série';
+      var nome = i.serie || semSerie();
       if (!(nome in porNome)) {
         porNome[nome] = { nome: nome, itens: [], segundos: 0, temPagina: false };
         nomes.push(nome);
@@ -1160,11 +1165,11 @@
       if (typeof i.duracao_seg === 'number' && i.duracao_seg > 0) porNome[nome].segundos += i.duracao_seg;
     });
 
-    var porGrupo = GRUPOS_DE_SERIE.map(function (g) { return { id: g.id, titulo: g.titulo, series: [] }; });
+    var porGrupo = gruposDeSerie().map(function (g) { return { id: g.id, titulo: g.titulo, series: [] }; });
     nomes.forEach(function (nome) {
       var s = porNome[nome];
       s.temPagina = s.itens.length >= MINIMO_PAGINA_SERIE;
-      porGrupo[GRUPOS_DE_SERIE.indexOf(grupoDaSerie(nome, site))].series.push(s);
+      porGrupo[grupoDaSerie(nome, site).id === 'institucional' ? 1 : 0].series.push(s);
     });
     return porGrupo.filter(function (g) { return g.series.length; });
   }
@@ -1224,20 +1229,20 @@
    * com temporada e sem: ele vem por último, pela ordem de `ordenar()`, e o
    * nome diz o que ele é em vez de inventar um número. */
   function rotuloTemporada(temporada) {
-    return temporada == null ? 'Sem temporada' : 'Temporada ' + temporada;
+    return temporada == null ? tr('catalogo.semTemporada') : tr('catalogo.temporada', { n: temporada });
   }
 
   /* "2023 a 2025", ou "2024" quando é um ano só. */
   function formatarAnos(anos) {
     if (!anos) return '';
-    return anos.de === anos.ate ? String(anos.de) : anos.de + ' a ' + anos.ate;
+    return anos.de === anos.ate ? String(anos.de) : tr('catalogo.anos', { de: anos.de, ate: anos.ate });
   }
 
   function series(itens) {
     var vistas = Object.create(null);
     var nomes = [];
     ordenar(itens).forEach(function (i) {
-      var nome = i.serie || 'Sem série';
+      var nome = i.serie || semSerie();
       if (!vistas[nome]) { vistas[nome] = true; nomes.push(nome); }
     });
     return nomes;
@@ -1279,7 +1284,7 @@
 
   function filtrarPorSerie(itens, serie) {
     if (!serie) return (itens || []).slice();
-    return (itens || []).filter(function (i) { return (i.serie || 'Sem série') === serie; });
+    return (itens || []).filter(function (i) { return (i.serie || semSerie()) === serie; });
   }
 
   function porId(itens, id) {
@@ -1298,7 +1303,7 @@
   function vizinhos(itens, id) {
     var atual = porId(itens, id);
     if (!atual) return { anterior: null, proximo: null };
-    var pagina = paginaDaSerie(itens, atual.serie || 'Sem série');
+    var pagina = paginaDaSerie(itens, atual.serie || semSerie());
     var irmaos = pagina ? pagina.itens : [];
     var pos = irmaos.findIndex(function (i) { return i.id === id; });
     if (pos < 0) return { anterior: null, proximo: null };
@@ -1553,14 +1558,14 @@
   /* A frase da linha do tempo. Some com o que é zero: "3 títulos · estrutura"
    * diz mais do que "3 títulos, 0 ajustes, 0 novos, 0 removidos". */
   function resumoDeMudancas(conta) {
-    if (!conta || !conta.total) return 'nada mudou';
+    if (!conta || !conta.total) return tr('catalogo.nadaMudou');
     var partes = [];
-    if (conta.titulos) partes.push(conta.titulos + (conta.titulos === 1 ? ' título' : ' títulos'));
-    if (conta.novos) partes.push(conta.novos + (conta.novos === 1 ? ' novo' : ' novos'));
-    if (conta.removidos) partes.push(conta.removidos + (conta.removidos === 1 ? ' removido' : ' removidos'));
-    if (conta.estrutura) partes.push('estrutura');
-    if (conta.ajustes) partes.push('player');
-    return partes.join(' · ') || conta.total + ' alterações';
+    if (conta.titulos) partes.push(tr('catalogo.resumoTitulos', { n: conta.titulos }));
+    if (conta.novos) partes.push(tr('catalogo.resumoNovos', { n: conta.novos }));
+    if (conta.removidos) partes.push(tr('catalogo.resumoRemovidos', { n: conta.removidos }));
+    if (conta.estrutura) partes.push(tr('catalogo.resumoEstrutura'));
+    if (conta.ajustes) partes.push(tr('catalogo.resumoPlayer'));
+    return partes.join(' · ') || tr('catalogo.resumoAlteracoes', { n: conta.total });
   }
 
   /* DESFAZER É UM RASCUNHO NOVO: a mesa monta a mudança contrária e ela
@@ -1586,23 +1591,9 @@
    * botão na tela é conveniência; segurança é isto aqui. */
   var PERMISSOES = ['conteudo', 'no-ar', 'enviar', 'estrutura', 'player', 'historico'];
 
-  var ROTULO_PERMISSAO = {
-    conteudo: 'Conteúdo',
-    'no-ar': 'Pôr e tirar do ar',
-    enviar: 'Enviar vídeo',
-    estrutura: 'Estrutura da chegada',
-    player: 'Ajustes do player',
-    historico: 'Histórico'
-  };
+  var ROTULO_PERMISSAO = tabelaT('permissao.', PERMISSOES);
 
-  var AJUDA_PERMISSAO = {
-    conteudo: 'título, série, número, ano, sinopse, tema, tags, capa e pendência — e o "Sobre" das séries',
-    'no-ar': 'pôr um título na chegada e tirar de lá',
-    enviar: 'subir vídeo novo ao Bunny — é o que ocupa armazenamento pago',
-    estrutura: 'o destaque da chegada, o nome e a ordem das prateleiras, a classe das séries e os textos fixos',
-    player: 'o arrasto e o sumiço dos controles',
-    historico: 'desfazer mudança de outra pessoa e restaurar versão (M5)'
-  };
+  var AJUDA_PERMISSAO = tabelaT('permissaoAjuda.', PERMISSOES);
 
   /* Os campos de um título que a permissão `conteudo` cobre. `publicar`,
    * `destaque` e os ajustes têm permissão própria; o resto — `fonte`, `id`,
@@ -1747,7 +1738,7 @@
       arquivo: c.arquivo || '',
       caminho_local: '',
       titulo: c.titulo || '',
-      serie: c.serie || 'A classificar',
+      serie: c.serie || 'A classificar', /* i18n-ignorar: nome de série (dado do acervo) */
       temporada: c.temporada == null ? null : Number(c.temporada),
       episodio: c.episodio == null ? null : Number(c.episodio),
       duracao: c.duracao || '',
@@ -1762,7 +1753,7 @@
       capa_local: null,
       legenda_local: null,
       titularidade: c.titularidade || 'INCONCLUSIVO',
-      nivel_evidencia: c.nivel_evidencia || 'SEM EVIDÊNCIA',
+      nivel_evidencia: c.nivel_evidencia || 'SEM EVIDÊNCIA', /* i18n-ignorar: valor de dado, não texto de tela */
       registro: '',
       link_origem: '',
       fonte: {
@@ -1831,7 +1822,8 @@
     SERIES_PEDAGOGICAS: SERIES_PEDAGOGICAS,
     MINIMO_PRATELEIRA: MINIMO_PRATELEIRA,
     series: series,
-    GRUPOS_DE_SERIE: GRUPOS_DE_SERIE,
+    gruposDeSerie: gruposDeSerie,
+    semSerie: semSerie,
     grupoDaSerie: grupoDaSerie,
     MINIMO_PAGINA_SERIE: MINIMO_PAGINA_SERIE,
     gruposDeSeries: gruposDeSeries,

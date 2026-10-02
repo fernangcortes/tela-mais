@@ -4,7 +4,7 @@
  * mantém os scripts de carga entrando do mesmo jeito (eles mandam só a senha).
  * Com `usuario`, é uma das contas criadas pelo superadmin, guardadas no KV.
  */
-import { json, emitirToken, iguaisEmTempoConstante, lerContas, acharConta, conferirSenha, contaSuper, segredoDeSessao } from '../_lib/sessao.js';
+import { json, erro, emitirToken, iguaisEmTempoConstante, lerContas, acharConta, conferirSenha, contaSuper, segredoDeSessao } from '../_lib/sessao.js';
 
 /* Atraso proposital: encarece a tentativa de adivinhar em série. A proteção de
  * verdade é o Cloudflare Access na frente do site (Task 5.2). */
@@ -17,18 +17,18 @@ export async function onRequestPost({ request, env }) {
    * quem instala, em vez de devolver um 500 misterioso depois de a senha
    * conferir. */
   if (!segredoDeSessao(env)) {
-    return json(503, { erro: 'SESSION_SECRET não configurada (mínimo 32 caracteres), separada da senha do admin' });
+    return erro(503, 'session-secret-ausente');
   }
   let corpo;
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   const senha = corpo && corpo.senha;
   if (typeof senha !== 'string' || !senha) {
-    return json(400, { erro: 'informe a senha' });
+    return erro(400, 'informe-senha');
   }
   const usuario = String((corpo && corpo.usuario) || '').trim().toLowerCase();
 
@@ -37,7 +37,7 @@ export async function onRequestPost({ request, env }) {
      * aceitaria a senha "undefined"). */
     if (!env.ADMIN_PASSWORD || !iguaisEmTempoConstante(senha, env.ADMIN_PASSWORD)) {
       await atraso();
-      return json(401, { erro: 'usuário ou senha incorretos' });
+      return erro(401, 'credenciais-incorretas');
     }
     return json(200, await emitirToken(env, contaSuper()));
   }
@@ -49,7 +49,7 @@ export async function onRequestPost({ request, env }) {
   const senhaConfere = await conferirSenha(senha, conta && conta.senha);
   if (!conta || conta.ativa === false || !senhaConfere) {
     await atraso();
-    return json(401, { erro: 'usuário ou senha incorretos' });
+    return erro(401, 'credenciais-incorretas');
   }
 
   return json(200, await emitirToken(env, conta));

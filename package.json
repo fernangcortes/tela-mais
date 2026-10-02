@@ -7,6 +7,8 @@
     "test": "node --test",
     "dev": "npx wrangler dev",
     "config:validar": "node scripts/validar-config.mjs",
-    "config:aplicar": "node scripts/aplicar-config.mjs"
+    "config:aplicar": "node scripts/aplicar-config.mjs",
+    "i18n:faltando": "node scripts/i18n-faltando.mjs",
+    "i18n:literais": "node scripts/i18n-literais.mjs"
   }
 }

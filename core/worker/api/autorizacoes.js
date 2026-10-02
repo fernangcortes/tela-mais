@@ -8,10 +8,10 @@
  * Quem cria o pedido é /api/upload-token, na hora do envio. Aprovar não sobe
  * o vídeo sozinho: só libera o próximo /api/upload-token com o mesmo pedidoId.
  */
-import { json, lerAutorizacoes, gravarAutorizacoes, acharPedido } from '../_lib/sessao.js';
+import { json, erro, lerAutorizacoes, gravarAutorizacoes, acharPedido } from '../_lib/sessao.js';
 
 function soSuper(data) {
-  return data.conta && data.conta.super === true ? null : json(403, { erro: 'só o superadmin decide pedidos de envio' });
+  return data.conta && data.conta.super === true ? null : erro(403, 'so-superadmin-pedidos');
 }
 
 export async function onRequestGet({ request, env, data }) {
@@ -20,9 +20,9 @@ export async function onRequestGet({ request, env, data }) {
 
   if (id) {
     const pedido = acharPedido(dados, id);
-    if (!pedido) return json(404, { erro: 'pedido não encontrado' });
+    if (!pedido) return erro(404, 'pedido-nao-encontrado');
     if (data.conta.super !== true && data.conta.usuario !== pedido.usuario) {
-      return json(403, { erro: 'este pedido não é desta conta' });
+      return erro(403, 'pedido-de-outra-conta');
     }
     return json(200, { pedido });
   }
@@ -40,13 +40,13 @@ export async function onRequestPut({ request, env, data }) {
   try {
     corpo = await request.json();
   } catch (e) {
-    return json(400, { erro: 'corpo inválido: esperado JSON' });
+    return erro(400, 'corpo-invalido');
   }
 
   const dados = await lerAutorizacoes(env);
   const pedido = acharPedido(dados, corpo && corpo.id);
-  if (!pedido) return json(404, { erro: 'pedido não encontrado' });
-  if (pedido.status !== 'aguardando') return json(409, { erro: 'este pedido já foi decidido' });
+  if (!pedido) return erro(404, 'pedido-nao-encontrado');
+  if (pedido.status !== 'aguardando') return erro(409, 'pedido-ja-decidido');
 
   pedido.status = corpo.aprovado === true ? 'aprovado' : 'recusado';
   pedido.decidido_em = new Date().toISOString();

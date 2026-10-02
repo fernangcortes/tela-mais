@@ -8,6 +8,9 @@
  * cliente edita, e `"` ou `<` ali não podem quebrar a página.
  */
 import { ehReferenciaEnv } from '../../core/worker/_lib/config-validar.mjs';
+import { paraRgb } from '../../core/worker/_lib/contraste.mjs';
+import { resolverTema, fundoDaChegada, pilhaDeFontes, fontesDeArquivo } from '../../core/worker/_lib/tema.mjs';
+import { textoDeFabrica } from '../../core/worker/_lib/i18n-catalogos.mjs';
 
 export const MARCADOR_INICIO = '<!-- config:inicio -->';
 export const MARCADOR_FIM = '<!-- config:fim -->';
@@ -31,37 +34,118 @@ export function indexavel(config) {
 }
 
 export function tituloBase(config) {
-  return interpolar(config.seo.titulo, config).trim() || config.marca.nome;
+  /* Sem seo.titulo escrito, o título-base é o texto de fábrica do idioma padrão
+   * ("{marca} — catálogo", "{marca} — catalog"...): a página acompanha o idioma. */
+  return interpolar(config.seo.titulo, config).trim() ||
+    textoDeFabrica('site.tituloBase', config.idiomas.padrao, { marca: config.marca.nome });
 }
 
-const TOKENS_CSS = [
+/* chave do schema -> variável CSS. Os nomes das variáveis são os que o style.css
+ * e o mesa.css já usam: renomear aqui é renomear em todo o CSS. */
+const TOKENS_DE_COR = [
   ['marca', '--marca'], ['marcaClara', '--marca-clara'], ['marcaFraca', '--marca-fraca'],
   ['marca2', '--marca-alt'], ['marca3', '--marca-destaque'],
+  ['textoSobreMarca', '--texto-sobre-marca'], ['textoSobreDestaque', '--texto-sobre-destaque'],
   ['fundo', '--fundo'], ['superficie', '--superficie'],
-  ['borda', '--borda'], ['contorno', '--contorno'],
   ['texto', '--texto'], ['textoFraco', '--texto-fraco'],
+  ['borda', '--borda'], ['contorno', '--contorno'],
   ['alerta', '--alerta'], ['alertaFundo', '--alerta-fundo'],
-  ['erro', '--erro'], ['erroFundo', '--erro-fundo']
+  ['erro', '--erro'], ['erroFundo', '--erro-fundo'],
+  ['mesaFundo', '--mesa-fundo'], ['mesaPainel', '--painel'], ['mesaPainelAlto', '--painel-alto']
 ];
 
+/* Cores com transparência que dependem do tema (esmaecer o fundo na ponta das setas
+ * das prateleiras, o brilho do rascunho na mesa): calculadas aqui para o CSS não
+ * precisar de `rgba(...)` solto nem de color-mix(). [variável, chave, alfa] */
+const TOKENS_DE_ALFA = [
+  ['--fundo-96', 'fundo', 0.96], ['--fundo-72', 'fundo', 0.72], ['--marca-destaque-08', 'marca3', 0.08]
+];
+
+const ESPACOS = [1, 2, 3, 4, 6, 8, 12, 16];   /* --esp-1..8, em múltiplos da unidade */
+
+function rgbComAlfa(hex, alfa) {
+  const [r, g, b] = paraRgb(hex);
+  return `rgb(${r} ${g} ${b} / ${alfa})`;
+}
+
+function linhasDeCor(paleta, recuo) {
+  const linhas = TOKENS_DE_COR.map(([k, v]) => `${recuo}${v}: ${paleta[k]};`);
+  for (const [v, k, alfa] of TOKENS_DE_ALFA) linhas.push(`${recuo}${v}: ${rgbComAlfa(paleta[k], alfa)};`);
+  return linhas;
+}
+
+/* Arquivos de fonte que o tema pede: [{ slot, familia, arquivo, peso }]. */
+export function planejarFontes(config) {
+  return fontesDeArquivo(resolverTema(config));
+}
+
+export const PASTA_FONTES_SITE = 'fontes';   /* dentro de core/site/ */
+
+/* theme.css = TODA a parte do visual que o config controla: paleta (um bloco por
+ * modo), formas, escala de tipo, pilhas de fonte e @font-face. É o único arquivo
+ * (junto de tokens-fixos.css) onde cor literal pode existir; o resto do CSS só usa
+ * var(--...). Determinístico: mesma config, mesmo texto, para o `--verificar`. */
 export function gerarThemeCss(config) {
-  const c = config.tema.cores.escuro;
-  const linhas = TOKENS_CSS.filter(([k]) => c[k]).map(([k, v]) => `  ${v}: ${c[k].toLowerCase()};`);
-  return [
+  const tema = resolverTema(config);
+  const { forma, tipografia: tip, cores } = tema;
+  const out = [
     '/* GERADO por scripts/aplicar-config.mjs a partir de config/site.json. Não edite à mão:',
-    ' * mude as cores em tema.cores.escuro e rode `node scripts/aplicar-config.mjs`.',
-    ' * Carrega depois do style.css e só troca os valores das variáveis. */',
-    ':root {',
-    ...linhas,
-    '}',
-    ''
-  ].join('\n');
+    ` * tema "${tema.preset}", modo "${tema.modo}". Para mudar, troque tema.* no config e rode`,
+    ' * `node scripts/aplicar-config.mjs`. Carrega depois do style.css. */'
+  ];
+
+  for (const f of fontesDeArquivo(tema)) {
+    out.push('@font-face {',
+      `  font-family: "${f.familia}";`,
+      `  src: url("${PASTA_FONTES_SITE}/${f.arquivo}") format("woff2");`,
+      `  font-weight: ${f.peso};`,
+      '  font-style: normal;',
+      '  font-display: swap;',
+      '}');
+  }
+
+  const corpo = pilhaDeFontes(tip.corpo, tip.reserva);
+  const titulo = tip.titulo ? pilhaDeFontes(tip.titulo, tip.reservaTitulo || tip.reserva) : (tip.reservaTitulo || 'var(--fonte-corpo)');
+  const mono = pilhaDeFontes(tip.mono, tip.reservaMono);
+  const geometria = [
+    `  --raio: ${forma.raioPx}px;`,
+    `  --sombra: ${forma.sombra};`,
+    `  --largura: ${forma.larguraMaximaPx}px;`,
+    ...ESPACOS.map((m, i) => `  --esp-${i + 1}: ${m * forma.espacoBasePx}px;`),
+    ...Object.entries(tip.escala).map(([k, v]) => `  --tipo-${k}: ${v}px;`),
+    `  --fonte-corpo: ${corpo};`,
+    `  --fonte-titulo: ${titulo};`,
+    `  --fonte-mono: ${mono};`,
+    `  --curva: ${tema.movimento.curva};`
+  ];
+
+  /* O :root pinta o modo escolhido; em "auto" pinta o escuro e o claro entra por
+   * prefers-color-scheme (ou à força, com data-tema="claro" no <html>, que é o gancho
+   * do botão de tema do futuro editor). O escuro volta à força com data-tema="escuro". */
+  const principal = tema.modo === 'claro' ? 'claro' : 'escuro';
+  /* Qual dos dois logos aparece: o de fundo escuro tem o texto claro e some sobre
+   * fundo claro, e vice-versa. O HTML traz os dois; o tema escolhe pelo display. */
+  const logos = (modo, ind) => [
+    `${ind}--logo-fundo-escuro: ${modo === 'escuro' ? 'inline-block' : 'none'};`,
+    `${ind}--logo-fundo-claro: ${modo === 'claro' ? 'inline-block' : 'none'};`
+  ];
+  out.push(':root {', `  color-scheme: ${principal === 'claro' ? 'light' : 'dark'};`, ...linhasDeCor(cores[principal], '  '), ...logos(principal, '  '), ...geometria, '}');
+  if (tema.modo === 'auto') {
+    out.push(
+      '@media (prefers-color-scheme: light) {',
+      '  :root:not([data-tema="escuro"]) {', '    color-scheme: light;', ...linhasDeCor(cores.claro, '    '), ...logos('claro', '    '), '  }',
+      '}',
+      ':root[data-tema="claro"] {', '  color-scheme: light;', ...linhasDeCor(cores.claro, '  '), ...logos('claro', '  '), '}'
+    );
+  }
+  out.push('');
+  return out.join('\n');
 }
 
 export function gerarManifest(config) {
   const m = config.marca;
   const a = m.arquivos;
-  const fundo = config.tema.cores.escuro.fundo.toLowerCase();
+  const fundo = fundoDaChegada(resolverTema(config));
   const icones = [
     { src: '/' + a.icone192, sizes: '192x192', type: 'image/png', purpose: 'any' },
     { src: '/' + a.icone512, sizes: '512x512', type: 'image/png', purpose: 'any' }
@@ -95,8 +179,6 @@ export function gerarRobots(config) {
  * referência {"$env"} escapou. */
 export function gerarPublico(config) {
   const idioma = config.idiomas.padrao;
-  const textos = JSON.parse(JSON.stringify(config.textos || {}));
-  textos[idioma] = { rodape: config.marca.nome + '.', ...(textos[idioma] || {}) };
   const m = config.marca;
   const pub = {
     versaoDoEsquema: config.versaoDoEsquema,
@@ -106,12 +188,13 @@ export function gerarPublico(config) {
       prefixoDeArmazenamento: m.prefixoDeArmazenamento
     },
     tituloBase: tituloBase(config),
-    tema: { modo: config.tema.modo },
+    tema: { preset: resolverTema(config).preset, modo: resolverTema(config).modo },
     idiomas: {
       padrao: idioma, disponiveis: config.idiomas.disponiveis,
       detectarDoNavegador: config.idiomas.detectarDoNavegador, seletorVisivel: config.idiomas.seletorVisivel
     },
-    textos,
+    /* Os textos do cliente (config.textos) não vão aqui: entram, já mesclados, em
+     * locales/<idioma>.json (scripts/lib/i18n-gerar.mjs). */
     acesso: { modo: config.acesso.modo },
     recursos: {
       busca: config.recursos.busca,
@@ -132,16 +215,26 @@ function contemEnv(v) {
   return false;
 }
 
+/* A cor da barra do navegador. Em "auto" são duas metas com media, para o
+ * celular em tema claro não ganhar uma barra escura (e vice-versa). */
+function metasThemeColor(tema) {
+  if (tema.modo !== 'auto') return [`<meta name="theme-color" content="${fundoDaChegada(tema)}">`];
+  return [
+    `<meta name="theme-color" content="${tema.cores.escuro.fundo}" media="(prefers-color-scheme: dark)">`,
+    `<meta name="theme-color" content="${tema.cores.claro.fundo}" media="(prefers-color-scheme: light)">`
+  ];
+}
+
 /* O bloco entre os marcadores do <head>. `pagina` = 'index' | 'admin'.
  * A mesa (/admin) nunca é indexável e não carrega o og:*; o og:image fica
  * como caminho relativo porque o Worker o torna absoluto na entrega. */
 export function gerarBlocoHead(config, pagina) {
   const robots = pagina === 'index' && indexavel(config) ? 'index, follow' : 'noindex, nofollow, noarchive';
-  const fundo = config.tema.cores.escuro.fundo.toLowerCase();
+  const tema = resolverTema(config);
   if (pagina === 'admin') {
     return [
       `<meta name="robots" content="${robots}">`,
-      `<title>Mesa de Curadoria — ${esc(config.marca.nome)}</title>`
+      `<title>${esc(textoDeFabrica('mesa.tituloDaMesa', config.idiomas.padrao))} — ${esc(config.marca.nome)}</title>`
     ].join('\n');
   }
   const titulo = esc(tituloBase(config));
@@ -150,7 +243,7 @@ export function gerarBlocoHead(config, pagina) {
     `<meta name="robots" content="${robots}">`,
     `<title>${titulo}</title>`,
     `<meta name="description" content="${desc}">`,
-    `<meta name="theme-color" content="${fundo}">`,
+    ...metasThemeColor(tema),
     `<meta property="og:title" content="${titulo}">`,
     `<meta property="og:description" content="${desc}">`,
     `<meta property="og:image" content="${esc(config.marca.arquivos.imagemDeCompartilhamento)}">`,
