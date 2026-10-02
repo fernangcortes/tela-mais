@@ -48,11 +48,11 @@ jobs:
           [ -n "$BACKUP_REPO_TOKEN" ] || faltando="$faltando BACKUP_REPO_TOKEN"
           if [ -n "$faltando" ]; then echo "::error::Faltam:$faltando (veja docs/atualizar.md)"; exit 1; fi
           case "$BACKUP_REPOSITORIO" in */*) ;; *) echo "::error::BACKUP_REPOSITORIO precisa ser dono/nome"; exit 1;; esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ vars.BACKUP_REPOSITORIO }}
           token: ${{ secrets.BACKUP_REPO_TOKEN }}
