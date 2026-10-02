@@ -145,3 +145,22 @@ export async function exigirLogin(ctx, wr, { contaId } = {}) {
   if (escolhida) ctx.env.CLOUDFLARE_ACCOUNT_ID = escolhida;
   return quem;
 }
+
+/* Grava uma variável PÚBLICA (não secreta) em `vars` do wrangler.jsonc, criando o bloco se não existir. */
+export async function gravarVarNoWrangler(raiz, nome, valor, { dryRun = false } = {}) {
+  const w = await lerWrangler(raiz);
+  if (!w.existe) throw falha('sem-wrangler', 'não encontrei wrangler.jsonc na raiz do projeto.');
+  let texto = w.texto;
+  let mudou = false;
+  const r = definirCampo(texto, /(?<="vars"\s*:\s*)\{/, nome, valor);
+  if (r.achou) { texto = r.texto; mudou = r.mudou; }
+  else {
+    const m = /^([ \t]*)"observability"/m.exec(texto);
+    const bloco = `  // Variáveis públicas (não secretas). Segredos nunca entram aqui.\n  "vars": { ${JSON.stringify(nome)}: ${JSON.stringify(valor)} },\n\n`;
+    if (m) texto = texto.slice(0, m.index) + bloco + texto.slice(m.index);
+    else texto = texto.replace(/\}\s*$/, `,\n${bloco.trimEnd().replace(/,$/, '')}\n}\n`);
+    mudou = true;
+  }
+  if (mudou && !dryRun) await writeFile(caminhoWrangler(raiz), texto, 'utf8');
+  return { mudou };
+}

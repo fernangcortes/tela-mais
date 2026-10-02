@@ -29,6 +29,8 @@ import * as legal from './api/legal.js';
 import * as convites from './api/convites.js';
 import * as espectadores from './api/espectadores.js';
 import * as minhaLista from './api/minha-lista.js';
+import * as saude from './api/saude.js';
+import * as backup from './api/backup.js';
 
 const MODULOS = {
   '/api/login': login,
@@ -54,7 +56,9 @@ const MODULOS = {
   '/api/legal': legal,
   '/api/convites': convites,
   '/api/espectadores': espectadores,
-  '/api/minha-lista': minhaLista
+  '/api/minha-lista': minhaLista,
+  '/api/saude': saude,
+  '/api/backup': backup
 };
 
 /* Método HTTP -> função exportada. HEAD cai no GET do handler. */

@@ -1,0 +1,7 @@
+# Mantém as versões das Actions dos fluxos em dia (o projeto não tem dependências npm).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

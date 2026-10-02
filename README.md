@@ -18,7 +18,7 @@ pronto para colar no seu agente de IA).
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/fernangcortes/tela-mais)
 
-O botão cria o site na sua conta Cloudflare; o assistente de configuração no `/admin` chega no marco M8. Agentes de IA:
+O botão cria o site na sua conta Cloudflare; o assistente de configuração do `/admin` guia o resto (identidade, acesso, vídeo), e as telas Saúde, Backup e Custos cuidam da operação. Atualização, backup e limites: `docs/atualizar.md`, `docs/limites.md`, `docs/custos.md`. Agentes de IA:
 leiam `AGENTS.md`. Contas e chaves, passo a passo: `docs/contas-e-chaves.md`.
 
 ## Licença

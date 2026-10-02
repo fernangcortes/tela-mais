@@ -1,0 +1,85 @@
+name: atualizar-core
+
+# Todo domingo (e quando você mandar) procura uma versão nova do produto no repositório oficial e abre um Pull Request
+# com ela. Só a parte do PRODUTO muda (core/, scripts/, tests/, docs/, instruções dos agentes e o esquema da config);
+# a SUA configuração (config/site.json, fontes, wrangler.jsonc, marca) não é tocada. Você olha e clica em "Merge".
+# Para ligar: Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+# (opcional) segredo ATUALIZAR_TOKEN: token fino com Contents e Pull requests: Read and write; com ele os testes rodam
+# no Pull Request (o token padrão do GitHub não dispara outros fluxos). Detalhes em docs/atualizar.md.
+on:
+  schedule:
+    - cron: '41 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Versão específica (ex.: 1.2.0). Vazio = a última release.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: atualizar-core
+  cancel-in-progress: false
+
+jobs:
+  atualizar:
+    # O repositório oficial é a fonte das atualizações, não um destino.
+    if: ${{ github.repository != 'fernangcortes/tela-mais' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.ATUALIZAR_TOKEN || github.token }}
+      VERSAO_PEDIDA: ${{ github.event.inputs.versao }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.ATUALIZAR_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Baixar a versão nova e aplicar (só o produto)
+        id: baixar
+        run: |
+          args=(--baixar --corpo-do-pr pr-corpo.md --json)
+          [ -n "$VERSAO_PEDIDA" ] && args+=(--versao "$VERSAO_PEDIDA")
+          if ! node scripts/atualizar-core.mjs "${args[@]}" > resultado.json; then cat resultado.json; exit 1; fi
+          cat resultado.json
+          echo "atualizado=$(node -p "require('./resultado.json').atualizado === true")" >> "$GITHUB_OUTPUT"
+          echo "versao=$(node -p "require('./resultado.json').para || ''")" >> "$GITHUB_OUTPUT"
+      - name: Migrar a configuração e regenerar os arquivos do site
+        if: steps.baixar.outputs.atualizado == 'true'
+        run: |
+          node scripts/migrar-config.mjs
+          node scripts/validar-config.mjs
+          node scripts/aplicar-config.mjs
+          node scripts/gerar-headers.mjs
+          node scripts/setup.mjs sync-agents
+      - name: Conferir (testes do produto só na cópia com a marca neutra)
+        if: steps.baixar.outputs.atualizado == 'true'
+        run: |
+          if node -e "process.exit(require('./config/site.json').marca.nome === 'Plataforma Exemplo' ? 0 : 1)"; then npm test; fi
+          node scripts/anti-marca.mjs
+          node scripts/setup.mjs scan-secrets
+          node scripts/aplicar-config.mjs --verificar
+          node scripts/gerar-headers.mjs --verificar
+          node scripts/migrar-config.mjs --verificar
+      - name: Abrir o Pull Request
+        if: steps.baixar.outputs.atualizado == 'true'
+        env:
+          VERSAO: ${{ steps.baixar.outputs.versao }}
+        run: |
+          rm -f resultado.json
+          ramo="atualizar-core/v$VERSAO"
+          git config user.name "atualizar-core"
+          git config user.email "atualizar-core@users.noreply.github.com"
+          git checkout -B "$ramo"
+          git add -A -- . ':!pr-corpo.md'
+          git commit -m "Atualiza o produto para a versão $VERSAO"
+          git push --force-with-lease origin "$ramo"
+          if gh pr view "$ramo" >/dev/null 2>&1; then
+            gh pr edit "$ramo" --title "Atualizar o produto para $VERSAO" --body-file pr-corpo.md
+          else
+            gh pr create --head "$ramo" --title "Atualizar o produto para $VERSAO" --body-file pr-corpo.md
+          fi

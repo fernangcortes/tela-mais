@@ -69,8 +69,12 @@ export const init = {
       rel.acao('preset', `Modelo "${p.nome}" aplicado: ${p.resumo}`, ctx.flags.dryRun ? 'simulado' : 'feito');
       const sug = p.config || {};
       const partes = [sug.tema?.preset && `visual "${sug.tema.preset}"`, sug.acesso?.modo && `acesso "${sug.acesso.modo}"`, sug.recursos?.legendas && 'legendas ligadas', sug.recursos?.continuarAssistindo && '"continuar de onde parou"'].filter(Boolean);
-      if (partes.length) rel.info(`  O modelo escolheu para você: ${partes.join(', ')}. Tudo isso pode ser mudado depois (marca, acesso).`);
-      if (modo !== undefined && sug.acesso?.modo && sug.acesso.modo !== modo) rel.info(`  Atenção: o modelo sugere acesso "${sug.acesso.modo}", mas você escolheu "${modo}"; vale a sua escolha. ${DEFINICOES_DO_MODO[modo]}`);
+      const sugestoes = partes.filter((x) => !x.startsWith('acesso '));
+      if (sugestoes.length) rel.info(`  O modelo ajustou o visual e os recursos: ${sugestoes.join(', ')}. Tudo isso pode ser mudado depois (marca).`);
+      if (modo !== undefined && sug.acesso?.modo && sug.acesso.modo !== modo) {
+        rel.info(`  Sobre o acesso: o modelo sugeria "${sug.acesso.modo}", mas vale a sua escolha, "${modo}", que significa: ${DEFINICOES_DO_MODO[modo]}`);
+        if (modo !== 'publico' && /sem conta|sem coleta/i.test(p.resumo || '')) rel.aviso(`com o acesso "${modo}" o site passa a guardar contas (e-mail e histórico de quem assiste). A frase "sem conta e sem coleta de dados" do modelo deixa de valer, e a lei de proteção de dados (LGPD) pede que você informe isso em /privacidade (o site traz um texto-base para revisar).`);
+      } else if (sug.acesso?.modo && modo === undefined) rel.info(`  Sobre o acesso: o modelo sugere "${sug.acesso.modo}". Para mudar: node scripts/setup.mjs acesso`);
       if (bruto.preset && bruto.preset !== preset) rel.aviso(`troquei o preset de "${bruto.preset}" para "${preset}": as opções que o preset define foram sobrescritas.`);
     } else if (preset !== undefined) rel.acao('preset', `Preset "${preset}" já estava aplicado (use --refazer-preset para reaplicar)`, 'ja-estava');
 

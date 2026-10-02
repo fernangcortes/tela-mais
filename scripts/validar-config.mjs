@@ -9,6 +9,8 @@
  */
 import { pathToFileURL } from 'node:url';
 import { carregarConfig } from './lib/config-carregar.mjs';
+import { listarProvedores, moduloDe } from './lib/provedores/index.mjs';
+import { credenciaisNecessarias } from './lib/setup/credenciais.mjs';
 import { formatarErros, ehReferenciaEnv } from '../core/worker/_lib/config-validar.mjs';
 
 /* Nomes de variáveis secretas que o arquivo espera, para a pessoa saber o que cadastrar. */
@@ -59,8 +61,20 @@ export async function principal(argv = process.argv.slice(2), saida = console) {
   saida.log(`  Acesso:   ${c.acesso.modo}`);
   saida.log(`  Vídeo:    ${c.video.provedor}`);
   saida.log(`  Autoplay: ${c.player.autoplay.modo}`);
-  const vars = [...variaveisEsperadas(r.bruto)];
-  if (vars.length) saida.log(`  Chaves que você vai precisar guardar mais adiante (o setup pede cada uma, num campo escondido; nunca no chat): ${vars.join(', ')}`);
+  /* só as chaves do provedor ESCOLHIDO (a config traz o bloco dos outros, que não valem) */
+  const bruto = JSON.parse(JSON.stringify(r.bruto));
+  for (const p of listarProvedores()) {
+    const chave = moduloDe(p).CHAVE_CONFIG;
+    if (p !== c.video.provedor && chave && bruto.video) delete bruto.video[chave];
+  }
+  const vars = [...new Set([
+    ...credenciaisNecessarias(moduloDe(c.video.provedor), c.video.provedor, c.acesso.modo).map(([, d]) => d.env),
+    ...variaveisEsperadas(bruto)
+  ])];
+  const geradas = c.video.provedor === 'cloudflare-stream' ? ['CLOUDFLARE_STREAM_KEY_ID', 'CLOUDFLARE_STREAM_KEY_JWK'] : [];
+  const suas = vars.filter((v) => !geradas.includes(v));
+  if (suas.length) saida.log(`  Chaves que você vai precisar guardar mais adiante (o setup pede cada uma, num campo escondido; nunca no chat): ${suas.join(', ')}`);
+  if (geradas.some((g) => vars.includes(g))) saida.log('  A chave de assinatura do vídeo (CLOUDFLARE_STREAM_KEY_ID e CLOUDFLARE_STREAM_KEY_JWK) o setup cria sozinho no passo do vídeo.');
   for (const a of avisosDe(c)) saida.log(`  Aviso: ${a}`);
   return 0;
 }

@@ -45,7 +45,8 @@ export const EXCECOES = new Map([
   ['core/worker/_lib/tema.mjs', 'diagnósticos de instalação (tema): pt-BR por decisão'],
   ['core/worker/_lib/contraste.mjs', 'diagnósticos de instalação (contraste de paleta): pt-BR por decisão'],
   ['core/site/indice-core.js', 'validação máquina a máquina do pedido de indexação (volta em `params.detalhe` do erro da API)'],
-  ['core/site/busca-core.js', 'linguística da busca em português (palavras vazias, plurais): não é texto de tela']
+  ['core/site/busca-core.js', 'linguística da busca em português (palavras vazias, plurais): não é texto de tela'],
+  ['core/worker/_lib/custos.js', 'rótulos e observações da estimativa de custo, em pt-BR como docs/custos.md (guia de preços, não texto de tela traduzido)']
 ]);
 
 const SO_CODIGO = /\.(js|mjs)$/;

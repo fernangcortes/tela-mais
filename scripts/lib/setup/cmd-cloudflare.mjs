@@ -24,7 +24,14 @@ export async function garantirSessionSecret(ctx, rel, wr) {
   return 'feito';
 }
 
-export const CUSTO_DOS_RECURSOS = 'Custo: grátis. O armazenamento do catálogo (KV) e o banco de contas (D1) cabem no plano gratuito da Cloudflare; o plano pago do Worker (a partir de US$ 5 por mês) só é preciso se o site tiver muito público.';
+export const CUSTO_DOS_RECURSOS = 'Custo desta etapa: grátis. O armazenamento do catálogo (KV) e o banco de contas (D1) cabem no plano gratuito da Cloudflare; o plano pago do Worker (a partir de US$ 5 por mês) só é preciso se o site tiver muito público. Isso é só a parte da Cloudflare; o vídeo é cobrado à parte (veja o aviso abaixo).';
+
+/* O vídeo é cobrado à parte (e pode ser pago); o KV e o D1 não. Dizer só "grátis" faria a pessoa esquecer isso. */
+export function custoDoVideo(provedor) {
+  if (provedor === 'cloudflare-stream') return 'Atenção: o vídeo NÃO é grátis. O Cloudflare Stream é pago e exige cartão: cobra por minuto de vídeo guardado (a partir de US$ 5 por mês para 1.000 minutos) e por minuto assistido. Para um acervo pequeno o Bunny costuma sair mais barato (docs/custos.md tem a calculadora).';
+  if (provedor === 'bunny') return 'Atenção: o vídeo é cobrado à parte, direto pelo Bunny (poucos dólares por mês num acervo pequeno; docs/custos.md tem a calculadora).';
+  return 'Atenção: o vídeo é cobrado por quem hospeda os seus arquivos HLS, não pela Cloudflare.';
+}
 
 export async function provisionarCloudflare(ctx, rel, { contaId, soVerificar = false } = {}) {
   const wr = criarWrangler(ctx);
@@ -39,6 +46,7 @@ export async function provisionarCloudflare(ctx, rel, { contaId, soVerificar = f
     rel.acao('d1', `Criaria (se ainda não existir) o banco de contas "${proj}" (D1)`, 'simulado');
     rel.acao('session-secret', 'Geraria sozinho a chave interna das sessões (SESSION_SECRET) logo depois da primeira publicação', 'simulado');
     rel.info(CUSTO_DOS_RECURSOS);
+    rel.info(custoDoVideo(site0.bruto?.video?.provedor));
     rel.pendencia('cloudflare-sem-login', 'para criar de verdade, a pessoa precisa entrar na Cloudflare antes (npx wrangler login).', 'npx wrangler login');
     rel.dado('cloudflare', { simulado: true, projeto: proj });
     return {};
@@ -50,6 +58,7 @@ export async function provisionarCloudflare(ctx, rel, { contaId, soVerificar = f
   if (!w.existe) throw falha('sem-wrangler', 'não encontrei wrangler.jsonc na raiz do projeto.', { dica: 'Restaure com: git checkout wrangler.jsonc' });
   const { kv, d1, nome: nomeWorker } = recursosDoWrangler(w.dados);
   const site = await lerSite(ctx.raiz);
+  if (!soVerificar) rel.info(custoDoVideo(site.bruto?.video?.provedor));
   const projeto = site.bruto?.implantacao?.nomeDoProjeto || nomeWorker || slugDoProjeto(site.bruto?.marca?.nome);
   const dry = ctx.flags.dryRun || soVerificar;
   const ids = {};

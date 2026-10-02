@@ -1,0 +1,98 @@
+name: backup
+
+# Exporta o catálogo e a configuração operacional (KV) todo dia para um repositório PRIVADO SEPARADO.
+# DESLIGADO por padrão: só roda se a variável de repositório BACKUP_LIGADO for "true". Passo a passo em docs/atualizar.md
+# ("Backup automático"). O repositório de backup tem de ser PRIVADO: com BACKUP_COM_CONTAS=true o arquivo traz hash de
+# senha das contas da equipe. Os vídeos NÃO entram (ficam no provedor), nem os segredos do Worker.
+#
+# Precisa de:
+#   variável  BACKUP_LIGADO = true
+#   variável  BACKUP_REPOSITORIO = seu-usuario/backup-da-minha-tela   (privado; já criado, pode estar vazio)
+#   (opcional) variável BACKUP_COM_CONTAS = true      inclui a equipe (hash de senha) no arquivo
+#   (opcional) variável BACKUP_REGISTRAR = true       a tela Saúde do /admin passa a mostrar o "último backup";
+#              exige que o token abaixo tenha também escrita no KV (Workers KV Storage: Edit): só ligue se quiser isso
+#   segredo   CLOUDFLARE_API_TOKEN   token SÓ DE LEITURA do KV (Workers KV Storage: Read) e Account Settings: Read
+#                                    (sem BACKUP_REGISTRAR; com ele, Workers KV Storage: Edit)
+#   segredo   CLOUDFLARE_ACCOUNT_ID
+#   segredo   BACKUP_REPO_TOKEN      token fino do GitHub, só no repositório de backup, permissão Contents: Read and write
+on:
+  schedule:
+    - cron: '23 5 * * *'   # 05:23 UTC, todo dia
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: ${{ vars.BACKUP_LIGADO == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BACKUP_REPOSITORIO: ${{ vars.BACKUP_REPOSITORIO }}
+      BACKUP_COM_CONTAS: ${{ vars.BACKUP_COM_CONTAS }}
+      BACKUP_REGISTRAR: ${{ vars.BACKUP_REGISTRAR }}
+      BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+    steps:
+      - name: Confere a configuração
+        run: |
+          faltando=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || faltando="$faltando CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || faltando="$faltando CLOUDFLARE_ACCOUNT_ID"
+          [ -n "$BACKUP_REPOSITORIO" ] || faltando="$faltando BACKUP_REPOSITORIO(variável)"
+          [ -n "$BACKUP_REPO_TOKEN" ] || faltando="$faltando BACKUP_REPO_TOKEN"
+          if [ -n "$faltando" ]; then echo "::error::Faltam:$faltando (veja docs/atualizar.md)"; exit 1; fi
+          case "$BACKUP_REPOSITORIO" in */*) ;; *) echo "::error::BACKUP_REPOSITORIO precisa ser dono/nome"; exit 1;; esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.BACKUP_REPOSITORIO }}
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: repositorio-de-backup
+      - name: O repositório de backup é privado?
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          privado=$(gh api "repos/$BACKUP_REPOSITORIO" --jq .private)
+          if [ "$privado" != "true" ]; then
+            echo "::error::O repositório de backup é PÚBLICO. Torne-o privado antes de continuar: o backup tem dados do seu catálogo (e, se pedido, das contas)."
+            exit 1
+          fi
+      - name: Exportar o KV
+        run: |
+          dia=$(date -u +%F)
+          extra=""
+          [ "$BACKUP_COM_CONTAS" = "true" ] && extra="--com-contas"
+          [ "$BACKUP_REGISTRAR" = "true" ] && extra="$extra --registrar"
+          mkdir -p repositorio-de-backup/backups
+          node scripts/exportar-kv.mjs --saida "repositorio-de-backup/backups/backup-$dia.json" $extra
+      - name: Conferir o arquivo (formato e impressão digital)
+        run: |
+          node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            import { verificarBackup } from './core/worker/_lib/backup.js';
+            const arq = process.argv[1];
+            const b = JSON.parse(readFileSync(arq, 'utf8'));
+            const r = await verificarBackup(b);
+            if (!r.ok || !b.resumo || !(b.resumo.titulos > 0)) { console.error('Backup inválido ou sem títulos:', r.codigo || 'vazio'); process.exit(1); }
+            console.log('Backup válido:', b.resumo.titulos, 'títulos, hash do catálogo', b.hashes.catalogo.slice(0, 19));
+          " "repositorio-de-backup/backups/backup-$(date -u +%F).json"
+      - name: Manter 30 diários e 12 mensais
+        run: node scripts/podar-backups.mjs repositorio-de-backup/backups
+      - name: Guardar no repositório de backup
+        working-directory: repositorio-de-backup
+        run: |
+          git config user.name "backup-tela"
+          git config user.email "backup-tela@users.noreply.github.com"
+          git add -A backups
+          if git diff --cached --quiet; then echo "Nada novo para guardar."; exit 0; fi
+          git commit -m "backup $(date -u +%F)"
+          git push

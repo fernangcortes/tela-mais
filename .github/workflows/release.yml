@@ -1,0 +1,43 @@
+name: release
+
+# Só para quem MANTÉM o produto: ao empurrar uma tag vX.Y.Z, confere que versão, LICENSE (Change Date) e CHANGELOG
+# concordam, roda os testes, gera `core-vX.Y.Z.tar.gz` + `core-vX.Y.Z.sha256` e publica a release no GitHub.
+# É o que o atualizar-core.yml das cópias dos clientes baixa. Não roda nas cópias dos clientes.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+  contents: write
+
+jobs:
+  testes:
+    if: ${{ github.repository == 'fernangcortes/tela-mais' }}
+    uses: ./.github/workflows/testes.yml
+
+  publicar:
+    needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Versão, LICENSE e CHANGELOG concordam com a tag?
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/preparar-release.mjs --verificar --tag "$TAG"
+      - name: Gerar o pacote e o sha256
+        run: node scripts/preparar-release.mjs --empacotar pacote
+      - name: Notas da release (a seção do CHANGELOG)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/preparar-release.mjs --notas "$TAG" > notas.md
+      - name: Publicar a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease";; esac
+          gh release create "$TAG" pacote/core-*.tar.gz pacote/core-*.sha256 --title "$TAG" --notes-file notas.md $pre

@@ -168,6 +168,31 @@
    * abrir uma ficha passaria a gastar banda de quem só queria ler a sinopse.
    * Quem chama `startLoad()` é o primeiro play — e só ele.
    */
+  /* A FALHA TEM PRAZO. O padrão do hls.js 1.6 insiste muito: 6 tentativas de
+   * segmento com espera de 1, 2, 4, 8, 8 e 8 s, mais 4 reenvios por tempo
+   * esgotado, mais o manifesto com 20 s por tentativa. Somado às tentativas
+   * que o player refazia depois do erro fatal, a pessoa olhava a rodinha por
+   * ~52 s antes de ver a mensagem. Aqui o prazo é decidido de propósito:
+   *   - cada política abaixo gasta, no PIOR caso, bem menos que o limite;
+   *   - `orcamentoDeFalhaMs()` faz essa conta e o teste a confere;
+   *   - o player ainda tem um relógio próprio (`ESPERA_REDE_MS`, contado do INÍCIO
+   *     de cada carga, não do primeiro erro) que corta o que sobrar.
+   * LIMITE_FALHA_MS é o teto da promessa: do primeiro sinal de problema até o
+   * painel "Tentar de novo", no máximo 15 s. */
+  var LIMITE_FALHA_MS = 15000;
+  var ESPERA_REDE_MS = 10000;
+
+  function politicaDeCarga(ttfb, cargaMax, tempoEsgotado, erro) {
+    return {
+      default: {
+        maxTimeToFirstByteMs: ttfb,
+        maxLoadTimeMs: cargaMax,
+        timeoutRetry: { maxNumRetry: tempoEsgotado, retryDelayMs: 0, maxRetryDelayMs: 0 },
+        errorRetry: { maxNumRetry: erro, retryDelayMs: 500, maxRetryDelayMs: 1500, backoff: 'linear' }
+      }
+    };
+  }
+
   function configHls() {
     return {
       autoStartLoad: false,
@@ -182,8 +207,41 @@
       /* Começa modesto e sobe: com muita gente dando play junto, subir do
        * 360p é muito melhor do que travar tentando 1080p. */
       startLevel: -1,
-      capLevelToPlayerSize: true
+      capLevelToPlayerSize: true,
+      /* Prazos de falha (ver LIMITE_FALHA_MS). Segmento: primeiro byte em 4 s,
+       * 1 reenvio por tempo esgotado e 2 por erro de rede. Manifesto e lista de
+       * qualidades: sem tempo infinito até o primeiro byte, que era o que
+       * deixava o manifesto preso por 3 x 20 s. */
+      fragLoadPolicy: politicaDeCarga(4000, 10000, 1, 2),
+      manifestLoadPolicy: politicaDeCarga(4000, 5000, 1, 1),
+      playlistLoadPolicy: politicaDeCarga(4000, 5000, 1, 1)
     };
+  }
+
+  /* Pior caso, em ms, de uma política de carga do hls.js (a mesma conta do
+   * hls.js: espera linear = retryDelayMs, exponencial = retryDelayMs * 2^n,
+   * limitada por maxRetryDelayMs). Cada tentativa sem resposta custa o tempo até
+   * o primeiro byte (ou o máximo de carga, se ele for menor). */
+  function custoDaPolitica(pol) {
+    var p = (pol && pol.default) || {};
+    var t = p.timeoutRetry || { maxNumRetry: 0 };
+    var e = p.errorRetry || { maxNumRetry: 0, retryDelayMs: 0, maxRetryDelayMs: 0 };
+    var porTentativa = Math.min(isFinite(p.maxTimeToFirstByteMs) ? p.maxTimeToFirstByteMs : Infinity, p.maxLoadTimeMs || Infinity);
+    if (!isFinite(porTentativa)) return Infinity;
+    var esperas = 0;
+    for (var n = 0; n < (e.maxNumRetry || 0); n++) {
+      var fator = e.backoff === 'linear' ? 1 : Math.pow(2, n);
+      esperas += Math.min(fator * (e.retryDelayMs || 0), e.maxRetryDelayMs || 0);
+    }
+    return (t.maxNumRetry + 1) * porTentativa + esperas;
+  }
+
+  /* Do primeiro erro até o erro fatal do hls.js: a maior das três políticas,
+   * somada ao relógio próprio do player. Tem que ficar <= LIMITE_FALHA_MS. */
+  function orcamentoDeFalhaMs(cfg) {
+    var c = cfg || configHls();
+    var politicas = [c.fragLoadPolicy, c.manifestLoadPolicy, c.playlistLoadPolicy].map(custoDaPolitica);
+    return Math.max.apply(null, politicas);
   }
 
   /* ================================================================= tempo */
@@ -2175,6 +2233,9 @@
     urlMp4: urlMp4,
     estrategia: estrategia,
     configHls: configHls,
+    orcamentoDeFalhaMs: orcamentoDeFalhaMs,
+    LIMITE_FALHA_MS: LIMITE_FALHA_MS,
+    ESPERA_REDE_MS: ESPERA_REDE_MS,
     limitarTempo: limitarTempo,
     tempoRelativo: tempoRelativo,
     tempoPorDecimo: tempoPorDecimo,

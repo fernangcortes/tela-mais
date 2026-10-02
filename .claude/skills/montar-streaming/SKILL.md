@@ -2,7 +2,7 @@
 name: montar-streaming
 description: Monta do zero o streaming (tela mAIs) de uma pessoa leiga na conta Cloudflare dela, em 9 etapas com checkpoint verificável. Use quando pedirem para instalar, montar, configurar ou colocar o streaming no ar.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
 
 # Montar o streaming, do zero ao primeiro vídeo
 
@@ -58,4 +58,4 @@ tecle Enter; ela não aparece na tela e eu não a vejo." Depois rode o comando e
 ## Ao terminar
 
 Mostre a URL, o que foi criado, o custo mensal estimado e o que ela deve guardar (senha de admin, conta Cloudflare).
-Rode a checklist de go-live de `docs/contas-e-chaves.md` e `setup.mjs scan-secrets`. Não faça commit sem a pessoa pedir.
+Rode `node scripts/setup.mjs go-live --url ENDERECO` (cada item sai ok, falha ou manual; a lista com o comando de cada um está em `docs/contas-e-chaves.md`, seção 5). Corrija as FALHAS; leia os itens MANUAL à pessoa, um por vez, e confirme com `--confirmado id`. Rode também `setup.mjs scan-secrets`. Não faça commit sem a pessoa pedir.

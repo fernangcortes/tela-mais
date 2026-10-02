@@ -1,8 +1,14 @@
 tela mAIs
-Copyright (c) 2026 fernangcortes
+Copyright (c) 2026 Fernando Gomes Côrtes
 
-Este produto inclui software de terceiros, distribuído sob as licenças
-originais, que continuam valendo para esses componentes.
+Este produto é distribuído sob a Business Source License 1.1 (arquivo LICENSE; tradução de
+cortesia em LICENCA-PT.md). A licença NÃO concede direito sobre o nome e o logotipo "tela mAIs"
+(veja a política de marca em COMMERCIAL.md).
+
+Este produto inclui software de terceiros, distribuído sob as licenças originais, que
+continuam valendo para esses componentes. Eles ficam em core/site/vendor/, com versão fixa,
+sem alteração (além de remover a linha de sourceMappingURL), e são servidos pelo próprio site,
+nunca por CDN de terceiros.
 
 hls.js (build "light")
   Versão: 1.6.14
@@ -12,7 +18,20 @@ hls.js (build "light")
   Copyright (c) 2017 Dailymotion (http://www.dailymotion.com)
   Texto da licença: https://www.apache.org/licenses/LICENSE-2.0
 
-Além do hls.js, não há outro componente de terceiros copiado para este
-repositório (não há node_modules nem package.json). Os scripts opcionais de
-sinopses e séries usam o SDK da Anthropic (@anthropic-ai/sdk, MIT), que o
-usuário instala por conta própria e que não é distribuído aqui.
+tus-js-client
+  Versão: 4.3.1
+  Arquivo: core/site/vendor/tus.min.js
+  Origem: https://github.com/tus/tus-js-client
+  Licença: MIT License
+  Copyright (c) 2015 tus - Resumable File Uploads
+  Texto da licença: core/site/vendor/tus-LICENSE.txt
+
+Além dos componentes acima, não há outro código de terceiros copiado para este
+repositório (não há node_modules). Os scripts opcionais de sinopses e séries usam o SDK da
+Anthropic (@anthropic-ai/sdk, MIT), que a pessoa instala por conta própria e que não é
+distribuído aqui. O algoritmo de senha (PBKDF2), a assinatura de URLs e o Web Crypto vêm do
+próprio ambiente de execução (Cloudflare Workers e navegadores), sem código copiado.
+
+Quem acrescentar um componente de terceiros deve registrá-lo aqui (nome, versão, arquivo, origem,
+licença e copyright) e em core/site/vendor/LEIA-ME.md. Um teste (tests/licenca.test.js) confere que
+as versões declaradas aqui são as dos arquivos.

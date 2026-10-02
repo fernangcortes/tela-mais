@@ -61,6 +61,7 @@ Cloudflare**. Site estático (HTML/CSS/JS sem framework, sem build), um Worker e
 node scripts/setup.mjs status            # onde estou, qual a próxima etapa
 node scripts/setup.mjs doctor [--remote] # diagnóstico: ok | aviso | erro + como corrigir (--json para máquina)
 node scripts/setup.mjs scan-secrets      # procura segredo no que seria versionado
+node scripts/setup.mjs go-live [--url ...]  # checklist antes de divulgar: ok | falha | manual por item (--json)
 node scripts/setup.mjs sync-agents --check  # espelhos de skills em dia
 npm run config:validar && npm run config:aplicar   # config válida e arquivos gerados em dia
 ```
@@ -87,12 +88,12 @@ Sem terminal (agente sem shell interativo), `segredo` e `video` sempre saem com 
 | 1 | Identidade | Nome, slogan, cor, logo, idioma, tipo de organização (preset: escola, igreja, empresa, infoprodutor, festival, prefeitura, criador) | `setup.mjs init` (5 perguntas, aplica o preset) e `setup.mjs marca` (cores, logo, ícones) | `npm run config:validar` sai 0; contraste aprovado |
 | 2 | Acesso | Quem pode ver: todos (`publico`), quem se cadastra (`cadastro`) ou só convidados (`privado`)? O comando já imprime o que o modo significa na prática, o custo e o aviso (nenhum modo impede gravar a tela): leia à pessoa. No `cadastro` o Turnstile vira obrigatório antes de publicar (etapa 9 antecipada) | `setup.mjs acesso --modo ...` | `doctor --only=acesso` mostra o modo e o que ele protege |
 | 3 | Conta Cloudflare | Já tem conta? Se não, abra o link do cadastro, confirme o e-mail e ligue 2FA (`docs/contas-e-chaves.md`). O login é da pessoa, num segundo terminal; se o navegador não abrir ou o computador for remoto, veja o mesmo doc | `npx wrangler login` (a pessoa clica "Permitir"), depois `setup.mjs cloudflare verificar` | `doctor --only=cloudflare`: conta identificada; sem `CLOUDFLARE_API_TOKEN` no ambiente |
-| 4 | Recursos | Mostre o custo (grátis ou US$ 5/mês; `cloudflare provisionar --dry-run` mostra o plano) e peça o "sim". O `SESSION_SECRET` é gerado sozinho, a pessoa não faz nada | `setup.mjs cloudflare provisionar` | `doctor --only=cloudflare`: KV e D1 existem, `SESSION_SECRET` definido |
+| 4 | Recursos | Mostre o custo (grátis ou US$ 5/mês; `cloudflare provisionar --dry-run` mostra o plano) e peça o "sim". O `SESSION_SECRET` é gerado sozinho logo depois da primeira publicação (etapa 7); a pessoa não faz nada. Lembre: o vídeo é cobrado à parte | `setup.mjs cloudflare provisionar` | `doctor --only=cloudflare`: KV e D1 existem |
 | 5 | Vídeo | Bunny, Cloudflare Stream ou HLS? Guie a criar a conta e achar cada chave (o comando mostra onde achar; números e endereços aparecem na tela, só as chaves secretas ficam escondidas). Avise do cartão internacional e do limite de banda | `setup.mjs video` e `setup.mjs segredo NOME` | `doctor --only=video`: chamada de teste ao provedor ok |
 | 6 | Administrador | Quem administra (e-mail)? A senha de admin é digitada pela pessoa (duas vezes, mínimo 12 caracteres; diga isso ANTES) no prompt oculto e guardada no gerenciador de senhas | `setup.mjs segredo ADMIN_PASSWORD` | `doctor --only=admin` ok |
 | 7 | Publicar | Posso publicar agora? (peça o "sim") | `setup.mjs deploy` (`--dry-run` antes) | `doctor --remote` verde: site 200; no modo `privado`, catálogo e HLS anônimos FALHAM (401/403) |
 | 8 | Primeiro vídeo | Envie um vídeo pelo `/admin` (`.agents/skills/adicionar-videos`) | (pessoa envia; você acompanha) | Título no catálogo e toca no celular e no computador |
-| 9 | Opcionais | Domínio próprio, Turnstile (obrigatório no `cadastro`), backup, alertas de gasto | domínio no painel da Cloudflare (Workers, Configurações, Domínios) e depois `marca.dominio` na config | `doctor --remote` sem avisos; checklist de go-live (`docs/contas-e-chaves.md`) |
+| 9 | Opcionais | Domínio próprio, Turnstile (obrigatório no `cadastro`), backup, alertas de gasto | domínio no painel da Cloudflare (Workers, Configurações, Domínios) e depois `marca.dominio` na config | `doctor --remote` sem avisos; `setup.mjs go-live` (ok, falha ou manual por item; ver `docs/contas-e-chaves.md`, seção 5) |
 
 Segredos por etapa: `SESSION_SECRET`, `ADMIN_PASSWORD`, chaves do provedor (`docs/provedores.md`), `TURNSTILE_SECRET`
 (`docs/modos-de-acesso.md`). Só os NOMES aparecem em `.env.example`.
@@ -102,8 +103,12 @@ Segredos por etapa: `SESSION_SECRET`, `ADMIN_PASSWORD`, chaves do provedor (`doc
 `montar-streaming` (o roteiro acima), `configurar-acesso`, `trocar-marca-e-tema`, `adicionar-videos`,
 `publicar-e-atualizar`, `diagnosticar`. Mantenha os espelhos por ferramenta com `setup.mjs sync-agents`.
 
+Operação (M8): `/admin` tem assistente, Saúde (`GET /api/saude`), Backup e Custos. Scripts: `npm run backup` / `importar-kv.mjs`,
+`npm run atualizar` (troca só o produto, preserva `config/`), `migrar-config.mjs`, `npm run smoke`. Ao mexer no produto, rode também
+`npm run smoke` e `node scripts/migrar-config.mjs --verificar`; versão em `.core-version`, mudanças em `CHANGELOG.md`.
+
 ## Mapa
 
 `core/site/` site · `core/worker/` Worker e API · `core/presets/` temas e presets · `config/` config do cliente ·
 `scripts/` ferramentas · `tests/` testes · `docs/` guias (`contas-e-chaves`, `provedores`, `modos-de-acesso`,
-`personalizar`, `desenvolvimento`) · `COMECE-AQUI.md` guia da pessoa leiga.
+`personalizar`, `desenvolvimento`, `atualizar`, `custos`, `limites`) · `COMECE-AQUI.md` guia da pessoa leiga.

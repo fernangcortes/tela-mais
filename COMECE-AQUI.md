@@ -82,11 +82,23 @@ Passo a passo das contas e de onde ficam as chaves: `docs/contas-e-chaves.md`.
 ## Caminho B: sem agente (botão Deploy + assistente do /admin)
 
 1. Clique em **Deploy to Cloudflare**: https://deploy.workers.cloudflare.com/?url=https://github.com/fernangcortes/tela-mais
-   A Cloudflare copia o projeto para a sua conta do GitHub e cria o site e os bancos.
-2. Abra `endereço-do-seu-site/admin`. No primeiro acesso, um **assistente de configuração** pergunta o nome, as cores,
-   quem pode ver o site e a chave do vídeo (num campo de senha, que não volta para a tela).
+   A Cloudflare copia o projeto para a sua conta do GitHub e cria o site e os bancos. Siga as telas dela até aparecer o endereço do site.
+2. Na Cloudflare, abra **Workers e Pages**, o seu site, **Configurações**, **Variáveis e segredos**, e crie o segredo
+   `ADMIN_PASSWORD` (mínimo 12 caracteres; guarde no gerenciador de senhas) e o `SESSION_SECRET` (a chave interna das sessões: **no mínimo 32 caracteres** e **diferente** da senha do administrador).
+   Para criar o `SESSION_SECRET`, use o gerador de senhas do seu gerenciador de senhas (ou do navegador) com 40 caracteres e cole o resultado.
+   Se esquecer um dos dois, o `/admin` avisa qual está faltando.
+   Depois de salvar, a Cloudflare republica sozinha.
+3. Abra `endereço-do-seu-site/admin` e entre como administrador. O **assistente de configuração** abre sozinho e leva você por 7 passos:
+   nome e logo, cores (com prévia e aviso se o texto ficar ilegível), modelo para o seu tipo de organização, quem pode ver o site,
+   serviço de vídeo, idiomas e página inicial.
+4. No passo do vídeo, o assistente mostra o **nome exato de cada chave** e onde colá-la no painel da Cloudflare (o mesmo caminho do passo 2).
+   Chaves nunca são digitadas no assistente. Depois de colar, ele testa se ficou certo.
+5. No último passo, baixe o `site.json` gerado e coloque na pasta `config/` do seu repositório: mudanças de identidade e acesso só
+   valem depois de republicar (a Cloudflare faz isso sozinha quando o repositório muda).
+6. Depois de no ar: a tela **Saúde** do `/admin` diz se está tudo certo e o que corrigir; **Backup** baixa uma cópia do catálogo;
+   **Custos** estima a conta do mês. Envie o primeiro vídeo pelo `/admin`.
 
-> **Atenção:** o assistente do `/admin` ainda não está pronto; ele chega no marco M8 do plano. Até lá, prefira o Caminho A.
+Se travar, copie o pedido pronto da tela Saúde e cole num agente de IA, ou chame quem indicou o produto.
 
 ## Palavras que você vai ouvir
 

@@ -15,6 +15,9 @@
     "agentes:sincronizar": "node scripts/setup.mjs sync-agents",
     "agentes:conferir": "node scripts/setup.mjs sync-agents --check",
     "segredos:varrer": "node scripts/setup.mjs scan-secrets",
-    "ganchos:instalar": "node scripts/instalar-ganchos.mjs"
+    "ganchos:instalar": "node scripts/instalar-ganchos.mjs",
+    "smoke": "node scripts/smoke-navegador.mjs",
+    "backup": "node scripts/exportar-kv.mjs",
+    "atualizar": "node scripts/atualizar-core.mjs --baixar"
   }
 }

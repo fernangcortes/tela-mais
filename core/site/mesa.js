@@ -139,7 +139,12 @@
         h('li', { class: 'menu-grupo', text: tr('mesa.equipe') }),
         M.sessao.super ? itemMenu('contas', 'contas', tr('mesa.contas'), (M.contas.lista || []).length || null) : null,
         M.sessao.super ? itemMenu('acesso', 'conta', tr('acesso.mesaMenu')) : null,
-        itemMenu('conta', 'conta', M.sessao.super ? tr('mesa.superadmin') : M.sessao.nome)),
+        itemMenu('conta', 'conta', M.sessao.super ? tr('mesa.superadmin') : M.sessao.nome),
+        h('li', { class: 'menu-grupo', text: tr('operacao.grupo') }),
+        itemMenu('saude', 'alerta', tr('saude.menu'), M.saude && M.saude.pendencias() ? M.saude.pendencias() : null, 'b-ouro'),
+        itemMenu('backup', 'desfazer', tr('backup.menu')),
+        itemMenu('custos', 'tabela', tr('custos.menu')),
+        M.sessao.super ? itemMenu('assistente', 'check', tr('assistente.menu')) : null),
       h('div', { class: 'menu-pe' },
         seletorDeIdioma(),
         h('span', { class: 'menu-rotulo sessao', text: tr('mesa.sessaoAte', { hora: ate }) }),
@@ -191,6 +196,10 @@
       : st.tela === 'contas' ? [tr('mesa.equipe'), tr('mesa.contas')]
       : st.tela === 'acesso' ? [tr('mesa.equipe'), tr('acesso.mesaMenu')]
       : st.tela === 'conta' ? [tr('mesa.equipe'), tr('mesa.minhaConta')]
+      : st.tela === 'saude' ? [tr('operacao.grupo'), tr('saude.menu')]
+      : st.tela === 'backup' ? [tr('operacao.grupo'), tr('backup.menu')]
+      : st.tela === 'custos' ? [tr('operacao.grupo'), tr('custos.menu')]
+      : st.tela === 'assistente' ? [tr('operacao.grupo'), tr('assistente.menu')]
       : M.FILAS[st.tela] ? [tr('mesa.filasDeTrabalho'), M.FILAS[st.tela].rotulo]
       : [tr('mesa.catalogo'), tr('mesa.todosOsTitulos')];
     var ferramentas = h('div', { class: 'ferramentas' });
@@ -230,6 +239,10 @@
         : st.tela === 'contas' ? M.telaContas()
         : st.tela === 'acesso' ? M.telaAcesso()
         : st.tela === 'conta' ? M.telaMinhaConta()
+        : st.tela === 'saude' ? M.telaSaude()
+        : st.tela === 'backup' ? M.telaBackup()
+        : st.tela === 'custos' ? M.telaCustos()
+        : st.tela === 'assistente' ? M.telaAssistente()
         : st.tela === 'fila-pendencias' ? M.telaPendencias(cat)
         : st.tela === 'estrutura' ? M.telaEstrutura(cat)
         : st.tela === 'home' ? M.telaHome(cat)
@@ -811,6 +824,8 @@
       M.carregarBusca();
       redesenhar();
       ajustarQuadro();
+      /* M8: lê a saúde em segundo plano, abre o assistente na primeira entrada do superadmin e avisa de versão nova. */
+      if (M.aoAbrirMesa) M.aoAbrirMesa();
       if (st.rascunho.length) {
         M.toast(tr('mesa.rascunhoVoltou', { alteracoes: tr('mesa.alteracoesN', { n: M.contarAlteracoes() }) }) +
           (st.conflitos.length ? tr('mesa.rascunhoVoltouConflitos', { n: st.conflitos.length }) : '.'));
@@ -830,6 +845,7 @@
 
   $('form-entrar').addEventListener('submit', function (ev) {
     ev.preventDefault();
+    if ($('botao-entrar').disabled) return;
     var estado = $('estado-entrar');
     estado.textContent = tr('mesa.conferindo');
     fetch('/api/login', {
@@ -841,6 +857,11 @@
       .then(function (dados) { M.guardarSessao(dados); $('senha').value = ''; estado.textContent = ''; abrirMesa(); })
       .catch(function (e) { estado.textContent = e.message; });
   });
+
+  /* O botão nasce desabilitado no HTML (e com ele o Enter nos campos): enquanto os
+   * scripts não terminam de chegar, o formulário não tem ouvinte, e um envio "à antiga"
+   * recarregaria a página e perderia a senha digitada. Só aqui, com o ouvinte ligado, ele abre. */
+  $('botao-entrar').disabled = false;
 
   function medir() {
     var w = window.innerWidth;

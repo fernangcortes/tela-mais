@@ -1,0 +1,64 @@
+name: deploy
+
+# Publica no Cloudflare a cada push na main, DEPOIS que os testes passam (job `testes` abaixo).
+# DESLIGADO por padrão: sem o segredo CLOUDFLARE_API_TOKEN o fluxo roda os testes e para, sem erro.
+# Para ligar (passo a passo em docs/atualizar.md, "Publicar automático"):
+#   Settings > Secrets and variables > Actions > New repository secret
+#     CLOUDFLARE_API_TOKEN   token com escopo MÍNIMO, criado só para isto (ver docs/atualizar.md); nunca o token global
+#     CLOUDFLARE_ACCOUNT_ID  o ID da sua conta (32 caracteres, painel da Cloudflare)
+#   (opcional) Variables > SITE_URL  endereço do site, para o teste de fumaça depois de publicar
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Um deploy por vez; um deploy novo espera o que está rodando em vez de atropelar.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    uses: ./.github/workflows/testes.yml
+
+  publicar:
+    needs: testes
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SITE_URL: ${{ vars.SITE_URL }}
+    steps:
+      - name: Publicação automática está ligada?
+        id: ligado
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ligado=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ligado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Publicação automática desligada (faltam os segredos CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID). Os testes passaram; nada foi publicado."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.ligado.outputs.ligado == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.ligado.outputs.ligado == 'true'
+        with:
+          node-version: 22
+      - name: Publicar
+        if: steps.ligado.outputs.ligado == 'true'
+        # Os segredos do Worker (SESSION_SECRET, ADMIN_PASSWORD, chaves do provedor) já estão no Cloudflare:
+        # este comando só envia o código e os arquivos do site, nunca lê nem muda segredos.
+        run: npx --yes wrangler@4 deploy
+      - name: Teste de fumaça do site publicado
+        if: steps.ligado.outputs.ligado == 'true' && env.SITE_URL != ''
+        run: |
+          for i in 1 2 3 4 5; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE_URL/" || true)
+            [ "$codigo" = "200" ] && { echo "Site respondeu 200."; exit 0; }
+            sleep 6
+          done
+          echo "::error::O site publicado não respondeu 200 (último código: $codigo). Confira o painel da Cloudflare e, se preciso, reverta o último commit."
+          exit 1
