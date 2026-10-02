@@ -1,0 +1,20 @@
+/* GERADO por scripts/aplicar-config.mjs a partir de config/site.json. Não edite à mão:
+ * mude as cores em tema.cores.escuro e rode `node scripts/aplicar-config.mjs`.
+ * Carrega depois do style.css e só troca os valores das variáveis. */
+:root {
+  --marca: #6aa6ff;
+  --marca-clara: #8dbcff;
+  --marca-fraca: #151d2b;
+  --marca-alt: #4f8de0;
+  --marca-destaque: #f5c542;
+  --fundo: #0f1115;
+  --superficie: #171a1f;
+  --borda: #2a2f36;
+  --contorno: #656f78;
+  --texto: #eceff4;
+  --texto-fraco: #98a2ad;
+  --alerta: #e0b356;
+  --alerta-fundo: #2a2415;
+  --erro: #f08c86;
+  --erro-fundo: #2c1817;
+}

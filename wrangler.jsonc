@@ -1,0 +1,48 @@
+// wrangler.jsonc — a implantação como código (D-1 do plano).
+//
+// Worker com Static Assets: o site estático (core/site) sai direto do edge, sem
+// custo de Worker; só `/api/*` e `/` passam pelo Worker (core/worker/index.js).
+// O código do Worker mora em core/worker, FORA de core/site: nada dele é
+// servido como arquivo.
+//
+// SEGREDOS NUNCA AQUI. Eles vão por `wrangler secret put` (ou .dev.vars local):
+//   ADMIN_PASSWORD   senha do superadmin
+//   SESSION_SECRET   chave que assina as sessões (>= 32 caracteres, DIFERENTE da senha)
+//   BUNNY_LIBRARY_ID, BUNNY_API_KEY, BUNNY_PULLZONE (host da pull zone) e afins
+// Variáveis não secretas opcionais (`vars`): APP_SITE_URL, SENHA_ITERACOES.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "plataforma-exemplo",
+  "main": "core/worker/index.js",
+  "compatibility_date": "2026-09-01",
+
+  "assets": {
+    "directory": "core/site",
+    "binding": "ASSETS",
+    // O Worker roda ANTES dos estáticos só nestes caminhos: a API (negado por
+    // padrão) e a home (injeção de preload/og:url, que depende do modo de
+    // acesso). Todo o resto é Static Assets puro.
+    "run_worker_first": ["/api/*", "/"],
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+
+  "kv_namespaces": [
+    // Catálogo, contas, histórico e o índice da busca. Sem `id`: o wrangler 4
+    // cria o namespace no primeiro deploy e o vincula sozinho.
+    { "binding": "CATALOGO" }
+  ],
+
+  // Opcionais (modos de acesso com contas de espectador chegam no M5; busca por
+  // sentido e IA de conteúdo, mais adiante). Descomente só quando for usar:
+  //
+  // "d1_databases": [
+  //   { "binding": "DB", "database_name": "plataforma-exemplo", "migrations_dir": "core/migrations" }
+  // ],
+  // "ai": { "binding": "AI" },
+  // "vectorize": [
+  //   { "binding": "VECTORIZE", "index_name": "plataforma-exemplo-busca" }
+  // ],
+
+  "observability": { "enabled": true }
+}

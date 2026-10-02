@@ -1,7 +1,7 @@
 /* GET /api/busca/sentido?q= — a busca por SENTIDO: o que
  * fala do assunto sem usar a palavra.
  *
- * Público, e só GET, como a fala. O caminho: a pergunta vira vetor no
+ * Só GET, com a mesma regra de modo da fala (permissoes.js). O caminho: a pergunta vira vetor no
  * `bge-m3` do Workers AI; o Vectorize devolve os 50 mais próximos entre os
  * blocos da fala, os capítulos e as sinopses; sai só o que está NO AR e acima
  * do CORTE, como [{ videoId, tipo, inicio, nota }] — sem texto: o texto o
@@ -14,7 +14,7 @@
  * pergunta e a versão do índice — um vídeo novo na busca muda a versão, e a
  * resposta velha deixa de ser usada. Guarda o que o Vectorize devolveu, antes
  * do filtro do "no ar": quem sai do ar some da resposta na hora, mesmo vinda
- * do cache. O Cache API funciona em Pages Functions, também no domínio padrão da hospedagem
+ * do cache. O Cache API funciona em Workers, também no domínio padrão da hospedagem
  * (documentação da Cloudflare, conferida em 21/09); cada data center tem o
  * seu. A pergunta NÃO é registrada em lugar nenhum: o cache guarda a
  * resposta, não quem perguntou.
@@ -27,8 +27,8 @@
  * do corte: sem o corte, sem o filtro do no ar, sem cache, com `tipo` e `k`.
  * Só com conta: ela mostra o que está fora do ar.
  */
-import { json } from '../_middleware.js';
-import AppIndice from '../../../indice-core.js';
+import { json } from '../../_lib/sessao.js';
+import AppIndice from '../../../site/indice-core.js';
 
 const PROXIMOS = 50;
 

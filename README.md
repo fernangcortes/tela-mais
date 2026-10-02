@@ -24,10 +24,12 @@ Componentes de terceiros: `NOTICE`.
 
 ```
 core/site/            site estático (páginas, CSS, JS, vendor/)
-core/site/functions/  Pages Functions (API), provisório até o M2
+core/worker/          Worker (roteador, middleware, permissões, API, _lib/ com config e segurança)
+wrangler.jsonc        Worker com Static Assets (assets em core/site, binding KV CATALOGO)
 scripts/              scripts Node (catálogo, legendas, sinopses...) e scripts/lib/
 tests/                testes (npm test)
-config/site.json      configuração de exemplo, sem segredos
+config/site.json      configuração do site (sem segredos; segredos ficam em variáveis de ambiente)
+config/site.schema.json  esquema (JSON Schema) da configuração
 exemplo/              catálogo de exemplo fictício
 .github/workflows/    integração contínua
 ```
@@ -39,6 +41,9 @@ Requer Node 22 ou mais novo. Não há dependências para instalar.
 ```bash
 npm test                        # todos os testes (equivale a `node --test`)
 node scripts/anti-marca.mjs     # varredura anti-marca (deve terminar sem ocorrências)
+npm run config:validar          # valida config/site.json
+npm run config:aplicar          # gera theme.css, manifest, robots.txt e config.public.json
+npm run dev                     # wrangler dev (Worker + site local)
 ```
 
 ## Contribuindo

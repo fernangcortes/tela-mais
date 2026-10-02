@@ -10,9 +10,9 @@
  *
  * Rota inteira exige admin: o middleware barra antes de chegar aqui.
  */
-import { json, pode, semPermissao } from './_middleware.js';
+import { json, pode, semPermissao } from '../_lib/sessao.js';
 import { onRequestPut as publicarCatalogo } from './catalogo.js';
-import App from '../../catalogo-core.js';
+import App from '../../site/catalogo-core.js';
 
 const CHAVE_CATALOGO = 'catalogo';
 const LIMITE_CAPA = 8 * 1024 * 1024;

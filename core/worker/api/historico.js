@@ -21,8 +21,8 @@
  * ela vira rascunho, que vai pelo Publicar de sempre. Um caminho de gravação a
  * menos é uma conferência de permissão a menos para manter.
  */
-import { json } from './_middleware.js';
-import App from '../../catalogo-core.js';
+import { json } from '../_lib/sessao.js';
+import App from '../../site/catalogo-core.js';
 
 const CHAVE = 'catalogo';
 

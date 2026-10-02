@@ -2,11 +2,11 @@
  * PUT  /api/conta   { senhaAtual, senhaNova } -> troca a própria senha
  *
  * A senha do superadmin não passa por aqui: ela é a variável ADMIN_PASSWORD do
- * ambiente do Pages, e trocá-la é trocar a variável (o que também invalida
+ * ambiente do Worker, e trocá-la é trocar a variável (o que também invalida
  * todos os tokens de uma vez, inclusive os das contas).
  */
-import { json, lerContas, gravarContas, acharConta, conferirSenha, hashSenha, iteracoesDe, emitirToken } from './_middleware.js';
-import App from '../../catalogo-core.js';
+import { json, lerContas, gravarContas, acharConta, conferirSenha, hashSenha, iteracoesDe, emitirToken } from '../_lib/sessao.js';
+import App from '../../site/catalogo-core.js';
 
 export async function onRequestGet({ data }) {
   const c = data.conta;
@@ -15,7 +15,7 @@ export async function onRequestGet({ data }) {
 
 export async function onRequestPut({ request, env, data }) {
   if (data.conta.super === true) {
-    return json(400, { erro: 'a senha do superadmin é a variável ADMIN_PASSWORD, no ambiente do Pages' });
+    return json(400, { erro: 'a senha do superadmin é a variável ADMIN_PASSWORD, no ambiente do Worker' });
   }
 
   let corpo;

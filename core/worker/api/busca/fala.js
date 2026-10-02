@@ -1,7 +1,8 @@
 /* GET /api/busca/fala — o que é falado nos vídeos NO AR, para a busca do site.
  *
- * Público, e só GET: o `_middleware.js` abre esta rota como abre o GET do
- * catálogo. O navegador pede isto na PRIMEIRA BUSCA — o foco no campo —, nunca
+ * Só GET. Quem pode ler vem da tabela em permissoes.js: aberta no modo
+ * `publico`, com sessão nos modos `cadastro` e `privado` (D-4 do plano), como
+ * o GET do catálogo. O navegador pede isto na PRIMEIRA BUSCA — o foco no campo —, nunca
  * na chegada: são ~430 KB, cinco vezes o catálogo inteiro.
  *
  * O índice guarda todo vídeo que já foi lido, também o que está fora do ar. É
@@ -29,8 +30,8 @@
  *     juntar 500 KB de texto. A chave muda com o catálogo, então o título que
  *     sai do ar some da resposta guardada no mesmo instante.
  */
-import { json } from '../_middleware.js';
-import AppIndice from '../../../indice-core.js';
+import { json } from '../../_lib/sessao.js';
+import AppIndice from '../../../site/indice-core.js';
 
 export async function onRequestGet({ env, request, waitUntil }) {
   if (!env.CATALOGO) return json(500, { erro: 'namespace KV CATALOGO não vinculado ao projeto' });

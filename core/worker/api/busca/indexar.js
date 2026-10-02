@@ -20,8 +20,8 @@
  * diferentes, e cada chave aceita uma escrita por segundo: quem manda vários
  * vídeos espera um segundo entre um e o seguinte.
  */
-import { json, pode, semPermissao } from '../_middleware.js';
-import AppIndice from '../../../indice-core.js';
+import { json, pode, semPermissao } from '../../_lib/sessao.js';
+import AppIndice from '../../../site/indice-core.js';
 
 async function lerManifesto(env) {
   const guardado = await env.CATALOGO.get(AppIndice.CHAVES.estado, 'json');

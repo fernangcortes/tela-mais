@@ -21,7 +21,7 @@
  *     `pedidoId` depois que o superadmin aprova.
  */
 import { json, pode, semPermissao, lerContas, acharConta, registrarEnvio,
-  lerAutorizacoes, gravarAutorizacoes, acharPedido, idPedido } from './_middleware.js';
+  lerAutorizacoes, gravarAutorizacoes, acharPedido, idPedido } from '../_lib/sessao.js';
 
 const VALIDADE_S = 3600;   /* UNIX em SEGUNDOS. Milissegundos invalidam a assinatura. */
 

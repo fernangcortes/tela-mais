@@ -1,0 +1,43 @@
+{
+  "versaoDoEsquema": 1,
+  "marca": {
+    "nome": "Plataforma Exemplo",
+    "nomeCurto": "Exemplo",
+    "slogan": "Vídeos para aprender e se inspirar",
+    "descricao": "Catálogo de vídeos da Plataforma Exemplo.",
+    "organizacao": "Organização Exemplo",
+    "prefixoDeArmazenamento": "tm"
+  },
+  "tituloBase": "Plataforma Exemplo — catálogo",
+  "tema": {
+    "modo": "escuro"
+  },
+  "idiomas": {
+    "padrao": "pt-BR",
+    "disponiveis": [
+      "pt-BR"
+    ],
+    "detectarDoNavegador": false,
+    "seletorVisivel": false
+  },
+  "textos": {
+    "pt-BR": {
+      "rodape": "Plataforma Exemplo."
+    }
+  },
+  "acesso": {
+    "modo": "publico"
+  },
+  "recursos": {
+    "busca": {
+      "porPalavra": true,
+      "pelaFala": true,
+      "porSentido": false
+    },
+    "continuarAssistindo": true,
+    "pwaInstalavel": true
+  },
+  "seo": {
+    "indexavel": false
+  }
+}

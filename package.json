@@ -4,6 +4,9 @@
   "private": true,
   "description": "Streaming white label de vídeo sob demanda para Cloudflare.",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "dev": "npx wrangler dev",
+    "config:validar": "node scripts/validar-config.mjs",
+    "config:aplicar": "node scripts/aplicar-config.mjs"
   }
 }
