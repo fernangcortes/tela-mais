@@ -1,0 +1,70 @@
+{
+  "descricao": "POST /videos cria o vídeo e devolve o guid; o plano TUS sai assinado (SHA256 de libraryId+chave+expire+guid).",
+  "entrada": {
+    "titulo": "Aula 1",
+    "tamanhoBytes": 1048576
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza"
+      },
+      "corpoContem": {
+        "title": "Aula 1"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "videoLibraryId": 123456,
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          "title": "Aula 1",
+          "dateUploaded": "2026-09-20T14:03:11.123",
+          "views": 0,
+          "isPublic": false,
+          "length": 0,
+          "status": 0,
+          "framerate": 0,
+          "rotation": 0,
+          "width": 0,
+          "height": 0,
+          "availableResolutions": null,
+          "thumbnailCount": 0,
+          "encodeProgress": 0,
+          "storageSize": 0,
+          "captions": [],
+          "hasMP4Fallback": true,
+          "collectionId": "",
+          "thumbnailFileName": "thumbnail.jpg",
+          "averageWatchTime": 0,
+          "totalWatchTime": 0,
+          "category": "",
+          "chapters": [],
+          "moments": [],
+          "metaTags": [],
+          "transcodingMessages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "protocolo": "tus",
+    "modo": "endpoint",
+    "url": "https://video.bunnycdn.com/tusupload",
+    "expiraEm": 1750003600,
+    "cabecalhos": {
+      "AuthorizationExpire": "1750003600",
+      "VideoId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "LibraryId": "123456"
+    },
+    "fonte": {
+      "provedor": "bunny",
+      "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "extras": {
+        "libraryId": "123456"
+      }
+    }
+  }
+}

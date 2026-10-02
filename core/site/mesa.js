@@ -366,7 +366,7 @@
   function alternarNoAr(id, ligar) {
     var it = M.item(id);
     if (!it) return;
-    if (ligar && !(it.fonte && it.fonte.videoId)) {
+    if (ligar && !App.idDoVideo(it)) {
       M.toast(tr('mesa.semVideoNaoPorNoAr'));
       return redesenhar();
     }
@@ -383,7 +383,7 @@
     var pulados = 0;
     ids.forEach(function (id) {
       var it = M.item(id);
-      if (!it || (ligar && !(it.fonte && it.fonte.videoId))) { pulados++; return; }
+      if (!it || (ligar && !App.idDoVideo(it))) { pulados++; return; }
       if (it.publicar !== ligar) st.rascunho = App.registrarMudanca(st.rascunho, { alvo: id, campo: 'publicar', antes: M.valorNoServidor(id, 'publicar'), depois: ligar });
     });
     st.marcados = {};
@@ -395,7 +395,7 @@
 
   function consultarMidia() {
     var it = st.sel.indexOf('item:') === 0 && M.item(st.sel.slice(5));
-    var videoId = it && it.fonte && it.fonte.videoId;
+    var videoId = it && App.idDoVideo(it);
     st.midia = st.midia || {};
     if (!videoId || videoId in st.midia) return;
     st.midia[videoId] = null;
@@ -508,6 +508,7 @@
     'a-padrao': function () { M.mudarVarios('ajustes', [['arrastoTeto', 0.4], ['controlesEspera', 3]]); },
     'env-enviar': function () { M.comecarEnvio(); },
     'env-pausar': function () { M.pausarEnvio(); },
+    'env-validar-url': function () { M.cadastrarPorEndereco(); },
     'n-salvar': function () { M.salvarTituloNovo(); },
     'capa-usar': function () { M.usarQuadro(); },
     'lote-publicar': function () { emLote(true); },

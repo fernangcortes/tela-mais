@@ -1,0 +1,16 @@
+{
+  "descricao": "Chave errada: 401.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos\\?",
+      "resposta": {
+        "status": 401,
+        "corpo": {
+          "HttpCode": 401,
+          "Message": "Authorization has been denied for this request."
+        }
+      }
+    }
+  ]
+}

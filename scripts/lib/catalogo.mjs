@@ -9,6 +9,7 @@ import { readFile, writeFile, copyFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { carregarEnv } from './env.mjs';
+import App from '../../core/site/catalogo-core.js';
 
 /* Efeito colateral proposital: todo script do projeto importa este módulo, e
  * módulos ESM são avaliados antes do corpo de quem importa. Assim o `.env` já
@@ -62,7 +63,7 @@ export async function gravarCatalogo(dados, caminho = CATALOGO_PADRAO) {
   await writeFile(caminho, JSON.stringify(dados, null, 1) + '\n', 'utf8');
 }
 
-/* Grava SÓ o que o upload produz (`fonte.videoId` e `fonte.libraryId`), relendo
+/* Grava SÓ o que o upload produz (a `fonte`: provedor, id e extras), relendo
  * o arquivo antes de escrever.
  *
  * Por que não usar `gravarCatalogo` direto: um upload de 8 GB leva muitos minutos,
@@ -77,9 +78,11 @@ export async function gravarFontes(itens, caminho = CATALOGO_PADRAO) {
   for (const item of itens) {
     const alvo = porId.get(item.id);
     if (!alvo || !item.fonte) continue;
-    const antes = alvo.fonte || {};
-    if (antes.videoId !== item.fonte.videoId || antes.libraryId !== item.fonte.libraryId) {
-      alvo.fonte = { ...antes, ...item.fonte };
+    /* O arquivo local pode estar no formato de antes do M4 (`videoId`/`libraryId`): compara migrado. */
+    const antes = App.migrarFonte(alvo.fonte);
+    const novo = App.migrarFonte(item.fonte);
+    if (JSON.stringify(antes) !== JSON.stringify(novo)) {
+      alvo.fonte = novo;
       mudou++;
     }
   }

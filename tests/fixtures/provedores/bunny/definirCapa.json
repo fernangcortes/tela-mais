@@ -1,0 +1,71 @@
+{
+  "descricao": "POST /thumbnail e releitura do vídeo: o Bunny grava a capa com hash no nome e apaga a anterior.",
+  "entrada": {
+    "bytes": [
+      255,
+      216,
+      255,
+      224
+    ],
+    "mime": "image/jpeg"
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/thumbnail$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza",
+        "content-type": "application/octet-stream"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "success": true,
+          "message": "OK",
+          "statusCode": 200
+        }
+      }
+    },
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "videoLibraryId": 123456,
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          "title": "Aula 1",
+          "dateUploaded": "2026-09-20T14:03:11.123",
+          "views": 0,
+          "isPublic": false,
+          "length": 0,
+          "status": 4,
+          "framerate": 0,
+          "rotation": 0,
+          "width": 0,
+          "height": 0,
+          "availableResolutions": null,
+          "thumbnailCount": 0,
+          "encodeProgress": 0,
+          "storageSize": 0,
+          "captions": [],
+          "hasMP4Fallback": true,
+          "collectionId": "",
+          "thumbnailFileName": "thumbnail_2c504259.jpg",
+          "averageWatchTime": 0,
+          "totalWatchTime": 0,
+          "category": "",
+          "chapters": [],
+          "moments": [],
+          "metaTags": [],
+          "transcodingMessages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "arquivo": "thumbnail_2c504259.jpg",
+    "versao": "1750000000000",
+    "urlCapa": "https://vz-exemplo-abc.b-cdn.net/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/thumbnail_2c504259.jpg?v=1750000000000"
+  }
+}

@@ -57,6 +57,13 @@ export function iguaisNoBunny(capitulos, doBunny) {
   return meus.length === deles.length && meus.every((m, i) => m === deles[i]);
 }
 
+/* O que o player do provedor já tem, no vocabulário do adaptador: { titulo, inicio, fim } (`obterVideo().capitulos`). */
+export function iguaisNoPlayer(capitulos, doPlayer) {
+  const meus = (capitulos || []).map((c) => `${c.inicio}|${c.fim}|${c.titulo}`);
+  const deles = (doPlayer || []).map((c) => `${c.inicio}|${c.fim}|${c.titulo}`);
+  return meus.length === deles.length && meus.every((m, i) => m === deles[i]);
+}
+
 /* No catálogo vai só `inicio` e `titulo`: guardar o `fim` derivado criaria um
  * segundo lugar para ficar desatualizado, e a lista da ficha não precisa dele —
  * ela usa o início do capítulo seguinte, exatamente como o player. */

@@ -1,0 +1,12 @@
+{
+  "descricao": "Evento intermediário (Status 1).",
+  "pedido": {
+    "VideoLibraryId": 123456,
+    "VideoGuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "Status": 1
+  },
+  "esperado": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "evento": "processando"
+  }
+}

@@ -363,15 +363,14 @@
     });
   };
 
-  /* A legenda de um vídeo, lida DIRETO da pull zone: ela responde
-   * `Access-Control-Allow-Origin: *`, e a mesa está no domínio permitido —
-   * é o mesmo caminho do MP4 do seletor de capa. `null` quando o vídeo não
-   * tem legenda (404), que é caso previsto. */
-  M.legendaDoVideo = function (videoId) {
-    var pz = (M.st.servidor.config || {}).pullzone;
-    if (!pz) return Promise.reject(new Error(tr('mesa.oCatalogoNaoTrouxeA')));
-    var host = String(pz).replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    return fetch('https://' + host + '/' + encodeURIComponent(videoId) + '/captions/pt.vtt').then(function (r) {
+  /* A legenda de um título, lida DIRETO do provedor pela URL que o servidor
+   * pôs em `midia.legendas`: ele responde com CORS aberto, e a mesa está no
+   * domínio permitido — é o mesmo caminho do MP4 do seletor de capa. `null`
+   * quando o vídeo não tem legenda (404), que é caso previsto. */
+  M.legendaDoVideo = function (item) {
+    var url = App.urlLegenda(item);
+    if (!url) return Promise.reject(new Error(tr('mesa.oCatalogoNaoTrouxeA')));
+    return fetch(url).then(function (r) {
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(tr('mesa.legendaRespondeu', { status: r.status }));
       return r.text();
@@ -407,7 +406,7 @@
   };
 
   /* O botão da visão geral: põe na busca quem ficou fora, e refaz os vetores
-   * de quem mudou. A legenda vem da pull zone; a sinopse e os capítulos, do
+   * de quem mudou. A legenda vem do provedor; a sinopse e os capítulos, do
    * catálogo no ar. */
   M.porNaBusca = function () {
     if (M.busca.andando) return Promise.resolve(null);
@@ -420,14 +419,14 @@
     var andar = function (i) {
       if (i >= lista.length) return Promise.resolve();
       var item = lista[i];
-      var videoId = item.fonte.videoId;
+      var videoId = App.idDoVideo(item);
       M.busca.andando = tr('mesa.pondoNaBusca', { atual: i + 1, total: lista.length });
       if (M.aoMudar) M.aoMudar({ semCentro: true });
       var guardado = ((M.busca.manifesto && M.busca.manifesto.videos) || {})[videoId] || {};
       /* A fala só é relida quando falta, ou quando os vetores dela não
        * existem: baixar 67 legendas para trocar uma sinopse seria absurdo. */
       var precisaDaFala = !guardado.fala || (M.busca.sentido && guardado.fala.sentido !== true);
-      return (precisaDaFala ? M.legendaDoVideo(videoId) : Promise.resolve(undefined))
+      return (precisaDaFala ? M.legendaDoVideo(item) : Promise.resolve(undefined))
         .then(function (legenda) {
           var conjuntos = AppIndice.conjuntosDoItem(item);
           if (precisaDaFala) conjuntos.fala = legenda ? AppIndice.blocosDaLegenda(legenda) : [];
@@ -685,9 +684,9 @@
     if (!M.busca.sentido || !mexidos.length) return;
     mexidos.forEach(function (id) {
       var item = M.item(id, true);
-      if (!item || !(item.fonte && item.fonte.videoId)) return;
+      if (!item || !App.idDoVideo(item)) return;
       var conj = AppIndice.conjuntosDoItem(item);
-      M.indexarBusca(item.fonte.videoId, { capitulos: conj.capitulos, sinopse: conj.sinopse })
+      M.indexarBusca(App.idDoVideo(item), { capitulos: conj.capitulos, sinopse: conj.sinopse })
         .then(function () { return M.carregarBusca(); }, function () { /* a visão geral mostra */ });
     });
   }

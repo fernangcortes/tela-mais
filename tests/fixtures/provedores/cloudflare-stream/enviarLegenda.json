@@ -1,0 +1,34 @@
+{
+  "descricao": "PUT /stream/{uid}/captions/{idioma} (multipart, campo file; o SRT vira VTT).",
+  "entrada": {
+    "idioma": "pt",
+    "srt": "1\n00:00:01,000 --> 00:00:02,500\nOlá\n"
+  },
+  "rotas": [
+    {
+      "metodo": "PUT",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a/captions/pt$",
+      "cabecalhos": {
+        "Authorization": "Bearer chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "result": {
+            "language": "pt",
+            "label": "Português",
+            "generated": false,
+            "status": "ready"
+          },
+          "success": true,
+          "errors": [],
+          "messages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "idioma": "pt",
+    "rotulo": "Português"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "provedor": "cloudflare-stream",
+  "descricao": "Respostas da API do Cloudflare Stream, escritas a partir do esquema OpenAPI e da documentação oficial (não gravadas de uma conta real). Nenhuma rede nos testes. O uid e o código de cliente são os exemplos públicos da documentação.",
+  "env": {
+    "CLOUDFLARE_ACCOUNT_ID": "0123456789abcdef0123456789abcdef",
+    "CLOUDFLARE_STREAM_TOKEN": "chave-de-teste-nao-vaza",
+    "CLOUDFLARE_STREAM_SUBDOMINIO": "customer-m033z5x00ks6nunl"
+  },
+  "segredos": [
+    "chave-de-teste-nao-vaza"
+  ],
+  "agora": 1750000000000,
+  "idExemplo": "ea95132c15732412d22c1476fa83f27a",
+  "idsInvalidos": [
+    "",
+    "../x",
+    "a b",
+    "x?y=1",
+    "curto",
+    "<script>alert(1)</script>",
+    "ea95132c15732412d22c1476fa83f27a/../outro",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "ea95132c15732412d22c1476fa83f27a0"
+  ],
+  "tituloExemplo": "Aula 1"
+}

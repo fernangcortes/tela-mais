@@ -8,7 +8,7 @@ tela mAIs: streaming white label (vídeo sob demanda estilo Netflix) que cada cl
 instala na própria conta Cloudflare. Site estático (HTML/CSS/JS sem framework, sem
 build), um Worker da Cloudflare em `core/worker/` (roteador próprio, sem
 dependências; `wrangler.jsonc` na raiz) e scripts Node (`scripts/`, ESM, sem dependências).
-Código e documentação em pt-BR. Estado: M2, não pronto para produção.
+Código e documentação em pt-BR. Estado: M4 concluído (adaptadores de vídeo bunny, cloudflare-stream e hls-generico), não pronto para produção.
 
 ## Comandos
 
@@ -54,6 +54,22 @@ Texto que a pessoa lê **não se escreve no código**: vai em `core/locales/{pt-
 duração saem do Intl pelo idioma (`AppI18n.data`, `.duracao`...), nunca com `'pt-BR'` escrito. O cliente troca textos em
 `config.textos[idioma]` ou acrescenta idioma em `config/locales/<idioma>.json`; `aplicar-config` gera `core/site/locales/*.json`.
 Dado que não é texto de tela (rótulo de legenda, valor de enum gravado) leva o marcador `i18n-ignorar` na linha.
+
+## Provedor de vídeo
+
+Guia para o cliente: `docs/provedores.md` (mantenha em dia ao mudar credenciais, capacidades ou preços). Tudo que sabe de um provedor (host, API, status, capa, legenda, assinatura) mora num **adaptador** em
+`core/worker/_lib/provedores/` (`bunny.js`, `cloudflare-stream.js`, `hls-generico.js`), atrás da interface de
+`contrato.js`; o provedor sai de `video.provedor` em `config/site.json` e as credenciais de variáveis de ambiente
+(`{"$env":"NOME"}`). O navegador **não conhece provedor**: o servidor entrega `item.midia = { hls, mp4, capa, previa, legendas[], embed }`
+pronto, e o upload do /admin segue o plano que `criarUpload` devolve (endpoint e cabeçalhos vêm do servidor). `fonte` do item é
+`{ provedor, id, extras }` (o formato antigo `{ tipo, libraryId, videoId }` é migrado por `App.migrarFonte`). Nenhum host de provedor
+em `core/site/` (`tests/provedores-worker.test.js` confere), nenhuma regra de provedor fora do adaptador. Adaptador novo ou
+alterado: rode `node --test tests/provedores-contrato.test.js` (a mesma suíte para todos, com fixtures em
+`tests/fixtures/provedores/<id>/`) e leia `core/worker/_lib/provedores/LEIA-ME.md`. Scripts de carga usam o mesmo código por
+`scripts/lib/provedores/index.mjs` (nenhum script fala com um provedor por fora do adaptador; o que é de um provedor só fica atrás
+de `capacidades()`). HLS genérico: a CSP libera só o host de `video.hlsGenerico.baseUrl` e os de `hostsPermitidos` (config do dono),
+nunca os endereços colados nos títulos. A CSP sai dos `hostsMidia()` do adaptador; `core/site/_headers` é gerado por
+`node scripts/gerar-headers.mjs` (política neutra).
 
 ## Tema, cores e fontes
 

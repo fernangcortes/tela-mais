@@ -1,0 +1,23 @@
+{
+  "descricao": "DELETE /videos/{id}.",
+  "rotas": [
+    {
+      "metodo": "DELETE",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "success": true,
+          "message": "OK",
+          "statusCode": 200
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "ok": true
+  }
+}

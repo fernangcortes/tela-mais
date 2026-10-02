@@ -87,19 +87,13 @@
 
   /* ================================================================ fontes */
 
-  function hostPullzone(config) {
-    var pullzone = config && config.pullzone;
-    if (!pullzone) return null;
-    return String(pullzone).replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  }
+  /* As URLs de reprodução vêm PRONTAS do servidor, em `item.midia` (o adaptador
+   * do provedor as monta, e as assina no modo privado): o navegador não sabe de
+   * host nenhum. Estas funções só LEEM o objeto `midia`. */
 
-  /* HLS adaptativo da pull zone: 240p a 1080p, segmentos de 4 s.
-   * Conferido em 01/09: responde 200 com `Access-Control-Allow-Origin: *`. */
-  function urlHls(fonte, config) {
-    var host = hostPullzone(config);
-    if (!fonte || !fonte.videoId || !host) return null;
-    if (fonte.tipo && fonte.tipo !== 'bunny') return null;
-    return 'https://' + host + '/' + fonte.videoId + '/playlist.m3u8';
+  /* HLS adaptativo (240p a 1080p, segmentos curtos): o caminho principal. */
+  function urlHls(midia) {
+    return midia && typeof midia.hls === 'string' && midia.hls ? midia.hls : null;
   }
 
   /* MP4 progressivo — rede de segurança, nunca o caminho principal.
@@ -107,13 +101,22 @@
    * ARMADILHA: o MP4 não tem qualidade adaptativa. Num vídeo de 10 minutos o
    * 720p tem 130 MB e o 1080p tem 270 MB (medido em 01/09). Numa rede
    * compartilhada isso não se sustenta: por isso o padrão do fallback é 360p, e não
-   * a melhor resolução disponível.
+   * a melhor resolução disponível. Sem a resolução pedida, a mais próxima que o
+   * provedor oferece.
    */
-  function urlMp4(fonte, config, resolucao) {
-    var host = hostPullzone(config);
-    if (!fonte || !fonte.videoId || !host) return null;
-    if (fonte.tipo && fonte.tipo !== 'bunny') return null;
-    return 'https://' + host + '/' + fonte.videoId + '/play_' + (resolucao || '360p') + '.mp4';
+  var RESOLUCOES = ['240p', '360p', '720p'];
+
+  function urlMp4(midia, resolucao) {
+    var mp4 = midia && midia.mp4;
+    if (!mp4 || typeof mp4 !== 'object') return null;
+    var pedida = resolucao || '360p';
+    if (mp4[pedida]) return mp4[pedida];
+    var alvo = RESOLUCOES.indexOf(pedida);
+    var melhor = null;
+    RESOLUCOES.forEach(function (r, k) {
+      if (mp4[r] && (melhor === null || Math.abs(k - alvo) < Math.abs(melhor.k - alvo))) melhor = { k: k, url: mp4[r] };
+    });
+    return melhor ? melhor.url : null;
   }
 
   /* Qual caminho de reprodução TENTAR. Pura de propósito: quem descobre o
@@ -394,12 +397,17 @@
    * `fetch()` e as cues são montadas na mão.
    */
 
-  function urlLegenda(fonte, config, idioma) {
-    var host = hostPullzone(config);
-    if (!fonte || !fonte.videoId || !host) return null;
-    if (fonte.tipo && fonte.tipo !== 'bunny') return null;
-    return 'https://' + host + '/' + fonte.videoId + '/captions/' +
-      (idioma || 'pt') + '.vtt';
+  /* A faixa de legenda de `midia.legendas` (a do idioma pedido; sem pedido, a
+   * primeira). A URL é a que o provedor serve: o navegador só a busca. */
+  function faixaDeLegenda(midia, idioma) {
+    var lista = midia && Array.isArray(midia.legendas) ? midia.legendas : [];
+    var achada = idioma ? lista.filter(function (l) { return l && l.idioma === idioma; })[0] : lista[0];
+    return achada && typeof achada.url === 'string' && achada.url ? achada : null;
+  }
+
+  function urlLegenda(midia, idioma) {
+    var f = faixaDeLegenda(midia, idioma);
+    return f ? f.url : null;
   }
 
   /* "00:01:58.606" -> 118.606 · aceita "01:58.606" sem a hora. */
@@ -2175,6 +2183,7 @@
     rotuloVolume: rotuloVolume,
     acaoDeTecla: acaoDeTecla,
     urlLegenda: urlLegenda,
+    faixaDeLegenda: faixaDeLegenda,
     tempoVtt: tempoVtt,
     analisarVtt: analisarVtt,
     desenrolarLegenda: desenrolarLegenda,

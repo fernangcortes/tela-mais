@@ -1,0 +1,51 @@
+{
+  "descricao": "POST /videos/{id} só com `chapters`, inteiros em segundos.",
+  "entrada": {
+    "capitulos": [
+      {
+        "titulo": "Abertura",
+        "inicio": 0,
+        "fim": 66.6
+      },
+      {
+        "titulo": "Conteúdo",
+        "inicio": 66.6,
+        "fim": 611
+      }
+    ]
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza"
+      },
+      "corpoContem": {
+        "chapters": [
+          {
+            "title": "Abertura",
+            "start": 0,
+            "end": 67
+          },
+          {
+            "title": "Conteúdo",
+            "start": 67,
+            "end": 611
+          }
+        ]
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "success": true,
+          "message": "OK",
+          "statusCode": 200
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "n": 2
+  }
+}

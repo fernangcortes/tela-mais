@@ -1,0 +1,21 @@
+{
+  "descricao": "O provedor aceita e não devolve o guid.",
+  "entrada": {
+    "titulo": "Aula 1"
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "title": "Aula 1"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "codigo": "provedor-sem-guid"
+  }
+}

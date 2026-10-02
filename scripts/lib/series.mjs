@@ -65,7 +65,7 @@ export function materialDaSerie(itens, nome, falas) {
   const pagina = App.paginaDaSerie(itens, nome);
   if (!pagina) return null;
   const titulos = pagina.itens.map((i) => {
-    const videoId = i.fonte && i.fonte.videoId;
+    const videoId = App.idDoVideo(i);
     const fala = (falas && (falas.get(i.id) || (videoId && falas.get(videoId)))) || [];
     return {
       id: i.id,

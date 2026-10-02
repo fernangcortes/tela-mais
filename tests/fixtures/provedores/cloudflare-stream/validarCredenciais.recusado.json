@@ -1,0 +1,23 @@
+{
+  "descricao": "Token errado: 401 (código 10000).",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?limit=1$",
+      "resposta": {
+        "status": 401,
+        "corpo": {
+          "success": false,
+          "errors": [
+            {
+              "code": 10000,
+              "message": "Authentication error"
+            }
+          ],
+          "messages": [],
+          "result": null
+        }
+      }
+    }
+  ]
+}

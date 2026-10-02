@@ -9,13 +9,13 @@
  * existentes, também (`*.srt`). Os caminhos já vêm no catálogo, em
  * `capa_local` e `legenda_local`.
  *
- * Reenviar é inofensivo: o Bunny sobrescreve. O script marca o que enviou em
+ * Reenviar é inofensivo: o provedor sobrescreve. O script marca o que enviou em
  * `midia_enviada` para você saber o que já passou.
  */
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
-import { criarCliente } from './lib/bunny.mjs';
 import { argumentos, lerCatalogo, gravarCatalogo, selecionar, CATALOGO_PADRAO, agora, erroFatal } from './lib/catalogo.mjs';
+import { videoDoItem, exigirCapacidade, exigirConfigurado, provedorDoAmbiente } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const caminhoCatalogo = typeof op.catalogo === 'string' ? op.catalogo : CATALOGO_PADRAO;
@@ -33,14 +33,19 @@ function caminhoLegenda(item) {
 
 try {
   const catalogo = await lerCatalogo(caminhoCatalogo);
-  const alvos = selecionar(catalogo.itens, op).filter(i => i.fonte && i.fonte.videoId);
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
+  /* Enviar capa e legenda por arquivo é capacidade do provedor (o HLS genérico guarda o ENDEREÇO delas no item). */
+  if (so !== 'legendas') exigirCapacidade(provedor, 'capaPorUpload', 'enviar capas');
+  if (so !== 'capas') exigirCapacidade(provedor, 'legendaPorUpload', 'enviar legendas');
+  const alvos = selecionar(catalogo.itens, op).filter(i => videoDoItem(provedor, i));
 
   if (!alvos.length) {
-    console.log('nenhum título com videoId. Rode scripts/upload.mjs antes.');
+    console.log('nenhum título com vídeo no provedor. Rode scripts/upload.mjs antes.');
     process.exit(0);
   }
 
-  const bunny = criarCliente();
+  const idDe = (item) => videoDoItem(provedor, item).id;
   const conta = { capas: 0, legendas: 0, semCapa: 0, semLegenda: 0, mantidas: 0, erros: 0 };
 
   for (const item of alvos) {
@@ -54,7 +59,9 @@ try {
         console.log(`${agora()}  capa     ·  ${item.titulo}: mantida (escolhida pela tela)`);
       } else if (item.capa_local && await existe(item.capa_local)) {
         try {
-          await bunny.enviarCapa(item.fonte.videoId, item.capa_local);
+          /* O arquivo local vai ao provedor; se ele devolve outro nome (hash), o catálogo passa a guardá-lo. */
+          const troca = await provedor.definirCapa(idDe(item), await readFile(item.capa_local), 'image/jpeg');
+          if (troca.arquivo) { item.capa_arquivo = troca.arquivo; item.capa_versao = troca.versao || String(Date.now()); }
           marcas.capa = new Date().toISOString();
           conta.capas++;
           console.log(`${agora()}  capa     ✔  ${item.titulo}`);
@@ -72,7 +79,7 @@ try {
       if (srt && await existe(srt)) {
         try {
           const conteudo = await readFile(srt, 'utf8');
-          await bunny.enviarLegenda(item.fonte.videoId, conteudo);
+          await provedor.enviarLegenda(idDe(item), { idioma: 'pt', rotulo: 'Português', srt: conteudo }); /* i18n-ignorar: rótulo da faixa de legenda (dado: a língua da fala) */
           marcas.legenda = new Date().toISOString();
           conta.legendas++;
           console.log(`${agora()}  legenda  ✔  ${item.titulo}`);

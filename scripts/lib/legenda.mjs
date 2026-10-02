@@ -25,18 +25,17 @@ export const { BOM, paraSegundos, paraCarimbo, analisarVtt, juntarSemRepetir, co
 /* O texto cru, sem ler: é o que a busca pela fala condensa e compara. `null`
  * quando o título não tem legenda — é caso previsto (o institucional não tem
  * narração, e o ASR devolveu zero palavra). */
-export async function baixarTextoDaLegenda(pullzone, videoId, referer) {
-  const host = String(pullzone).replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  const url = `https://${host}/${videoId}/captions/pt.vtt`;
-  /* A pull zone é protegida por Allowed Referrers: sem este cabeçalho ela
-   * responde 403. Não é opcional. */
+export async function baixarTextoDaLegenda(url, referer) {
+  /* O provedor pode proteger a mídia por Allowed Referrers: sem este cabeçalho
+   * ele responde 403. Não é opcional. A URL vem do adaptador
+   * (`urlDaLegenda` em scripts/lib/provedores): o script não monta URL de provedor. */
   const r = await fetch(url, referer ? { headers: { Referer: referer } } : undefined);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`legenda ${r.status} em ${url}`);
   return r.text();
 }
 
-export async function baixarLegenda(pullzone, videoId, referer) {
-  const texto = await baixarTextoDaLegenda(pullzone, videoId, referer);
+export async function baixarLegenda(url, referer) {
+  const texto = await baixarTextoDaLegenda(url, referer);
   return texto == null ? null : analisarVtt(texto);
 }

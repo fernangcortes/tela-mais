@@ -1,0 +1,30 @@
+{
+  "descricao": "Qualquer consulta a um vídeo que não existe: 404.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "resposta": {
+        "status": 404,
+        "corpo": {
+          "HttpCode": 404,
+          "Message": "The requested video was not found"
+        }
+      }
+    },
+    {
+      "metodo": "DELETE",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "resposta": {
+        "status": 404,
+        "corpo": {
+          "HttpCode": 404,
+          "Message": "The requested video was not found"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "status": 404
+  }
+}

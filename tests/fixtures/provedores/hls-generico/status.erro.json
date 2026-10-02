@@ -1,0 +1,21 @@
+{
+  "descricao": "A URL responde 200 com HTML (página de erro do host): não é playlist.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://videos\\.exemplo\\.test/acervo/aula-1/master\\.m3u8$",
+      "resposta": {
+        "status": 200,
+        "texto": "<!doctype html><title>404</title>",
+        "cabecalhos": {
+          "content-type": "text/html; charset=utf-8"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "estado": "erro",
+    "progresso": null,
+    "estadoBruto": "html"
+  }
+}

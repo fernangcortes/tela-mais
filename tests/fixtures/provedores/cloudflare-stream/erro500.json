@@ -1,0 +1,16 @@
+{
+  "descricao": "O provedor cai e (mal) repete o token: o detalhe sai mascarado.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream/ea95132c15732412d22c1476fa83f27a$",
+      "resposta": {
+        "status": 500,
+        "texto": "Internal error handling Authorization: Bearer chave-de-teste-nao-vaza"
+      }
+    }
+  ],
+  "esperado": {
+    "status": 500
+  }
+}

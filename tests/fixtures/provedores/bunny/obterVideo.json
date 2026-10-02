@@ -1,0 +1,53 @@
+{
+  "descricao": "GET /videos/{id} resumido.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "videoLibraryId": 123456,
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          "title": "Aula 1",
+          "dateUploaded": "2026-09-20T14:03:11.123",
+          "views": 0,
+          "isPublic": false,
+          "length": 611,
+          "status": 4,
+          "framerate": 29.97,
+          "rotation": 0,
+          "width": 0,
+          "height": 0,
+          "availableResolutions": null,
+          "thumbnailCount": 0,
+          "encodeProgress": 100,
+          "storageSize": 123456789,
+          "captions": [],
+          "hasMP4Fallback": true,
+          "collectionId": "",
+          "thumbnailFileName": "thumbnail_2c504259.jpg",
+          "averageWatchTime": 0,
+          "totalWatchTime": 0,
+          "category": "",
+          "chapters": [],
+          "moments": [],
+          "metaTags": [],
+          "transcodingMessages": []
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "titulo": "Aula 1",
+    "duracaoSeg": 611,
+    "criadoEm": "2026-09-20T14:03:11.123",
+    "tamanhoBytes": 123456789,
+    "estado": "pronto",
+    "progresso": 100,
+    "framerate": 29.97,
+    "arquivoCapa": "thumbnail_2c504259.jpg",
+    "urlCapa": "https://vz-exemplo-abc.b-cdn.net/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/thumbnail_2c504259.jpg"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "descricao": "O host da base responde 503.",
+  "rotas": [
+    {
+      "metodo": "HEAD",
+      "url": "^https://videos\\.exemplo\\.test/acervo/$",
+      "resposta": {
+        "status": 503,
+        "texto": "indisponível"
+      }
+    }
+  ],
+  "entrada": {},
+  "esperado": {
+    "ok": false
+  }
+}

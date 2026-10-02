@@ -1,25 +1,28 @@
-/* scripts/upload.mjs — Tasks 2.1, 2.2, 2.3 e 2.5: carga em lote no Bunny.
+/* scripts/upload.mjs — Tasks 2.1, 2.2, 2.3 e 2.5: carga em lote no provedor de vídeo
+ * (o de `video.provedor` em config/site.json, pelo adaptador de scripts/lib/provedores).
  *
  *   node scripts/upload.mjs --piloto            os 6 títulos do lote-piloto
  *   node scripts/upload.mjs                     todos os que ainda não subiram
  *   node scripts/upload.mjs --item <id>[,<id>]  títulos específicos
  *   node scripts/upload.mjs --piloto --simular  não envia nada, só mostra o plano
  *
- *   --tus            força upload resumível mesmo nos arquivos pequenos
  *   --catalogo <p>   usa outro JSON (padrão: exemplo/catalogo.json na raiz do projeto)
  *
- * IDEMPOTENTE: se o item já tem fonte.videoId, é pulado. Rodar duas vezes não
+ * O envio é TUS (resumível) para todo arquivo, pelo PLANO que o adaptador devolve
+ * (criarUpload/retomarUpload): a mesma via da mesa de curadoria.
+ *
+ * IDEMPOTENTE: se o item já tem fonte (id do vídeo no provedor), é pulado. Rodar duas vezes não
  * duplica nada — é seguro interromper com Ctrl+C e recomeçar.
  */
 import { stat } from 'node:fs/promises';
-import { criarCliente } from './lib/bunny.mjs';
+import { idDoVideo, provedorDoAmbiente, exigirConfigurado, enviarArquivo } from './lib/provedores/index.mjs';
 import {
   argumentos, lerCatalogo, gravarFontes, selecionar,
   CATALOGO_PADRAO, mb, barra, agora, erroFatal
 } from './lib/catalogo.mjs';
 
-/* Acima disto, PUT direto é aposta ruim: uma queda reinicia do zero. */
-const LIMITE_PUT = 1.5 * 1024 * 1024 * 1024;
+/* O plano de upload vale 24 h: um lote grande não pode perder a assinatura no meio. */
+const VALIDADE_PLANO_S = 24 * 3600;
 
 const op = argumentos();
 const caminhoCatalogo = typeof op.catalogo === 'string' ? op.catalogo : CATALOGO_PADRAO;
@@ -41,7 +44,7 @@ try {
     }
     return true;
   });
-  const pendentes = escolhidos.filter(i => !(i.fonte && i.fonte.videoId));
+  const pendentes = escolhidos.filter(i => !idDoVideo(i));
   const jaFeitos = escolhidos.length - pendentes.length;
 
   console.log(`catálogo: ${caminhoCatalogo}`);
@@ -65,7 +68,7 @@ try {
         '  (o HD externo F: está conectado?)'
       );
     }
-    planos.push({ item, tamanho, tus: op.tus === true || tamanho >= LIMITE_PUT });
+    planos.push({ item, tamanho });
   }
 
   /* Menores primeiro: quem esta esperando para testar ganha varios titulos
@@ -74,7 +77,7 @@ try {
 
   const total = planos.reduce((s, p) => s + p.tamanho, 0);
   for (const p of planos) {
-    console.log(`  ${p.tus ? 'TUS' : 'PUT'}  ${mb(p.tamanho).padStart(8)}  ${p.item.arquivo}`);
+    console.log(`  TUS  ${mb(p.tamanho).padStart(8)}  ${p.item.arquivo}`);
   }
   console.log(`\ntotal: ${mb(total)}\n`);
 
@@ -83,48 +86,52 @@ try {
     process.exit(0);
   }
 
-  const bunny = criarCliente();
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
+  if (!provedor.capacidades().envio) {
+    throw new Error('o provedor "' + provedor.id + '" não recebe arquivo por aqui.' +
+      (provedor.capacidades().fontePorUrl ? ' Os vídeos já estão no seu servidor: cadastre os endereços com scripts/cadastrar-hls.mjs ou pelo /admin.' : ' Envie pelo painel dele e informe o id no catálogo.'));
+  }
   let enviados = 0;
 
-  for (const { item, tamanho, tus } of planos) {
+  for (const { item, tamanho } of planos) {
     const rotulo = `[${enviados + 1}/${planos.length}] ${item.titulo}`;
     console.log(`${agora()}  ${rotulo}`);
 
     try {
-      /* Cria e grava o videoId ANTES de mandar os bytes. Se o envio cair, o id
+      /* Cria e grava a fonte ANTES de mandar os bytes. Se o envio cair, o id
        * já está no JSON e a retomada não cria um vídeo órfão no painel. */
-      if (!item.fonte.videoId) {
-        item.fonte.videoId = await bunny.criarVideo(item.titulo);
-        item.fonte.libraryId = bunny.libraryId;
+      let plano;
+      if (!idDoVideo(item)) {
+        plano = await provedor.criarUpload({ titulo: item.titulo, tamanhoBytes: tamanho, validadeSeg: VALIDADE_PLANO_S });
+        item.fonte = plano.fonte;
         await gravarFontes(catalogo.itens, caminhoCatalogo);
-        console.log(`         videoId ${item.fonte.videoId}`);
+        console.log(`         id ${plano.id}`);
+      } else {
+        plano = await provedor.retomarUpload(idDoVideo(item), { validadeSeg: VALIDADE_PLANO_S, tamanhoBytes: tamanho });
       }
 
-      if (tus) {
-        let ultimo = 0;
-        await bunny.enviarTus(item.fonte.videoId, item.caminho_local, {
-          aoProgredir(feito, tot) {
-            if (feito - ultimo < 50 * 1024 * 1024 && feito !== tot) return;
-            ultimo = feito;
-            process.stdout.write('\r         ' + barra(feito, tot) + '  ' + mb(feito));
-          }
-        });
-        process.stdout.write('\n');
-      } else {
-        await bunny.enviarPut(item.fonte.videoId, item.caminho_local);
-      }
+      let ultimo = 0;
+      await enviarArquivo(plano, item.caminho_local, {
+        aoProgredir(feito, tot) {
+          if (feito - ultimo < 50 * 1024 * 1024 && feito !== tot) return;
+          ultimo = feito;
+          process.stdout.write('\r         ' + barra(feito, tot) + '  ' + mb(feito));
+        }
+      });
+      process.stdout.write('\n');
 
       enviados++;
       console.log(`         enviado (${mb(tamanho)})\n`);
     } catch (e) {
       console.error(`         ✖ falhou: ${e.message}`);
-      console.error('         o videoId ficou gravado; rode de novo para retomar este título.\n');
+      console.error('         o id do vídeo ficou gravado; rode de novo para retomar este título.\n');
     }
   }
 
   await gravarFontes(catalogo.itens, caminhoCatalogo);
 
-  const comId = catalogo.itens.filter(i => i.fonte && i.fonte.videoId).length;
+  const comId = catalogo.itens.filter(i => idDoVideo(i)).length;
   console.log(`\nconcluído: ${enviados} de ${planos.length} nesta rodada.`);
   console.log(`catálogo agora tem ${comId} de ${catalogo.itens.length} títulos com videoId.`);
   console.log('\npróximo passo: node scripts/status.mjs  (aguardar o encoding antes de publicar)');

@@ -1,0 +1,24 @@
+{
+  "provedor": "bunny",
+  "descricao": "Respostas da API do Bunny Stream (gravadas à mão a partir da documentação da API; confirmar contra uma biblioteca de teste antes de depender de campo novo). Nenhuma rede nos testes.",
+  "env": {
+    "BUNNY_LIBRARY_ID": "123456",
+    "BUNNY_API_KEY": "chave-de-teste-nao-vaza",
+    "BUNNY_PULLZONE": "vz-exemplo-abc.b-cdn.net"
+  },
+  "segredos": [
+    "chave-de-teste-nao-vaza"
+  ],
+  "agora": 1750000000000,
+  "idExemplo": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "idsInvalidos": [
+    "",
+    "../x",
+    "a b",
+    "x?y=1",
+    "curto",
+    "<script>alert(1)</script>",
+    "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/../outro"
+  ],
+  "tituloExemplo": "Aula 1"
+}

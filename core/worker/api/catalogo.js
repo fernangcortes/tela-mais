@@ -9,6 +9,7 @@ import { json, erro } from '../_lib/sessao.js';
 import AppI18n from '../../site/i18n.js';
 import { registrarPublicacao } from './historico.js';
 import App from '../../site/catalogo-core.js';
+import { comMidia, montarMidia, idiomasDeLegendaPadrao } from '../_lib/provedores/index.js';
 
 const CHAVE = 'catalogo';
 
@@ -27,7 +28,7 @@ function paraPublico(item) {
     /* A taxa de quadros, para o passo a passo da fase 9 (`,` e `.`): o <video>
      * não tem passo de quadro, então o player faz `currentTime += 1/framerate`
      * e precisa do número por TÍTULO — o acervo é misto (23,976 · 29,97 · 30 ·
-     * 24 · 25) e um passo fixo erraria na maioria. Vem do Bunny por
+     * 24 · 25) e um passo fixo erraria na maioria. Vem do provedor por
      * `scripts/framerate.mjs`; `null` enquanto o script não rodar, e o player
      * trata a ausência desligando o atalho em vez de chutar 30. */
     framerate: item.framerate ?? null,
@@ -51,28 +52,25 @@ function paraPublico(item) {
      * Só `true` viaja: `destaque: false` e a ausência do campo são a mesma
      * coisa para quem lê, e mandar 66 `false` é peso à toa. */
     destaque: item.destaque === true ? true : null,
-    /* Sem estes dois a grade nunca vê a capa nova: o Bunny renomeia o arquivo
-     * com um hash ao receber uma capa enviada, e mantém o thumbnail.jpg antigo. */
-    capa_arquivo: item.capa_arquivo || null,
-    capa_versao: item.capa_versao || null,
-    /* Capítulos: o player do Bunny já os traz do lado dele (segmentam a linha
+    /* `capa_arquivo` e `capa_versao` NÃO saem mais (M4): o nome do arquivo de
+     * capa é coisa do provedor, e a URL final já vai em `midia.capa`. */
+    /* Capítulos: o player do provedor já os traz do lado dele (segmentam a linha
      * do tempo e mostram o título no hover), mas a LISTA clicável ao lado do
      * player é desenhada aqui pela grade. Campo que não sai por `paraPublico`
      * não existe para o navegador — sem esta linha a lista some. */
     capitulos: Array.isArray(item.capitulos) ? item.capitulos : [],
-    fonte: {
-      tipo: (item.fonte && item.fonte.tipo) || 'bunny',
-      libraryId: (item.fonte && item.fonte.libraryId) || null,
-      videoId: (item.fonte && item.fonte.videoId) || null
-    }
+    /* O id do vídeo é a chave do índice da busca (fala e sentido); `extras`
+     * (ex.: libraryId) fica no servidor. Quem toca o vídeo usa `midia`. */
+    fonte: { provedor: (item.fonte && item.fonte.provedor) || null, id: (item.fonte && item.fonte.id) || null }
   };
 }
 
-function config(env) {
-  return {
-    libraryId: env.BUNNY_LIBRARY_ID ? String(env.BUNNY_LIBRARY_ID) : null,
-    pullzone: env.BUNNY_PULLZONE ? String(env.BUNNY_PULLZONE) : null
-  };
+/* A `midia` de cada item, calculada pelo adaptador do provedor a cada resposta
+ * (nunca gravada). `assinar` é do M5: no modo privado a URL passa a sair
+ * assinada e com validade curta (`urlReproducao({ assinar, validadeSeg })`). */
+async function comMidias(provedor, itens, config) {
+  const opcoes = { idiomasDeLegenda: idiomasDeLegendaPadrao(config) };
+  return Promise.all(itens.map(i => comMidia(provedor, i, opcoes)));
 }
 
 /* Ajustes do player, editados em /admin e guardados no PRÓPRIO catálogo.
@@ -153,12 +151,14 @@ async function guardarCapaDoDestaque(env, url) {
   }
 }
 
+/* Lê o catálogo já com a `fonte` de cada item no formato novo
+ * (`{ provedor, id, extras }`): o KV migra aos poucos, a cada PUT. */
 async function lerCatalogo(env) {
   if (!env.CATALOGO) return null;
-  return await env.CATALOGO.get(CHAVE, 'json');
+  return App.catalogoMigrado(await env.CATALOGO.get(CHAVE, 'json'));
 }
 
-export async function onRequestGet({ env, request, data, waitUntil }) {
+export async function onRequestGet({ env, request, data, waitUntil, config }) {
   if (!env.CATALOGO) {
     return erro(500, 'kv-nao-vinculado');
   }
@@ -167,7 +167,7 @@ export async function onRequestGet({ env, request, data, waitUntil }) {
 
   if (!guardado) {
     return json(200, {
-      versao: 1, rev: 0, itens: [], vazio: true, config: config(env),
+      versao: 1, rev: 0, itens: [], vazio: true,
       ajustes: ajustes(null), site: site(null),
       codigo: 'catalogo-nao-importado', observacao: AppI18n.t('api.catalogo-nao-importado')
     });
@@ -177,18 +177,20 @@ export async function onRequestGet({ env, request, data, waitUntil }) {
   if (completo) {
     if (!data.admin) return erro(401, 'nao-autorizado');
     return json(200, Object.assign({}, guardado, {
-      config: config(env), ajustes: ajustes(guardado)
+      itens: await comMidias(data.provedor, guardado.itens || [], config), ajustes: ajustes(guardado)
     }));
   }
 
-  const itens = (guardado.itens || [])
-    .filter(i => i && i.publicar === true)
-    .map(paraPublico);
-  const configPublica = config(env);
+  const publicados = (guardado.itens || []).filter(i => i && i.publicar === true);
   const sitePublico = site(guardado);
 
-  const emDestaque = App.destaque(itens, sitePublico);
-  const capa = emDestaque ? App.urlCapa(emDestaque, configPublica) : null;
+  /* A capa do destaque sai do MESMO `midia.capa` que a chegada vai ler. */
+  const opcoesMidia = { idiomasDeLegenda: idiomasDeLegendaPadrao(config) };
+  /* A `midia` sai do item INTEIRO (extras, nome de capa, versão), que a projeção pública não carrega. */
+  const comUrls = await Promise.all(publicados.map(async i =>
+    Object.assign(paraPublico(i), { midia: await montarMidia(data.provedor, i, opcoesMidia) })));
+  const emDestaque = App.destaque(comUrls, sitePublico);
+  const capa = emDestaque ? App.urlCapa(emDestaque) : null;
   const guardar = guardarCapaDoDestaque(env, capa);
   if (waitUntil) waitUntil(guardar);
 
@@ -196,11 +198,10 @@ export async function onRequestGet({ env, request, data, waitUntil }) {
     versao: guardado.versao || 1,
     rev: guardado.rev || 0,
     atualizado_em: guardado.atualizado_em || null,
-    total: itens.length,
-    config: configPublica,
+    total: comUrls.length,
     ajustes: ajustes(guardado),
     site: sitePublico,
-    itens
+    itens: comUrls
   });
 }
 
@@ -220,6 +221,10 @@ export async function onRequestPut({ request, env, data }) {
   if (!corpo || typeof corpo !== 'object' || !Array.isArray(corpo.itens)) {
     return erro(400, 'catalogo-esperado-itens');
   }
+  /* O que entra no KV tem `fonte` no formato novo e NUNCA `midia`: ela é
+   * calculada pelo servidor a cada resposta, e a mesa a devolve junto com o
+   * resto do documento que leu. */
+  corpo = App.catalogoMigrado(corpo);
 
   const ids = new Set();
   for (const item of corpo.itens) {

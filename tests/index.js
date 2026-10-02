@@ -7,3 +7,8 @@ import('./anti-marca.test.js');
 import('./worker-matriz.test.js');
 import('./worker-seguranca.test.js');
 import('./i18n.test.js');
+import('./provedores-contrato.test.js');
+import('./provedores-worker.test.js');
+import('./provedores-bunny.test.js');
+import('./provedores-cloudflare-stream.test.js');
+import('./provedores-scripts.test.js');

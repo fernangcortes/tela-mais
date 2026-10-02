@@ -35,8 +35,8 @@
  * E o Firefox não tem `requestVideoFrameCallback`, então lá não há como
  * confirmar em que quadro o vídeo parou.
  */
-import { criarCliente } from './lib/bunny.mjs';
 import { argumentos, lerCatalogo, gravarCatalogo, CATALOGO_PADRAO, erroFatal } from './lib/catalogo.mjs';
+import { videoDoItem, dadosDoItem, exigirConfigurado, ehNaoEncontrado, provedorDoAmbiente } from './lib/provedores/index.mjs';
 
 const op = argumentos();
 const site = (typeof op.site === 'string' ? op.site : process.env.APP_SITE_URL || '').replace(/\/+$/, '');
@@ -93,14 +93,15 @@ try {
    * pesam na grade e por isso só valiam para os publicados —, o framerate é
    * barato e serve a qualquer título que um dia entre: colhê-lo agora evita
    * uma segunda passada no dia em que um pendente for publicado. */
+  const { provedor } = await provedorDoAmbiente();
+  exigirConfigurado(provedor);
   const alvos = (kv.itens || []).filter(i =>
-    i && i.fonte && i.fonte.videoId && (!pedidos || pedidos.has(i.id)));
+    i && videoDoItem(provedor, i) && (!pedidos || pedidos.has(i.id)));
 
   if (!alvos.length) throw new Error('nenhum título com videoId bate com o pedido.');
 
   console.log('KV rev ' + kv.rev + '  ·  ' + alvos.length + ' título(s) com vídeo\n');
 
-  const bunny = criarCliente();
   const mudados = [];
   const distribuicao = new Map();
   let iguais = 0, semTaxa = 0, sumidos = 0, erros = 0;
@@ -108,14 +109,14 @@ try {
   for (const item of alvos) {
     let v;
     try {
-      v = await bunny.consultar(item.fonte.videoId);
+      v = await dadosDoItem(provedor, item);
     } catch (e) {
       /* Um 404 aqui é o vídeo apagado do painel, não uma falha de rede — é o
        * caso de um título apagado do painel. Vale distinguir: o
        * primeiro é estado normal do acervo, o segundo é motivo para parar. */
-      if (/\b404\b/.test(e.message)) {
+      if (ehNaoEncontrado(e)) {
         sumidos++;
-        console.log('  ⌀ ' + item.titulo + '  —  não existe mais no Bunny');
+        console.log('  ⌀ ' + item.titulo + '  —  não existe mais no provedor');
       } else {
         erros++;
         console.error('  ✖ ' + item.titulo + ': ' + e.message);
@@ -125,7 +126,7 @@ try {
 
     if (!taxaValida(v.framerate)) {
       semTaxa++;
-      console.log('  ? ' + item.titulo + '  —  o Bunny não deu framerate (' + v.framerate + ')');
+      console.log('  ? ' + item.titulo + '  —  o provedor não deu framerate (' + v.framerate + ')');
       continue;
     }
 
@@ -145,7 +146,7 @@ try {
       .map(([f, n]) => String(f).replace('.', ',') + ' ×' + n).join('  ·  '));
 
   const resumo = mudados.length + ' a gravar  ·  ' + iguais + ' já corretos  ·  ' +
-    semTaxa + ' sem taxa  ·  ' + sumidos + ' fora do Bunny  ·  ' + erros + ' erro(s)';
+    semTaxa + ' sem taxa  ·  ' + sumidos + ' fora do provedor  ·  ' + erros + ' erro(s)';
 
   if (ensaio) {
     console.log('\n--simular: nada foi gravado.  ' + resumo);

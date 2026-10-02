@@ -11,7 +11,8 @@
  * Esta função NÃO chama handler: devolve a decisão. Quem despacha é index.js.
  * Fica barata de propósito (um HMAC e, para conta comum, uma leitura de KV):
  * o plano gratuito dá 10 ms de CPU por requisição, e o teste mede. */
-import { json, erro, contaDoToken, criarClienteBunny } from './_lib/sessao.js';
+import { json, erro, contaDoToken } from './_lib/sessao.js';
+import { criarProvedor } from './_lib/provedores/index.js';
 import { nivelDe, papelDaConta, papelMinimo, papelBasta } from './permissoes.js';
 
 export function tokenDe(request) {
@@ -26,8 +27,9 @@ export function normalizarCaminho(pathname) {
 }
 
 /* Devolve { permitido: true, data, nivel } ou { permitido: false, resposta }.
- * `modo` já vem seguro (modoSeguro) de quem chama. */
-export async function autorizar({ request, env, caminho, metodo, modo }) {
+ * `modo` já vem seguro (modoSeguro) de quem chama; `config` (pode ser null) escolhe
+ * o provedor de vídeo que vai em `data.provedor`. */
+export async function autorizar({ request, env, caminho, metodo, modo, config }) {
   const entrada = nivelDe(caminho, metodo);
   const ehApi = caminho === '/api' || caminho.startsWith('/api/');
 
@@ -35,7 +37,7 @@ export async function autorizar({ request, env, caminho, metodo, modo }) {
   const token = tokenDe(request);
   const conta = token ? await contaDoToken(token, env) : null;
   const papel = papelDaConta(conta);
-  const data = { conta, admin: !!conta, papel, modo, bunny: criarClienteBunny(env) };
+  const data = { conta, admin: !!conta, papel, modo, provedor: criarProvedor(config, env) };
 
   if (!entrada.achou) {
     /* Em /api, quem não tem sessão não aprende o que existe: 401 para tudo.

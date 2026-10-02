@@ -1,0 +1,16 @@
+{
+  "descricao": "O provedor cai e (mal) repete a chave no corpo do erro: o detalhe sai mascarado.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee$",
+      "resposta": {
+        "status": 500,
+        "texto": "Internal error handling AccessKey=chave-de-teste-nao-vaza"
+      }
+    }
+  ],
+  "esperado": {
+    "status": 500
+  }
+}

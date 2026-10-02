@@ -1,0 +1,21 @@
+{
+  "descricao": "GET /stream?limit=1 com o token Bearer.",
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?limit=1$",
+      "cabecalhos": {
+        "Authorization": "Bearer chave-de-teste-nao-vaza"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "result": [],
+          "success": true,
+          "errors": [],
+          "messages": []
+        }
+      }
+    }
+  ]
+}

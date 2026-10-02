@@ -1,0 +1,23 @@
+{
+  "descricao": "201 sem stream-media-id: o provedor aceitou e não devolveu o id.",
+  "entrada": {
+    "titulo": "Aula 1",
+    "tamanhoBytes": 1048576
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://api\\.cloudflare\\.com/client/v4/accounts/0123456789abcdef0123456789abcdef/stream\\?direct_user=true$",
+      "resposta": {
+        "status": 201,
+        "texto": "",
+        "cabecalhos": {
+          "Location": "https://upload.cloudflarestream.com/3f9a2b7c1d5e4f60a8b9c0d1e2f3a4b5"
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "codigo": "provedor-sem-guid"
+  }
+}

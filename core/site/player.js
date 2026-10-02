@@ -212,8 +212,8 @@
    * que ninguém está vendo. Quem monta tem obrigação de chamar.
    */
   function criarPlayer(item, config, ganchos) {
-    var fonte = App.resolverFonte(item, config);
-    if (!fonte) return null;
+    var midia = App.midiaDe(item);
+    if (!midia) return null;
 
     /* `ganchos.anterior` e `ganchos.proximo` são os vizinhos da série, que só
      * o app.js conhece — o player recebe um item, não o catálogo. Servem a
@@ -235,8 +235,8 @@
      * ar — e aí a barra é um segmento só, igual à de antes da fase 3. */
     var caps = App.capitulos(item);
 
-    var urlHls = AppPlayerCore.urlHls(fonte, config);
-    var urlMp4 = AppPlayerCore.urlMp4(fonte, config, '360p');
+    var urlHls = AppPlayerCore.urlHls(midia);
+    var urlMp4 = AppPlayerCore.urlMp4(midia, '360p');
     if (!urlHls && !urlMp4) return null;
 
     var caixa = criar('div', 'pl');
@@ -255,7 +255,7 @@
 
     /* A capa como poster evita o retângulo preto antes do play — e ela já está
      * no cache do navegador, porque a grade acabou de mostrá-la. */
-    var capa = App.urlCapa(item, config);
+    var capa = App.urlCapa(item);
     if (capa) video.poster = capa;
 
     caixa.appendChild(video);
@@ -548,7 +548,7 @@
      * é o único canto que a mão não cobre enquanto arrasta. O selo mora no
      * mesmo lugar e por isso os dois nunca aparecem juntos — durante o
      * arrasto quem fala é a prévia, que já mostra o relógio. */
-    var urlPrevia = AppPlayerCore.urlMp4(fonte, config, '240p');
+    var urlPrevia = AppPlayerCore.urlMp4(midia, '240p');
     var previaCaixa = criar('div', 'pl-previa');
     previaCaixa.hidden = true;
     previaCaixa.setAttribute('aria-hidden', 'true');   /* o selo é o caminho acessível */
@@ -1082,7 +1082,8 @@
     function montarFaixa(cues) {
       var Cue = raiz.VTTCue || raiz.TextTrackCue;
       if (!video.addTextTrack || !Cue) return null;
-      var faixa = video.addTextTrack('captions', 'Português', 'pt'); /* i18n-ignorar: rótulo da faixa de legenda, que é dado (a língua da fala), não da interface */
+      var dadosDaFaixa = AppPlayerCore.faixaDeLegenda(midia) || {};
+      var faixa = video.addTextTrack('captions', dadosDaFaixa.rotulo || '', dadosDaFaixa.idioma || '');   /* rótulo e idioma da faixa vêm do servidor: dado (a língua da fala), não texto da interface */
       faixa.mode = 'hidden';
       cues.forEach(function (c) {
         /* Uma cue torta não pode derrubar as outras 835. */
@@ -1094,7 +1095,7 @@
 
     function carregarLegenda() {
       if (legenda.cues) return Promise.resolve(legenda.cues);
-      var url = AppPlayerCore.urlLegenda(fonte, config);
+      var url = AppPlayerCore.urlLegenda(midia);
       if (!url) return Promise.reject(new Error(tr('player.erroSemUrlLegenda')));
       return fetch(url).then(function (r) {
         /* 404 é caso REAL e esperado: o institucional não tem legenda nenhuma

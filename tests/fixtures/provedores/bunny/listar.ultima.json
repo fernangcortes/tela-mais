@@ -1,0 +1,56 @@
+{
+  "descricao": "Última página: sem próxima.",
+  "entrada": {
+    "cursor": 3,
+    "limite": 2
+  },
+  "rotas": [
+    {
+      "metodo": "GET",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos\\?page=3&itemsPerPage=2&orderBy=date$",
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "totalItems": 5,
+          "currentPage": 3,
+          "itemsPerPage": 2,
+          "items": [
+            {
+              "videoLibraryId": 123456,
+              "guid": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+              "title": "Aula 5",
+              "dateUploaded": "2026-09-20T14:03:11.123",
+              "views": 0,
+              "isPublic": false,
+              "length": 0,
+              "status": 4,
+              "framerate": 0,
+              "rotation": 0,
+              "width": 0,
+              "height": 0,
+              "availableResolutions": null,
+              "thumbnailCount": 0,
+              "encodeProgress": 0,
+              "storageSize": 0,
+              "captions": [],
+              "hasMP4Fallback": true,
+              "collectionId": "",
+              "thumbnailFileName": "thumbnail.jpg",
+              "averageWatchTime": 0,
+              "totalWatchTime": 0,
+              "category": "",
+              "chapters": [],
+              "moments": [],
+              "metaTags": [],
+              "transcodingMessages": []
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "n": 1,
+    "proximo": null
+  }
+}

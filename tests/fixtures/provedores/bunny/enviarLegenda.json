@@ -1,0 +1,34 @@
+{
+  "descricao": "POST /captions/{idioma} com o arquivo em base64.",
+  "entrada": {
+    "idioma": "pt",
+    "rotulo": "Português",
+    "srt": "1\n00:00:01,000 --> 00:00:03,000\nOlá, mundo.\n"
+  },
+  "rotas": [
+    {
+      "metodo": "POST",
+      "url": "^https://video\\.bunnycdn\\.com/library/123456/videos/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/captions/pt$",
+      "cabecalhos": {
+        "AccessKey": "chave-de-teste-nao-vaza"
+      },
+      "corpoContem": {
+        "srclang": "pt",
+        "label": "Português",
+        "captionsFile": "MQowMDowMDowMSwwMDAgLS0+IDAwOjAwOjAzLDAwMApPbMOhLCBtdW5kby4K"
+      },
+      "resposta": {
+        "status": 200,
+        "corpo": {
+          "success": true,
+          "message": "OK",
+          "statusCode": 200
+        }
+      }
+    }
+  ],
+  "esperado": {
+    "idioma": "pt",
+    "rotulo": "Português"
+  }
+}
