@@ -28,6 +28,7 @@ import * as contaExcluir from './api/conta/excluir.js';
 import * as legal from './api/legal.js';
 import * as convites from './api/convites.js';
 import * as espectadores from './api/espectadores.js';
+import * as minhaLista from './api/minha-lista.js';
 
 const MODULOS = {
   '/api/login': login,
@@ -52,7 +53,8 @@ const MODULOS = {
   '/api/conta/excluir': contaExcluir,
   '/api/legal': legal,
   '/api/convites': convites,
-  '/api/espectadores': espectadores
+  '/api/espectadores': espectadores,
+  '/api/minha-lista': minhaLista
 };
 
 /* Método HTTP -> função exportada. HEAD cai no GET do handler. */

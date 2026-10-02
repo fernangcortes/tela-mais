@@ -4,7 +4,7 @@
  *   node scripts/aplicar-config.mjs              grava os arquivos
  *   node scripts/aplicar-config.mjs --verificar  não grava; sai com 1 se algo estiver desatualizado
  *
- * Gera: core/site/theme.css, manifest.webmanifest, robots.txt, config.public.json
+ * Gera: core/site/theme.css, manifest.webmanifest, robots.txt, config.public.json, sw.js
  * e o bloco entre <!-- config:inicio --> e <!-- config:fim --> de index.html e
  * admin.html. É IDEMPOTENTE: rodar duas vezes não muda nada (só reescreve o que
  * de fato difere), o que deixa o `git diff` limpo e a verificação possível.
@@ -17,7 +17,7 @@ import { carregarConfig, RAIZ_PADRAO } from './lib/config-carregar.mjs';
 import { prepararFontes } from './lib/fontes.mjs';
 import { formatarErros } from '../core/worker/_lib/config-validar.mjs';
 import {
-  gerarThemeCss, gerarManifest, gerarRobots, gerarPublico, gerarBlocoHead, trocarBloco,
+  gerarThemeCss, gerarManifest, gerarRobots, gerarPublico, gerarServiceWorker, gerarBlocoHead, trocarBloco,
   MARCADOR_INICIO, MARCADOR_FIM
 } from './lib/config-gerar.mjs';
 import { carregarCatalogos, gerarLocales, aplicarI18nNoHtml, validarCatalogosDoCliente } from './lib/i18n-gerar.mjs';
@@ -37,7 +37,8 @@ export async function aplicarConfig({ raiz = RAIZ_PADRAO, verificar = false } = 
     ['theme.css', gerarThemeCss(config)],
     ['manifest.webmanifest', gerarManifest(config)],
     ['robots.txt', gerarRobots(config)],
-    ['config.public.json', gerarPublico(config)]
+    ['config.public.json', gerarPublico(config)],
+    ['sw.js', gerarServiceWorker(config)]
   ]);
   /* Os textos de interface por idioma (locales/<id>.json) e o HTML no idioma padrão. */
   const catalogos = await carregarCatalogos(raiz);

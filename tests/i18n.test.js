@@ -526,7 +526,7 @@ test('o seletor de idioma: escondido no HTML, ligado pelo app.js só com mais de
   const html = ler('core/site/index.html');
   assert.match(html, /<div class="topo-idioma" id="idioma-caixa" hidden>/);
   assert.match(html, /<select id="idioma"/);
-  assert.match(html, /<script src="i18n\.js"><\/script>\s*<script src="catalogo-core\.js"><\/script>/, 'o i18n.js carrega antes do core');
+  assert.match(html, /<script src="i18n\.js"><\/script>\s*<script src="home-blocos\.js"><\/script>\s*<script src="catalogo-core\.js"><\/script>/, 'o i18n.js carrega antes do core');
   const app = ler('core/site/app.js');
   const liga = app.match(/function ligarSeletorIdioma\(r\) \{([\s\S]*?)\n  \}/);
   assert.ok(liga, 'não achei ligarSeletorIdioma');
@@ -546,7 +546,7 @@ test('a mesa carrega o idioma ANTES dos scripts dela, em ordem, e oferece os tr�
   assert.deepEqual([...admin.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['i18n.js', 'mesa-inicio.js']);
   const inicio = ler('core/site/mesa-inicio.js');
   const ordem = [...inicio.matchAll(/'([\w./-]+\.js)'/g)].map((m) => m[1]);
-  assert.deepEqual(ordem, ['vendor/tus.min.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-acesso.js', 'mesa.js']);
+  assert.deepEqual(ordem, ['vendor/tus.min.js', 'home-blocos.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa.js']);
   assert.match(inicio, /disponiveis: I18n\.IDIOMAS_DE_FABRICA/);
   assert.match(inicio, /tag\.async = false/);
   assert.match(ler('core/site/mesa.js'), /index\.html\?mesa=1&idioma=/, 'o site no quadro abre no idioma da mesa');

@@ -32,8 +32,8 @@
   },
   "player": {
     "autoplay": { "modo": "nunca" },
-    "proximoEpisodio": { "modo": "perguntar", "segundosDeContagem": 8 },
-    "retomar": { "modo": "perguntar" },
+    "proximoEpisodio": { "modo": "nunca", "segundosDeContagem": 8 },
+    "retomar": { "modo": "nunca" },
     "marcaDagua": { "ligada": false }
   },
   "seo": { "indexavel": false },

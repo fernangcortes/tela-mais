@@ -31,7 +31,9 @@
       "porSentido": false
     },
     "continuarAssistindo": true,
-    "pwaInstalavel": true
+    "pwaInstalavel": true,
+    "pwaCacheDoShell": false,
+    "minhaLista": true
   },
   "seo": {
     "indexavel": false

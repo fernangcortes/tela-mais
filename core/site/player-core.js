@@ -22,6 +22,10 @@
   var I18n = raiz.AppI18n || (typeof require === 'function' ? require('./i18n.js') : null);
   function tr(chave, params) { return I18n ? I18n.t(chave, params) : chave; }
 
+  /* O guardião (guardiao.js): quem decide se algo pode começar sem gesto, e a
+   * config `player.*` já saneada. Um só, aqui e no vídeo de fundo do destaque. */
+  var Guardiao = raiz.AppGuardiao || (typeof require === 'function' ? require('./guardiao.js') : null);
+
   /* ================================================================ regras
    *
    * AS TRÊS REGRAS DE PRODUTO. Hoje elas são quatro parâmetros na URL do embed
@@ -32,6 +36,13 @@
    *
    * NÃO relaxe nenhuma delas para "facilitar" alguma fase seguinte. Se alguma
    * fase parecer exigir isso, a fase está errada.
+   *
+   * ESTAS SÃO AS REGRAS PADRÃO, e a config padrão as cumpre (`player.autoplay.modo:
+   * 'nunca'`, `proximoEpisodio.modo: 'nunca'`, `retomar.modo: 'nunca'`). O cliente
+   * pode escolher outro comportamento em `player.*`, mas NUNCA por fora do
+   * guardião (`podeIniciarSozinho`, guardiao.js): o `<video>` continua sem o
+   * atributo `autoplay`, e o único jeito de começar sem gesto é `tocarAutomatico`
+   * (player.js), que pergunta ao guardião antes de qualquer coisa.
    */
   var REGRAS = Object.freeze({
     /* 1. nada toca sozinho — nem `autoplay`, nem `.play()` que não venha de um
@@ -651,8 +662,9 @@
     return lista[alvo];
   }
 
-  function proximaVelocidade(atual, passo) {
-    return andarNaLista(VELOCIDADES, atual, passo);
+  /* `lista` opcional: as velocidades que o cliente escolheu (`player.velocidades`). */
+  function proximaVelocidade(atual, passo, lista) {
+    return andarNaLista(Array.isArray(lista) && lista.length > 1 ? lista : VELOCIDADES, atual, passo);
   }
 
   function proximoTamanhoLegenda(atual, passo) {
@@ -2168,6 +2180,15 @@
     tempoPorDecimo: tempoPorDecimo,
     VELOCIDADES: VELOCIDADES,
     proximaVelocidade: proximaVelocidade,
+    /* config `player.*` e o guardião (guardiao.js) */
+    configDoPlayer: Guardiao.configDoPlayer,
+    fundoDoDestaque: Guardiao.fundoDoDestaque,
+    proximoEfetivo: Guardiao.proximoEfetivo,
+    decisaoDeInicio: Guardiao.decisaoDeInicio,
+    podeIniciarSozinho: Guardiao.podeIniciarSozinho,
+    cartaoDoProximoVisivel: Guardiao.cartaoDoProximoVisivel,
+    contagemDoProximo: Guardiao.contagemDoProximo,
+    pontoParaRetomar: Guardiao.pontoParaRetomar,
     proximoVolume: proximoVolume,
     VOLUME_MAX_GANHO: VOLUME_MAX_GANHO,
     COMPENSACAO_ESTAVEL: COMPENSACAO_ESTAVEL,

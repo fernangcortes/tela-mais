@@ -164,7 +164,7 @@ test('precedência: KV > arquivo > padrão do código', async () => {
   const doKv = await obterConfig(kvCom(JSON.stringify({ player: { proximoEpisodio: { segundosDeContagem: 20 } } })),
     { arquivo: comArquivo, semCache: true });
   assert.equal(p(doKv), 20, 'o KV ganha do arquivo');
-  assert.equal(doKv.player.proximoEpisodio.modo, 'perguntar', 'o KV parcial não apaga o resto do arquivo');
+  assert.equal(doKv.player.proximoEpisodio.modo, 'nunca', 'o KV parcial não apaga o resto do arquivo');
   assert.equal(doKv._estado.operacaoAplicada, true);
 });
 

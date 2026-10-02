@@ -71,6 +71,8 @@ export const PERMISSOES = {
   '/api/conta/eu': { GET: 'conta', PUT: 'conta' },
   '/api/conta/exportar': { GET: 'conta' },
   '/api/conta/excluir': { POST: 'conta' },
+  /* Minha lista (M6): de quem tem conta de espectador; o handler recusa a equipe. */
+  '/api/minha-lista': { GET: 'conta', POST: 'conta', DELETE: 'conta' },
   /* Política de privacidade e termos: o texto é público; editar é do superadmin. */
   '/api/legal': { GET: 'aberto', PUT: 'super' },
   /* Convites e espectadores: gestão do superadmin (link copiável, aprovar, bloquear). */

@@ -7,7 +7,7 @@ scripts Node para administrar o catálogo.
 
 ## Estado atual
 
-**Marco M5 de um plano em marcos (adaptadores de provedor de vídeo, modos de acesso com contas e vídeo assinado). Ainda não está pronto para produção.** Nesta etapa o
+**Marco M6 de um plano em marcos (home por blocos, coleções, Minha lista, regras do player e vídeo de fundo, sobre provedores de vídeo e modos de acesso). Ainda não está pronto para produção.** Nesta etapa o
 código está sendo separado em um repositório próprio e neutro (marca padrão
 "Plataforma Exemplo"). Ainda não há instalador e o roteiro de setup para leigos chega no M7.
 
@@ -29,7 +29,7 @@ scripts/              scripts Node (catálogo, legendas, sinopses...) e scripts/
 tests/                testes (npm test)
 config/site.json      configuração do site (sem segredos; segredos ficam em variáveis de ambiente)
 config/site.schema.json  esquema (JSON Schema) da configuração
-docs/                 guias (provedores de vídeo, modos de acesso)
+docs/                 guias (personalizar, home e coleções, player, provedores de vídeo, modos de acesso)
 exemplo/              catálogo de exemplo fictício
 .github/workflows/    integração contínua
 ```
@@ -51,6 +51,12 @@ Tudo em `config/site.json`, depois `node scripts/aplicar-config.mjs`:
 - **Cores:** `tema.cores.escuro` / `tema.cores.claro` sobrescrevem o preset. Paleta sem contraste 4,5:1 (texto) ou 3:1 (controles) é recusada, com sugestão de cor.
 - **Fontes:** coloque woff2 em `config/fontes/` e aponte em `tema.tipografia` (origem `arquivo`); sem arquivo, usa fontes do sistema. Veja `config/fontes/LEIA-ME.md`.
 - **Textos:** `textos.<idioma>` em `site.json` ou arquivo `config/locales/<idioma>.json`. Idiomas de fábrica: pt-BR, en, es (`core/locales/LEIA-ME.md`). O seletor de idioma aparece quando há mais de um.
+
+## Home, coleções, player e vídeo de fundo
+
+A home é uma lista de blocos configurável (`home.blocos`), com coleções livres, Minha lista por espectador, regras do
+player (`player.*`, nada toca sozinho por padrão) e vídeo de fundo opcional no destaque. Guia para leigos:
+`docs/personalizar.md`. Detalhes: `docs/home-e-colecoes.md` e `docs/player.md`.
 
 ## Como rodar os testes
 

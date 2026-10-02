@@ -1140,8 +1140,15 @@
         "legendas": {
           "type": "boolean"
         },
-        "listaDeDesejos": {
-          "type": "boolean"
+        "minhaLista": {
+          "description": "Minha lista: a pessoa guarda títulos para ver depois. Só com conta (modos cadastro e privado), guardada no banco.",
+          "type": "boolean",
+          "default": true
+        },
+        "pwaCacheDoShell": {
+          "description": "Instalável com a casca do site guardada no aparelho (service worker mínimo: só página, estilo e script do site; nunca vídeo nem dados de conta). Desligado por padrão: ligue só depois de ler docs/home-e-colecoes.md.",
+          "type": "boolean",
+          "default": false
         },
         "comentarios": {
           "type": "boolean"
@@ -1177,7 +1184,7 @@
           "type": "object",
           "properties": {
             "modo": {
-              "description": "nunca (padrão), mudo ou com-som-apos-interacao.",
+              "description": "nunca (padrão: nada começa sozinho), mudo (começa mudo, sem gesto) ou com-som-apos-interacao (só depois de a pessoa já ter clicado, tocado ou digitado na página). Nenhuma opção produz som sem um gesto anterior.",
               "type": "string",
               "enum": [
                 "nunca",
@@ -1187,7 +1194,7 @@
               "default": "nunca"
             },
             "somenteDesktop": {
-              "description": "Só em computador.",
+              "description": "Só em computador (desligado no celular).",
               "type": "boolean",
               "default": true
             },
@@ -1204,17 +1211,17 @@
           "type": "object",
           "properties": {
             "modo": {
-              "description": "Comportamento.",
+              "description": "nunca (padrão), perguntar (mostra o cartão \"A seguir\" e espera o clique) ou automatico (vai para o próximo ao fim da contagem; só vale se player.autoplay.modo não for nunca, senão vira perguntar).",
               "type": "string",
               "enum": [
+                "nunca",
                 "perguntar",
-                "automatico",
-                "desligado"
+                "automatico"
               ],
-              "default": "perguntar"
+              "default": "nunca"
             },
             "segundosDeContagem": {
-              "description": "Contagem regressiva (s).",
+              "description": "Contagem regressiva (s) mostrada no fim do vídeo, só no modo automatico.",
               "type": "integer",
               "default": 8,
               "minimum": 1,
@@ -1235,14 +1242,14 @@
           "type": "object",
           "properties": {
             "modo": {
-              "description": "Comportamento.",
+              "description": "nunca (padrão: a página da série oferece o botão Continuar), perguntar (cartão com a pergunta) ou automatico (posiciona o vídeo no ponto em que parou ao apertar play; nunca dá play sozinho).",
               "type": "string",
               "enum": [
+                "nunca",
                 "perguntar",
-                "sempre",
-                "nunca"
+                "automatico"
               ],
-              "default": "perguntar"
+              "default": "nunca"
             },
             "guardarPosicao": {
               "description": "Guardar a posição.",
@@ -1257,7 +1264,7 @@
           "type": "object",
           "properties": {
             "ligada": {
-              "description": "Ligada.",
+              "description": "Ligada (precisa de texto).",
               "type": "boolean",
               "default": false
             },
@@ -1311,7 +1318,17 @@
         },
         "legenda": {
           "description": "Legenda.",
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "idiomaPadrao": {
+              "description": "Idioma da legenda que abre primeiro, quando o título tem essa faixa (ex.: pt-BR).",
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 20
+            }
+          }
         },
         "teatro": {
           "type": "boolean"
@@ -1321,6 +1338,29 @@
         },
         "picInPic": {
           "type": "boolean"
+        },
+        "velocidades": {
+          "description": "Velocidades oferecidas (0,25 a 4, com 1 sempre incluída).",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 4
+          },
+          "minItems": 2,
+          "maxItems": 12
+        },
+        "download": {
+          "description": "Download do vídeo.",
+          "type": "object",
+          "properties": {
+            "ligado": {
+              "description": "Oferece o link de download. Só aparece quando o provedor entrega um MP4 do título.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -1351,18 +1391,18 @@
               "maxLength": 200
             },
             "fundo": {
-              "description": "Vídeo ou imagem de fundo.",
+              "description": "Fundo do destaque: a capa (padrão), a prévia animada do provedor ou um vídeo mudo curto. Nunca usa a mídia principal nem som; nunca carrega com \"reduzir movimento\" ou economia de dados; desligado no celular por padrão; não conta como reprodução.",
               "type": "object",
               "properties": {
                 "tipo": {
-                  "description": "Tipo.",
+                  "description": "capa (padrão), previa-animada ou video-mudo. Atenção: nenhum adaptador atual entrega midia.clipe, e prévia em MP4/WebM também não; sem isso o fundo fica na capa.",
                   "type": "string",
                   "enum": [
-                    "nenhum",
-                    "imagem",
+                    "capa",
+                    "previa-animada",
                     "video-mudo"
                   ],
-                  "default": "imagem"
+                  "default": "capa"
                 },
                 "atrasoMs": {
                   "description": "Espera antes de tocar (ms).",
@@ -1372,24 +1412,37 @@
                   "maximum": 10000
                 },
                 "somenteDesktop": {
-                  "description": "Só em computador.",
+                  "description": "Só em computador (padrão); desligue para permitir no celular.",
                   "type": "boolean",
                   "default": true
                 },
                 "respeitarEconomiaDeDados": {
-                  "description": "Respeitar economia de dados.",
+                  "description": "Sempre verdadeiro: com economia de dados o fundo nunca carrega.",
                   "type": "boolean",
+                  "enum": [
+                    true
+                  ],
                   "default": true
                 },
                 "respeitarMovimentoReduzido": {
-                  "description": "Respeitar \"reduzir movimento\".",
+                  "description": "Sempre verdadeiro: com \"reduzir movimento\" o fundo nunca carrega.",
                   "type": "boolean",
+                  "enum": [
+                    true
+                  ],
                   "default": true
                 },
                 "usarTrailer": {
-                  "description": "Usar o trailer.",
+                  "description": "Preferir o clipe curto do título (midia.clipe) à prévia animada, quando houver.",
                   "type": "boolean",
                   "default": true
+                },
+                "repeticoes": {
+                  "description": "Quantas vezes o clipe toca antes de voltar à capa.",
+                  "type": "integer",
+                  "default": 2,
+                  "minimum": 1,
+                  "maximum": 5
                 }
               },
               "additionalProperties": false
@@ -1406,8 +1459,9 @@
           "additionalProperties": false
         },
         "blocos": {
-          "description": "Blocos, na ordem em que aparecem.",
+          "description": "Blocos da página inicial, na ordem em que aparecem. Sem esta lista vale a chegada de sempre (destaque, até 5 minutos, uma fileira por série, mais séries, curtas e institucional). Tipos: destaque, continuar-assistindo, minha-lista, prateleira-recentes, prateleira-duracao, prateleira-por-serie, prateleira-colecao, carrossel, prateleira-restante, texto, banner, busca. O que a equipe muda no /admin fica por cima disto.",
           "type": "array",
+          "maxItems": 40,
           "items": {
             "type": "object",
             "required": [
@@ -1415,6 +1469,7 @@
             ],
             "properties": {
               "id": {
+                "description": "Nome do bloco (minúsculas, números e hífen). É o endereço do \"Ver tudo\" da fileira.",
                 "type": "string",
                 "pattern": "^[a-z0-9-]{1,40}$"
               },
@@ -1423,29 +1478,103 @@
                 "enum": [
                   "destaque",
                   "continuar-assistindo",
+                  "minha-lista",
                   "prateleira-recentes",
                   "prateleira-duracao",
                   "prateleira-por-serie",
                   "prateleira-colecao",
+                  "carrossel",
                   "prateleira-restante",
-                  "categorias",
                   "texto",
-                  "banner"
+                  "banner",
+                  "busca"
                 ]
               },
               "titulo": {
                 "$ref": "#/$defs/textoPorIdioma"
               },
+              "escondido": {
+                "description": "Bloco guardado, mas fora da tela.",
+                "type": "boolean"
+              },
+              "visibilidade": {
+                "description": "Para quem aparece: todos (padrão), logado (só com conta) ou anonimo (só sem conta).",
+                "type": "string",
+                "enum": [
+                  "todos",
+                  "logado",
+                  "anonimo"
+                ]
+              },
               "limite": {
+                "description": "Quantos títulos, no máximo.",
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 100
               },
-              "escondido": {
+              "de": {
+                "description": "Duração mínima, em segundos (prateleira-duracao).",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              },
+              "ate": {
+                "description": "Duração máxima, em segundos (prateleira-duracao). Padrão: 300.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              },
+              "minimoDeTitulos": {
+                "description": "A fileira só aparece com pelo menos tantos títulos. Padrão: 3.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "incluirInstitucional": {
+                "description": "A fileira por duração inclui as séries institucionais. Padrão: não.",
                 "type": "boolean"
+              },
+              "colecao": {
+                "description": "O nome (id) de uma coleção de catalogo.colecoes (prateleira-colecao).",
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,40}$"
+              },
+              "titulos": {
+                "description": "Os títulos escolhidos à mão, na ordem (carrossel).",
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "garantirQueTodoTituloApareca": {
+                "description": "A fileira do que sobrou recolhe TODO título que nenhuma outra fileira mostra. Padrão: sim.",
+                "type": "boolean"
+              },
+              "texto": {
+                "description": "O texto, por idioma (texto e banner).",
+                "type": "object",
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^[a-z]{2}(-[A-Z]{2})?$": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              },
+              "imagem": {
+                "description": "Imagem do banner: arquivo do site ou endereço https.",
+                "type": "string",
+                "maxLength": 300
+              },
+              "link": {
+                "description": "Para onde o banner leva: #/... do site ou endereço https.",
+                "type": "string",
+                "maxLength": 300
               }
             },
-            "additionalProperties": true
+            "additionalProperties": false
           }
         },
         "cartao": {
@@ -1455,6 +1584,80 @@
         "paginaDeSeries": {
           "description": "Página de séries.",
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "catalogo": {
+      "description": "Como o acervo é organizado.",
+      "type": "object",
+      "properties": {
+        "modeloDeConteudo": {
+          "description": "seriado (padrão): séries com temporada e episódio. avulso: filmes e aulas soltas, sem \"T1 E3\" e sem página de série.",
+          "type": "string",
+          "enum": [
+            "seriado",
+            "avulso"
+          ],
+          "default": "seriado"
+        },
+        "colecoes": {
+          "description": "Coleções livres: grupos de séries (ou de tags e títulos) que viram fileiras na home. Sem esta lista valem duas de exemplo (curtas e institucional); troque pelas suas.",
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "description": "Nome da coleção (minúsculas, números e hífen).",
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,40}$"
+              },
+              "nome": {
+                "$ref": "#/$defs/textoPorIdioma"
+              },
+              "classe": {
+                "description": "pedagogica (padrão): só uma seleção. curta: séries de poucos minutos, só nesta fileira. institucional: fora das fileiras por série, de mais séries e de até 5 minutos.",
+                "type": "string",
+                "enum": [
+                  "pedagogica",
+                  "curta",
+                  "institucional"
+                ]
+              },
+              "series": {
+                "description": "Nomes das séries da coleção.",
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "tags": {
+                "description": "Títulos com alguma destas tags entram na coleção.",
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "titulos": {
+                "description": "Títulos escolhidos à mão (vão na frente, na ordem).",
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

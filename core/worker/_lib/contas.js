@@ -350,22 +350,57 @@ export function consentimentosPendentes(aceitos, vigentes) {
 export async function exportarUsuario(db, id) {
   const u = await usuarioPorId(db, id);
   if (!u) return null;
-  const [sessoes, convites, links, consentimentos] = await Promise.all([
+  const [sessoes, convites, links, consentimentos, lista] = await Promise.all([
     db.prepare('SELECT criado_em, renovada_em, expira_em, ua FROM sessoes WHERE usuario_id = ? ORDER BY criado_em').bind(id).all(),
     db.prepare('SELECT criado_em, expira_em, usado_em FROM convites WHERE email = ?').bind(u.email).all(),
     db.prepare('SELECT criado_em, expira_em, usado_em FROM links_magicos WHERE email = ?').bind(u.email).all(),
-    consentimentosDe(db, id)
+    consentimentosDe(db, id),
+    db.prepare('SELECT titulo_id, adicionado_em FROM minha_lista WHERE usuario_id = ? ORDER BY adicionado_em DESC LIMIT ?').bind(id, LIMITE_MINHA_LISTA).all()
   ]);
   return {
     conta: { email: u.email, nome: u.nome, status: u.status, temSenha: u.temSenha, criadoEm: u.criadoEm, ultimoAcesso: u.ultimoAcesso },
     consentimentos,
     sessoes: sessoes.results || [],
     convites: convites.results || [],
-    linksMagicos: links.results || []
+    linksMagicos: links.results || [],
+    minhaLista: (lista.results || []).map((l) => ({ titulo: l.titulo_id, adicionadoEm: l.adicionado_em }))
   };
 }
 
-/* Apaga a pessoa: usuarios, sessoes, convites, links_magicos (e consentimentos,
+/* ------------------------------------------------------------ minha lista (M6)
+ *
+ * Os títulos que a pessoa guardou para ver depois. Mora no D1, uma linha por título e por pessoa, e só existe
+ * para quem tem conta de espectador: sem conta não há "pessoa" para a lista pertencer. Cada pessoa guarda até
+ * LIMITE_MINHA_LISTA títulos (o D1 grátis cobra por linha lida, e uma lista sem teto é uma leitura sem teto). */
+export const LIMITE_MINHA_LISTA = 200;
+
+export async function minhaListaDe(db, usuarioId) {
+  const r = await db.prepare(
+    'SELECT titulo_id FROM minha_lista WHERE usuario_id = ? ORDER BY adicionado_em DESC LIMIT ?'
+  ).bind(usuarioId, LIMITE_MINHA_LISTA).all();
+  return (r.results || []).map((l) => l.titulo_id);
+}
+
+/* Guarda um título. Devolve 'ok', ou 'cheia' quando a lista já está no teto e o título é novo. Guardar de novo o
+ * que já está na lista só o põe na frente. */
+export async function guardarNaMinhaLista(db, usuarioId, tituloId, agora = agoraS()) {
+  const ja = await db.prepare('SELECT 1 AS x FROM minha_lista WHERE usuario_id = ? AND titulo_id = ?').bind(usuarioId, tituloId).first();
+  if (!ja) {
+    const n = await db.prepare('SELECT COUNT(*) AS n FROM minha_lista WHERE usuario_id = ?').bind(usuarioId).first('n');
+    if (Number(n) >= LIMITE_MINHA_LISTA) return 'cheia';
+  }
+  await db.prepare(
+    'INSERT INTO minha_lista (usuario_id, titulo_id, adicionado_em) VALUES (?, ?, ?) ' +
+    'ON CONFLICT (usuario_id, titulo_id) DO UPDATE SET adicionado_em = excluded.adicionado_em'
+  ).bind(usuarioId, tituloId, agora).run();
+  return 'ok';
+}
+
+export async function tirarDaMinhaLista(db, usuarioId, tituloId) {
+  await db.prepare('DELETE FROM minha_lista WHERE usuario_id = ? AND titulo_id = ?').bind(usuarioId, tituloId).run();
+}
+
+/* Apaga a pessoa: usuarios, sessoes, convites, links_magicos (e consentimentos e a minha lista,
  * que sem a conta só sobrariam órfãos). Uma transação. */
 export async function excluirUsuario(db, id, email) {
   await db.batch([
@@ -373,6 +408,7 @@ export async function excluirUsuario(db, id, email) {
     db.prepare('DELETE FROM convites WHERE email = ?').bind(email),
     db.prepare('DELETE FROM links_magicos WHERE email = ?').bind(email),
     db.prepare('DELETE FROM consentimentos WHERE usuario_id = ?').bind(id),
+    db.prepare('DELETE FROM minha_lista WHERE usuario_id = ?').bind(id),
     db.prepare("DELETE FROM usuarios WHERE id = ? AND papel = 'espectador'").bind(id)
   ]);
 }

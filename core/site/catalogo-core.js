@@ -18,6 +18,9 @@
    * o i18n.js carregado recebe a própria chave de volta — feio, mas sem quebrar. */
   var I18n = raiz.AppI18n || (typeof require === 'function' ? require('./i18n.js') : null);
   function tr(chave, params) { return I18n ? I18n.t(chave, params) : chave; }
+  /* Os blocos da home (home-blocos.js): puros, e recebem daqui as primitivas de que precisam. No
+   * navegador o <script> vem antes deste; no Worker e nos testes, o require. */
+  var Home = raiz.AppHome || (typeof require === 'function' ? require('./home-blocos.js') : null);
   function idiomaAtual() { return I18n ? I18n.idioma() : 'pt-BR'; }
   /* Tabelas de rótulos como objeto: cada leitura `TABELA[chave]` resolve o texto
    * NA HORA, no idioma de agora (getter), então a troca de idioma vale sem
@@ -634,6 +637,15 @@
       if (s) saida.series[nome] = s;
     });
 
+    /* A home por blocos (M6): três chaves OPCIONAIS — só existem quando alguém escolheu. Ausente é "vale o
+     * config/site.json, e sem ele o padrão do código"; por isso não nascem vazias, e um `site` sem elas é
+     * o mesmo de antes dos blocos. Lista vazia de blocos é uma escolha (a chegada sem nada). */
+    var blocos = Home.blocosSaneados(cru.blocos);
+    if (blocos) saida.blocos = blocos;
+    var colecoes = Home.colecoesSaneadas(cru.colecoes);
+    if (colecoes) saida.colecoes = colecoes;
+    if (Home.MODELOS.indexOf(cru.modeloDeConteudo) >= 0) saida.modeloDeConteudo = cru.modeloDeConteudo;
+
     return saida;
   }
 
@@ -846,6 +858,21 @@
     return melhor;
   }
 
+  /* A fileira "Continue de onde parou": os títulos NO AR que a pessoa parou no meio, o visto por último
+   * primeiro. Só lê o mapa — quem grava é o player, e nada retoma sozinho: a fileira leva à ficha, no
+   * segundo em que parou, e a pessoa clica. */
+  function continuarAssistindo(itens, mapa, limite) {
+    var m = ondeParouSaneado(mapa);
+    var achados = [];
+    publicaveis(itens).forEach(function (i) {
+      var e = m[i.id];
+      if (!e || pertoDoFim(e.t, e.d)) return;
+      achados.push({ item: i, q: e.q });
+    });
+    achados.sort(function (a, b) { return b.q - a.q; });
+    return achados.slice(0, limite || 12).map(function (x) { return x.item; });
+  }
+
   /* A escrita da mesa. `mudanca` null APAGA a entrada — é o "Voltar ao
    * gerado". Os campos que ela não traz ficam como estavam, a origem também:
    * editar na mesa é revisar, e é a mesa quem manda `origem: 'revisada'`
@@ -873,18 +900,19 @@
     var s = siteSaneado(site);
     return !s.destaque && !Object.keys(s.prateleiras).length &&
       !Object.keys(s.classes).length && !Object.keys(s.textos).length &&
-      !Object.keys(s.series).length;
+      !Object.keys(s.series).length && !('blocos' in s) && !('colecoes' in s) &&
+      !('modeloDeConteudo' in s);
   }
 
-  /* De que lado a série cai. O dado vence; sem dado, as três listas; sem lista
-   * nenhuma, pedagógica — o site não esconde título por lista desatualizada, e
-   * quem avisa continua sendo o teste. */
+  /* De que lado a série cai. O dado da mesa (`site.classes`) vence; sem ele, a coleção exclusiva que
+   * lista a série (curta ou institucional); sem coleção nenhuma, pedagógica — o site não esconde
+   * título por lista desatualizada, e quem avisa continua sendo o teste. As coleções são
+   * `site.colecoes` (mesa ou config) ou, se ninguém escolheu, as duas de sempre (`Home.colecoesPadrao`). */
   function classeDaSerie(nome, site) {
-    var escolhida = siteSaneado(site).classes[nome];
+    var s = siteSaneado(site);
+    var escolhida = s.classes[nome];
     if (escolhida) return escolhida;
-    if (SERIES_INSTITUCIONAIS.indexOf(nome) >= 0) return 'institucional';
-    if (SERIES_CURTAS.indexOf(nome) >= 0) return 'curta';
-    return 'pedagogica';
+    return Home.classeDasColecoes(nome, Home.colecoesEfetivas(s));
   }
 
   /* Texto vazio é o PADRÃO, não o silêncio: um campo limpo sem querer não pode
@@ -939,30 +967,22 @@
 
   /* ----------------------------------------------------------- prateleiras */
 
-  /* "Pedagógico" e "institucional" NÃO EXISTEM COMO DADO. Os campos que
-   * serviriam — tema, público-alvo, tags — estão vazios nos 66 títulos, e
-   * preenchê-los é trabalho de catalogação que ninguém fez ainda. Então a
-   * divisão mora aqui, escrita à mão, e as TRÊS listas são explícitas de
-   * propósito: com uma lista só, uma série nova cairia no outro lado em
-   * silêncio. Com três, ela não está em nenhuma, e há teste reprovando.
+  /* "Pedagógico" e "institucional" NÃO EXISTEM COMO DADO no acervo: os campos que serviriam — tema,
+   * público-alvo, tags — costumam estar vazios, e preenchê-los é trabalho de catalogação. Por isso a
+   * divisão é feita por COLEÇÕES LIVRES (`colecoes`, no config ou na mesa), cada uma com a lista das
+   * séries dela e uma `classe`:
    *
-   * Em produção uma série desconhecida é tratada como pedagógica e aparece em
-   * "Mais séries" — o site não pode esconder título por causa de uma lista
-   * desatualizada. Quem avisa é o teste, não a tela. */
-  var SERIES_INSTITUCIONAIS = [
-    'Institucional', 'Eventos', 'Bastidores', 'A classificar'   /* i18n-ignorar: nomes de série (dado do acervo), não texto de tela */
-  ];
-
-  /* Séries de UM título, de poucos minutos cada. Juntas viram uma prateleira;
-   * em "Mais séries" elas afogariam as outras. Nomes de exemplo: cada instalação
-   * troca pela sua lista (ou usa `site.classes`, editável na mesa). */
-  var SERIES_CURTAS = [
-    'Curtas — Exemplo A', 'Curtas — Exemplo B'
-  ];
-
-  var SERIES_PEDAGOGICAS = [
-    'Série Exemplo 1', 'Série Exemplo 2', 'Série Exemplo 3'
-  ];
+   *   pedagogica   uma seleção; as séries continuam nas fileiras por série (o padrão de quem não está
+   *                em coleção nenhuma);
+   *   curta        séries de UM título, de poucos minutos cada. Juntas viram uma fileira; em "Mais séries"
+   *                elas afogariam as outras;
+   *   institucional  o que não é conteúdo de aprendizado (eventos, bastidores): sai das fileiras por
+   *                série, de "Mais séries" e de "Até 5 minutos".
+   *
+   * Sem `colecoes`, valem as duas de sempre (`Home.colecoesPadrao`), com nomes de série de EXEMPLO:
+   * cada instalação troca pela sua lista, ou reclassifica a série na mesa (`site.classes`). Em produção
+   * uma série que não está em coleção nenhuma é tratada como pedagógica e aparece em "Mais séries" — o
+   * site não esconde título por lista desatualizada. Quem avisa é o teste, não a tela. */
 
   /* Abaixo disto a série não vira linha própria: vai para "Mais séries".
    *
@@ -977,9 +997,8 @@
    * único corte transversal que o catálogo já tem — duração é dado, tema não. */
   var SEGUNDOS_CURTO = 300;
 
-  /* As duas perguntas passam pela `classeDaSerie` desde a M4: a lista acima é o
-   * PADRÃO, e o `site.classes` do catálogo é quem manda quando existe. Sem o
-   * campo, a resposta é idêntica à de antes. */
+  /* As duas perguntas passam pela `classeDaSerie`: o padrão são as coleções, e o `site.classes` do
+   * catálogo é quem manda quando existe. */
   function ehInstitucional(item, site) {
     return classeDaSerie((item && item.serie) || '', site) === 'institucional';
   }
@@ -988,69 +1007,49 @@
     return classeDaSerie((item && item.serie) || '', site) === 'curta';
   }
 
-  /* A chegada, em linhas que rolam de lado. Pura: devolve a lista pronta e
-   * quem desenha é o app.js.
+  /* As primitivas que o home-blocos.js usa — e só elas. Ele não importa este arquivo. */
+  function primitivasDaHome() {
+    return {
+      publicaveis: publicaveis,
+      ordenar: ordenar,
+      normalizar: normalizar,
+      semSerie: semSerie,
+      tr: tr,
+      idiomaAtual: idiomaAtual,
+      idiomaPadrao: function () { return (I18n && I18n.instancia && I18n.instancia().padrao) || 'pt-BR'; },
+      escolhasDaMesa: comEscolhasDaMesa,
+      continuarAssistindo: continuarAssistindo,
+      MINIMO_PRATELEIRA: MINIMO_PRATELEIRA
+    };
+  }
+
+  /* A chegada resolvida: os blocos, a sequência do que se desenha (destaque, fileiras, textos, busca) e
+   * as fileiras. `contexto`: { logado, ondeParou, minhaLista, ignorarVisibilidade }. */
+  function home(itens, site, contexto) {
+    return Home.resolver(itens, siteSaneado(site), contexto || {}, primitivasDaHome());
+  }
+
+  /* A chegada, em linhas que rolam de lado. Pura: devolve a lista pronta e quem desenha é o app.js.
    *
-   * Cada prateleira é { id, titulo, itens }. O `id` é o que o "Ver tudo" usa
-   * para achar a mesma prateleira de novo e virar grade — uma fonte só da
-   * verdade, sem repetir a regra do lado do desenho.
+   * Cada prateleira é { id, titulo, itens }. O `id` é o que o "Ver tudo" usa para achar a mesma
+   * prateleira de novo e virar grade — uma fonte só da verdade, sem repetir a regra do lado do desenho.
    *
-   * A ordem: primeiro o corte por duração, depois as séries grandes da maior
-   * para a menor, e por fim os três agrupamentos. Empate entre séries do mesmo
-   * tamanho desempata pelo nome, para a ordem não depender da ordem em que o
-   * catálogo veio.
+   * QUEM DECIDE A LISTA são os blocos (home-blocos.js): `site.blocos`, o `home.blocos` do config ou, sem
+   * nenhum dos dois, o padrão — "Até 5 minutos", as séries grandes da maior para a menor (empate pelo nome,
+   * para a ordem não depender da ordem em que o catálogo veio), "Mais séries" e as coleções curtas e
+   * institucional. Com a config padrão o resultado é idêntico ao de antes dos blocos (tests/home-blocos.test.js).
    *
-   * TODO TÍTULO APARECE PELO MENOS UMA VEZ, e só a primeira prateleira
-   * repete — é o primeiro teste desta função. */
-  function prateleiras(itens, site) {
-    var base = ordenar(publicaveis(itens));
-    var saida = [];
+   * TODO TÍTULO APARECE PELO MENOS UMA VEZ, e só a fileira transversal (duração, novidades...) repete: é a
+   * garantia do bloco `prateleira-restante` — e o primeiro teste desta função. */
+  function prateleiras(itens, site, contexto) {
+    return home(itens, site, contexto).prateleiras;
+  }
 
-    var curtos = base.filter(function (i) {
-      return !ehInstitucional(i, site) && typeof i.duracao_seg === 'number' &&
-        i.duracao_seg > 0 && i.duracao_seg <= SEGUNDOS_CURTO;
-    });
-    if (curtos.length >= MINIMO_PRATELEIRA) {
-      saida.push({ id: 'curtos', titulo: tr('catalogo.ate', { min: SEGUNDOS_CURTO / 60 }), itens: curtos });
-    }
-
-    /* As séries pedagógicas que não são curtas, agrupadas. */
-    var porSerie = [];
-    var indice = Object.create(null);
-    base.forEach(function (i) {
-      if (ehInstitucional(i, site) || ehCurta(i, site)) return;
-      var nome = i.serie || semSerie();
-      if (!(nome in indice)) { indice[nome] = porSerie.length; porSerie.push({ serie: nome, itens: [] }); }
-      porSerie[indice[nome]].itens.push(i);
-    });
-
-    var grandes = porSerie.filter(function (g) { return g.itens.length >= MINIMO_PRATELEIRA; });
-    grandes.sort(function (a, b) {
-      if (a.itens.length !== b.itens.length) return b.itens.length - a.itens.length;
-      return normalizar(a.serie).localeCompare(normalizar(b.serie), idiomaAtual());
-    });
-    grandes.forEach(function (g) {
-      saida.push({ id: 'serie:' + g.serie, titulo: g.serie, itens: g.itens });
-    });
-
-    /* Os agrupamentos NÃO são descartados quando ficam abaixo do mínimo: eles
-     * existem justamente para recolher o que sobrou, e sumir com eles esconde
-     * título. Hoje os três passam com folga (9, 5 e 18), e há teste medindo
-     * isso no catálogo de verdade — se um deles encolher, quem decide o que
-     * fazer é uma pessoa, não este `if`. */
-    var restos = [];
-    porSerie.forEach(function (g) {
-      if (g.itens.length < MINIMO_PRATELEIRA) restos = restos.concat(g.itens);
-    });
-    if (restos.length) saida.push({ id: 'mais-series', titulo: tr('catalogo.maisSeries'), itens: ordenar(restos) });
-
-    var curtas = base.filter(function (i) { return ehCurta(i, site); });
-    if (curtas.length) saida.push({ id: 'curtas', titulo: tr('catalogo.curtas'), itens: curtas });
-
-    var inst = base.filter(function (i) { return ehInstitucional(i, site); });
-    if (inst.length) saida.push({ id: 'institucional', titulo: tr('catalogo.institucional'), itens: inst });
-
-    return comEscolhasDaMesa(saida, site);
+  /* O modelo de conteúdo: 'seriado' (séries com temporada e episódio; o padrão) ou 'avulso' (filmes, aulas
+   * soltas: sem "T1 E3", sem página de série). Vem de `site.modeloDeConteudo` — a mesa, ou o `catalogo.
+   * modeloDeConteudo` do config, que o servidor põe por baixo. */
+  function modeloDeConteudo(site) {
+    return Home.modeloDe(siteSaneado(site));
   }
 
   /* O nome, a ordem e o "escondida" escolhidos na mesa, por cima da lista que o
@@ -1083,15 +1082,15 @@
   }
 
   /* O que a chegada desenha. */
-  function prateleirasVisiveis(itens, site) {
-    return prateleiras(itens, site).filter(function (p) { return !p.escondida; });
+  function prateleirasVisiveis(itens, site, contexto) {
+    return prateleiras(itens, site, contexto).filter(function (p) { return !p.escondida; });
   }
 
   /* Quem some da CHEGADA se as prateleiras escondidas ficarem como estão — o
    * aviso que a mesa mostra antes de alguém esconder uma linha. Não é perda de
    * título: eles continuam na busca, na página da série e no link direto. */
-  function titulosSoEmEscondidas(itens, site) {
-    var todas = prateleiras(itens, site);
+  function titulosSoEmEscondidas(itens, site, contexto) {
+    var todas = prateleiras(itens, site, contexto);
     var visiveis = Object.create(null);
     todas.forEach(function (p) {
       if (p.escondida) return;
@@ -1160,8 +1159,8 @@
    * Deriva da mesma `prateleiras()`: a regra não é escrita duas vezes. Acha
    * também a escondida — o link dela continua funcionando, que é a diferença
    * entre esconder da chegada e tirar do ar. */
-  function prateleiraPorId(itens, id, site) {
-    return prateleiras(itens, site).find(function (p) { return p.id === id; }) || null;
+  function prateleiraPorId(itens, id, site, contexto) {
+    return prateleiras(itens, site, contexto).find(function (p) { return p.id === id; }) || null;
   }
 
   /* Os dois lados de uma série, pelas MESMAS listas das prateleiras: o que é
@@ -1439,7 +1438,7 @@
    * tempo têm de brigar, e não gravar uma por cima da outra em silêncio. O
    * preço é um conflito a mais quando as duas mexem em prateleiras diferentes,
    * e ele é barato: a mesa mostra os dois valores e deixa escolher. */
-  var CAMPOS_SITE_MESA = ['destaque', 'prateleiras', 'classes', 'textos', 'series'];
+  var CAMPOS_SITE_MESA = ['destaque', 'prateleiras', 'classes', 'textos', 'series', 'blocos', 'colecoes', 'modeloDeConteudo'];
 
   function campoDaMesa(alvo, campo) {
     if (alvo === 'ajustes') return CAMPOS_AJUSTES_MESA.indexOf(campo) >= 0;
@@ -1714,8 +1713,12 @@
      * permite desfazer uma delas sem desfazer as outras. Os nomes são os
      * mesmos do rascunho — `site` como alvo, os quatro campos —, então a
      * mudança contrária cabe no rascunho sem tradução nenhuma. */
-    var siteA = (antes && antes.site) || {};
-    var siteD = (depois && depois.site) || {};
+    /* Os dois lados SANEADOS: o PUT guarda a forma conferida (com `series: {}`, `classes: {}`...), e comparar esse
+     * valor com o `site` ausente de um catálogo que nunca teve estrutura contaria cinco "mudanças" que ninguém
+     * fez — e a primeira publicação de quem só tem a permissão `estrutura` seria recusada por causa de `series`,
+     * que é de `conteudo` (achado ao testar os blocos da M6). Ausente e vazio são a mesma coisa para quem lê. */
+    var siteA = siteSaneado(antes && antes.site);
+    var siteD = siteSaneado(depois && depois.site);
     var camposSite = Object.create(null);
     Object.keys(siteA).concat(Object.keys(siteD)).forEach(function (k) { camposSite[k] = true; });
     Object.keys(camposSite).forEach(function (campo) {
@@ -1848,6 +1851,13 @@
     COLUNAS_ORDENAVEIS: COLUNAS_ORDENAVEIS,
     agrupar: agrupar,
     prateleiras: prateleiras,
+    home: home,
+    modeloDeConteudo: modeloDeConteudo,
+    continuarAssistindo: continuarAssistindo,
+    blocosEfetivos: function (site) { return Home.blocosEfetivos(siteSaneado(site)); },
+    colecoesEfetivas: function (site) { return Home.colecoesEfetivas(siteSaneado(site)); },
+    siteComPadroes: Home.siteComPadroes,
+    padroesDaConfig: Home.padroesDaConfig,
     prateleirasVisiveis: prateleirasVisiveis,
     titulosSoEmEscondidas: titulosSoEmEscondidas,
     prateleiraPorId: prateleiraPorId,
@@ -1869,9 +1879,6 @@
     continuarDaSerie: continuarDaSerie,
     ondeParouDe: ondeParouDe,
     comTexto: comTexto,
-    SERIES_INSTITUCIONAIS: SERIES_INSTITUCIONAIS,
-    SERIES_CURTAS: SERIES_CURTAS,
-    SERIES_PEDAGOGICAS: SERIES_PEDAGOGICAS,
     MINIMO_PRATELEIRA: MINIMO_PRATELEIRA,
     series: series,
     gruposDeSerie: gruposDeSerie,
