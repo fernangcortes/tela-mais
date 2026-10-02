@@ -1,6 +1,3 @@
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
-@AGENTS.md
-
 # Notas para o Claude Code
 
 - As regras de `AGENTS.md` valem integralmente. As skills do projeto estão em `.agents/skills/`; `node scripts/setup.mjs sync-agents` as espelha para `.claude/skills/`.

@@ -1,0 +1,79 @@
+{
+  "id": "infoprodutor",
+  "nome": "Curso online ou infoproduto",
+  "resumo": "Só para quem comprou (convite), módulos em série, marca d’água \"Uso exclusivo do aluno\" e prévia animada no destaque.",
+  "config": {
+    "preset": "infoprodutor",
+    "tema": {
+      "preset": "vibrante",
+      "modo": "escuro"
+    },
+    "idiomas": {
+      "padrao": "pt-BR",
+      "disponiveis": [
+        "pt-BR"
+      ]
+    },
+    "acesso": {
+      "modo": "privado",
+      "privado": {
+        "quemEntra": "convidados",
+        "assinarMidia": true
+      }
+    },
+    "catalogo": {
+      "modeloDeConteudo": "seriado"
+    },
+    "recursos": {
+      "busca": {
+        "porPalavra": true,
+        "pelaFala": true,
+        "porSentido": false
+      },
+      "continuarAssistindo": true,
+      "minhaLista": true,
+      "legendas": true,
+      "capitulos": true
+    },
+    "player": {
+      "proximoEpisodio": {
+        "modo": "perguntar",
+        "segundosDeContagem": 8
+      },
+      "retomar": {
+        "modo": "perguntar"
+      },
+      "marcaDagua": {
+        "ligada": true,
+        "texto": "Uso exclusivo do aluno"
+      }
+    },
+    "home": {
+      "destaque": {
+        "modo": "manual",
+        "fundo": {
+          "tipo": "previa-animada"
+        }
+      },
+      "blocos": [
+        {
+          "tipo": "destaque"
+        },
+        {
+          "tipo": "continuar-assistindo"
+        },
+        {
+          "tipo": "prateleira-por-serie"
+        },
+        {
+          "tipo": "prateleira-recentes",
+          "limite": 12
+        },
+        {
+          "tipo": "prateleira-restante",
+          "garantirQueTodoTituloApareca": true
+        }
+      ]
+    }
+  }
+}

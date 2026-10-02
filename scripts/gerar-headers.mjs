@@ -12,7 +12,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cabecalhosDeSeguranca } from '../core/worker/_lib/seguranca.js';
+/* O Node avisa (MODULE_TYPELESS_PACKAGE_JSON) ao carregar um .js sem "type" no package.json. Para um leigo parece erro,
+ * e pôr "type: module" mexeria no site. Só esse aviso é calado, durante o import. */
+const emitirOriginal = process.emitWarning;
+process.emitWarning = (aviso, ...resto) => {
+  const codigo = typeof resto[0] === 'object' && resto[0] ? resto[0].code : resto[1];
+  if (codigo === 'MODULE_TYPELESS_PACKAGE_JSON') return;
+  return emitirOriginal.call(process, aviso, ...resto);
+};
+const { cabecalhosDeSeguranca } = await import('../core/worker/_lib/seguranca.js');
+process.emitWarning = emitirOriginal;
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ARQUIVO = path.join(RAIZ, 'core', 'site', '_headers');

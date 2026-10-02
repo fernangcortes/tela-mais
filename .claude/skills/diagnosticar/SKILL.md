@@ -1,0 +1,32 @@
+---
+name: diagnosticar
+description: Descobre e corrige por que o streaming não funciona (site fora do ar, vídeo não toca, login falha, deploy recusado, chave inválida) usando o doctor. Use quando algo der erro, quebrar ou a pessoa disser que não funciona.
+---
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
+
+# Diagnosticar
+
+Comece sempre pelo `doctor`; ele devolve `ok | aviso | erro`, a causa e a correção. Não adivinhe.
+
+1. `node scripts/setup.mjs status --json` e `node scripts/setup.mjs doctor --json` (acrescente `--remote` se o site já está no ar).
+2. Para cada `erro`, explique à pessoa em uma frase a causa e proponha a correção do próprio relatório. Aplique só o que for seguro; o que apaga, gasta ou abre acesso pede "sim".
+3. Rode de novo o mesmo comando para provar que ficou verde. Só então diga que resolveu.
+
+## Sintomas comuns
+
+| Sintoma | Veja | Causa provável |
+|---|---|---|
+| `wrangler login` não abre / recusa | `doctor --only=cloudflare` | variável `CLOUDFLARE_API_TOKEN` no ambiente atrapalha o login pelo navegador: tire-a do ambiente (o `doctor` avisa) |
+| Vídeo não toca no modo `privado` | `doctor --only=video,acesso` | falta a chave de assinatura do provedor (o servidor devolve 501 em vez de abrir) ou o vídeo ainda está processando |
+| Cadastro não abre | `doctor --only=acesso` | falta `TURNSTILE_SECRET` ou `TURNSTILE_SITE_KEY` (fecha de propósito) |
+| Config recusada | `npm run config:validar` | contraste baixo, campo inválido; a mensagem diz qual |
+| 401/403 no `/admin` | `doctor --only=admin` | `ADMIN_PASSWORD` ausente ou diferente da que a pessoa usa |
+| Erro de limite (1027 ou 429) | painel da Cloudflare | passou do limite grátis diário: explique a opção do plano pago (cerca de US$ 5/mês) |
+| Chave "inválida" no provedor | `doctor --only=video` | chave da conta no lugar da chave da biblioteca (Bunny usa a Stream API Key da biblioteca) |
+
+## Segredo vazou?
+
+Se algum segredo apareceu no chat, em arquivo ou no git: pare tudo, diga à pessoa para revogar a chave no painel do serviço e criar outra,
+recoloque pelo prompt oculto, rode `setup.mjs scan-secrets` e, se foi para o git, peça ajuda humana (reescrever histórico é decisão dela).
+
+Pare e peça ajuda depois de 3 tentativas sem sucesso no mesmo problema. Nunca imprima `.env` ou valores de segredo para "debugar".

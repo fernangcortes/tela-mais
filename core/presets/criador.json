@@ -1,0 +1,75 @@
+{
+  "id": "criador",
+  "nome": "Criador de conteúdo",
+  "resumo": "Aberto a todos, visual vibrante, séries e novidades em destaque, prévia animada e idiomas português e inglês.",
+  "config": {
+    "preset": "criador",
+    "tema": {
+      "preset": "vibrante",
+      "modo": "escuro"
+    },
+    "idiomas": {
+      "padrao": "pt-BR",
+      "disponiveis": [
+        "pt-BR",
+        "en"
+      ]
+    },
+    "acesso": {
+      "modo": "publico"
+    },
+    "catalogo": {
+      "modeloDeConteudo": "seriado"
+    },
+    "recursos": {
+      "busca": {
+        "porPalavra": true,
+        "pelaFala": true,
+        "porSentido": false
+      },
+      "continuarAssistindo": true,
+      "minhaLista": false,
+      "legendas": true,
+      "capitulos": true
+    },
+    "player": {
+      "proximoEpisodio": {
+        "modo": "perguntar",
+        "segundosDeContagem": 8
+      },
+      "retomar": {
+        "modo": "perguntar"
+      },
+      "marcaDagua": {
+        "ligada": false
+      }
+    },
+    "home": {
+      "destaque": {
+        "modo": "manual",
+        "fundo": {
+          "tipo": "previa-animada"
+        }
+      },
+      "blocos": [
+        {
+          "tipo": "destaque"
+        },
+        {
+          "tipo": "prateleira-recentes",
+          "limite": 12
+        },
+        {
+          "tipo": "prateleira-por-serie"
+        },
+        {
+          "tipo": "busca"
+        },
+        {
+          "tipo": "prateleira-restante",
+          "garantirQueTodoTituloApareca": true
+        }
+      ]
+    }
+  }
+}

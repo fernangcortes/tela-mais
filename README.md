@@ -9,7 +9,17 @@ scripts Node para administrar o catálogo.
 
 **Marco M6 de um plano em marcos (home por blocos, coleções, Minha lista, regras do player e vídeo de fundo, sobre provedores de vídeo e modos de acesso). Ainda não está pronto para produção.** Nesta etapa o
 código está sendo separado em um repositório próprio e neutro (marca padrão
-"Plataforma Exemplo"). Ainda não há instalador e o roteiro de setup para leigos chega no M7.
+"Plataforma Exemplo"). O roteiro de setup para leigos (agentes de IA, `scripts/setup.mjs`) está sendo entregue no marco M7.
+
+## Instalar
+
+**Sem programar:** comece por [`COMECE-AQUI.md`](COMECE-AQUI.md) (conta Cloudflare grátis, conta de vídeo, custos e o pedido
+pronto para colar no seu agente de IA).
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/fernangcortes/tela-mais)
+
+O botão cria o site na sua conta Cloudflare; o assistente de configuração no `/admin` chega no marco M8. Agentes de IA:
+leiam `AGENTS.md`. Contas e chaves, passo a passo: `docs/contas-e-chaves.md`.
 
 ## Licença
 
@@ -29,7 +39,8 @@ scripts/              scripts Node (catálogo, legendas, sinopses...) e scripts/
 tests/                testes (npm test)
 config/site.json      configuração do site (sem segredos; segredos ficam em variáveis de ambiente)
 config/site.schema.json  esquema (JSON Schema) da configuração
-docs/                 guias (personalizar, home e coleções, player, provedores de vídeo, modos de acesso)
+docs/                 guias (contas e chaves, personalizar, home e coleções, player, provedores de vídeo, modos de acesso, desenvolvimento)
+.agents/skills/       roteiros dos agentes de IA (SKILL.md)
 exemplo/              catálogo de exemplo fictício
 .github/workflows/    integração contínua
 ```
@@ -72,4 +83,4 @@ npm run dev                     # wrangler dev (Worker + site local)
 
 ## Contribuindo
 
-Veja `AGENTS.md` para as regras do projeto (vale para pessoas e para agentes de IA).
+Veja `AGENTS.md` para as regras do projeto (vale para pessoas e para agentes de IA) e `docs/desenvolvimento.md` para os detalhes técnicos.

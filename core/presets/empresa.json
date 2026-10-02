@@ -1,0 +1,82 @@
+{
+  "id": "empresa",
+  "nome": "Empresa ou treinamento interno",
+  "resumo": "Só para convidados, vídeo com endereço assinado, marca d’água \"Uso interno\" e idiomas português e inglês.",
+  "config": {
+    "preset": "empresa",
+    "tema": {
+      "preset": "institucional",
+      "modo": "auto"
+    },
+    "idiomas": {
+      "padrao": "pt-BR",
+      "disponiveis": [
+        "pt-BR",
+        "en"
+      ]
+    },
+    "acesso": {
+      "modo": "privado",
+      "privado": {
+        "quemEntra": "convidados",
+        "assinarMidia": true
+      }
+    },
+    "catalogo": {
+      "modeloDeConteudo": "seriado"
+    },
+    "recursos": {
+      "busca": {
+        "porPalavra": true,
+        "pelaFala": true,
+        "porSentido": false
+      },
+      "continuarAssistindo": true,
+      "minhaLista": true,
+      "legendas": true,
+      "capitulos": true
+    },
+    "player": {
+      "proximoEpisodio": {
+        "modo": "perguntar"
+      },
+      "retomar": {
+        "modo": "perguntar"
+      },
+      "marcaDagua": {
+        "ligada": true,
+        "texto": "Uso interno"
+      }
+    },
+    "home": {
+      "destaque": {
+        "modo": "manual",
+        "fundo": {
+          "tipo": "capa"
+        }
+      },
+      "blocos": [
+        {
+          "tipo": "destaque"
+        },
+        {
+          "tipo": "busca"
+        },
+        {
+          "tipo": "continuar-assistindo"
+        },
+        {
+          "tipo": "prateleira-recentes",
+          "limite": 12
+        },
+        {
+          "tipo": "prateleira-por-serie"
+        },
+        {
+          "tipo": "prateleira-restante",
+          "garantirQueTodoTituloApareca": true
+        }
+      ]
+    }
+  }
+}

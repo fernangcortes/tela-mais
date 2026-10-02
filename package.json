@@ -9,6 +9,12 @@
     "config:validar": "node scripts/validar-config.mjs",
     "config:aplicar": "node scripts/aplicar-config.mjs",
     "i18n:faltando": "node scripts/i18n-faltando.mjs",
-    "i18n:literais": "node scripts/i18n-literais.mjs"
+    "i18n:literais": "node scripts/i18n-literais.mjs",
+    "setup": "node scripts/setup.mjs",
+    "doctor": "node scripts/setup.mjs doctor",
+    "agentes:sincronizar": "node scripts/setup.mjs sync-agents",
+    "agentes:conferir": "node scripts/setup.mjs sync-agents --check",
+    "segredos:varrer": "node scripts/setup.mjs scan-secrets",
+    "ganchos:instalar": "node scripts/instalar-ganchos.mjs"
   }
 }
