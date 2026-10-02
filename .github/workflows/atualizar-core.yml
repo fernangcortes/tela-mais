@@ -33,7 +33,7 @@ jobs:
       GH_TOKEN: ${{ secrets.ATUALIZAR_TOKEN || github.token }}
       VERSAO_PEDIDA: ${{ github.event.inputs.versao }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.ATUALIZAR_TOKEN || github.token }}
       - uses: actions/setup-node@v4

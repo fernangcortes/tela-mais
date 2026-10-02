@@ -41,7 +41,7 @@ jobs:
             echo "ligado=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Publicação automática desligada (faltam os segredos CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID). Os testes passaram; nada foi publicado."
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.ligado.outputs.ligado == 'true'
       - uses: actions/setup-node@v4
         if: steps.ligado.outputs.ligado == 'true'
