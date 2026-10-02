@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.ATUALIZAR_TOKEN || github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Baixar a versão nova e aplicar (só o produto)
