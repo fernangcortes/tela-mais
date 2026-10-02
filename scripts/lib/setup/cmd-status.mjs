@@ -36,8 +36,9 @@ export const status = {
     poe('ambiente', maior >= 20 ? 'feito' : 'pendente', `Node ${process.versions.node}`);
     const nomeProprio = Boolean(config && config.marca.nome !== 'Plataforma Exemplo');
     poe('identidade', bruto.preset && nomeProprio ? 'feito' : 'pendente', bruto.preset && nomeProprio ? `${config.marca.nome} (modelo ${bruto.preset})` : !bruto.preset ? 'ainda sem o tipo de organização' : 'ainda com o nome de exemplo');
-    const modoEscolhido = bruto.acesso && bruto.acesso.modo;
-    poe('acesso', modoEscolhido ? 'feito' : 'pendente', modoEscolhido ? `modo ${modoEscolhido}` : 'ainda não escolhido (sem escolha o site fica "privado")');
+    /* o modelo traz um modo padrão: só conta como escolhido depois do `init` (que registra o tipo de organização) */
+    const modoEscolhido = bruto.acesso && bruto.acesso.modo && bruto.preset;
+    poe('acesso', modoEscolhido ? 'feito' : 'pendente', modoEscolhido ? `modo ${bruto.acesso.modo}` : 'ainda não confirmado (o modelo traz "publico" só como ponto de partida; confirme com a pessoa)');
 
     let quem = null;
     let segredos = { nomes: [], existeWorker: false, consultado: false };
@@ -75,10 +76,8 @@ export const status = {
     try { url = JSON.parse(await readFile(URL_DO_ULTIMO_DEPLOY(ctx.raiz), 'utf8')).url; } catch { /* nunca publicou daqui */ }
     poe('publicacao', url ? 'feito' : 'pendente', url || 'ainda não publicado por aqui');
 
-    if (url) {
-      poe('primeiro-video', 'desconhecido', 'entre em /admin e envie um vídeo (eu não consigo ver o catálogo daqui)');
-      poe('opcionais', 'opcional', 'domínio próprio, Turnstile (obrigatório no modo cadastro), backup, alerta de gasto');
-    }
+    poe('primeiro-video', url ? 'desconhecido' : 'pendente', url ? 'entre em /admin e envie um vídeo (eu não consigo ver o catálogo daqui)' : 'depois de publicar');
+    poe('opcionais', 'opcional', 'domínio próprio, Turnstile (obrigatório no modo cadastro), backup, alerta de gasto');
     const proxima = etapas.find((e) => e.estado === 'pendente') || etapas.find((e) => e.estado === 'desconhecido') || null;
     for (const e of etapas) rel.info(`  [${e.estado === 'feito' ? 'x' : e.estado === 'desconhecido' ? '?' : ' '}] ${e.numero}. ${e.titulo}${e.detalhe ? ' — ' + e.detalhe : ''}`);
     rel.dado('etapas', etapas);

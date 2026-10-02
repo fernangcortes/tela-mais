@@ -42,6 +42,9 @@ for usá-los). Rode sempre da **raiz do repositório**: `node scripts/<nome>.mjs
 | `legendas-assembly.mjs`, `sinopses.mjs`, `series.mjs` | legendas por transcrição e textos por IA |
 | `capitulos.mjs`, `framerate.mjs`, `indice-busca.mjs` | capítulos, taxa de quadros e índice da busca |
 | `mesa-local.mjs` | a mesa de administração em `http://127.0.0.1:8790`, com API de mentira em memória |
+| `exportar-kv.mjs`, `importar-kv.mjs` | backup do catálogo e da configuração operacional em um arquivo JSON (o mesmo do botão "Baixar backup" do /admin) e restauração (só mostra, até receber `--yes`); `podar-backups.mjs` mantém 30 diários e 12 mensais. Veja `docs/atualizar.md` |
+| `atualizar-core.mjs`, `migrar-config.mjs` | atualizam o PRODUTO (core, scripts, tests, docs) sem tocar em `config/` e levam o `site.json` ao formato novo; `preparar-release.mjs` é de quem mantém o produto (versão, Change Date da licença, tarball + sha256) |
+| `smoke-navegador.mjs` | `npm run smoke`: sobe `wrangler dev --local`, semeia o exemplo e abre home, título, /admin e o assistente no Chromium (Playwright global; pula com aviso se faltar); falha em erro de console do próprio site |
 | `gerar-headers.mjs` | regera `core/site/_headers` (política de segurança neutra, sem host de provedor) a partir de `seguranca.js`; `--verificar` só confere |
 | `gerar-marca-neutra.mjs` | regera os ícones e logos da marca neutra em `core/site/` |
 | `anti-marca.mjs` | varredura que garante que nenhuma referência a um cliente anterior volte |

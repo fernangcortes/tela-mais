@@ -194,8 +194,8 @@ export async function executarDoctor(ctx, rel, { only = null, remote = false, ur
         const env = await estado.envLocal();
         const w = await estado.wrangler();
         if (remotos.nomes.includes('TURNSTILE_SECRET') || env.TURNSTILE_SECRET) c('acesso.turnstile', 'acesso', 'ok', 'TURNSTILE_SECRET presente.');
-        else c('acesso.turnstile', 'acesso', 'aviso', 'sem TURNSTILE_SECRET o cadastro fica fechado (proteção anti-robô obrigatória).', 'Crie o Turnstile no painel da Cloudflare e rode: node scripts/setup.mjs segredo TURNSTILE_SECRET');
-        if (!(w.dados.vars && w.dados.vars.TURNSTILE_SITE_KEY) && !env.TURNSTILE_SITE_KEY) c('acesso.turnstile-site', 'acesso', 'aviso', 'falta a variável pública TURNSTILE_SITE_KEY (em vars do wrangler.jsonc).', 'Acrescente a chave PÚBLICA do Turnstile em vars no wrangler.jsonc.');
+        else c('acesso.turnstile', 'acesso', 'aviso', 'sem TURNSTILE_SECRET o cadastro fica fechado (proteção anti-robô obrigatória).', 'Crie o Turnstile e guarde as chaves com: node scripts/setup.mjs turnstile (a secreta: node scripts/setup.mjs segredo TURNSTILE_SECRET)');
+        if (!(w.dados.vars && w.dados.vars.TURNSTILE_SITE_KEY) && !env.TURNSTILE_SITE_KEY) c('acesso.turnstile-site', 'acesso', 'aviso', 'falta a variável pública TURNSTILE_SITE_KEY (em vars do wrangler.jsonc).', 'Rode: node scripts/setup.mjs turnstile  (grava a chave pública sozinho)');
         const met = config.acesso.cadastro?.metodo ?? 'link-magico';
         if (met === 'link-magico' && (config.acesso.email?.adaptador ?? 'nenhum') === 'nenhum') c('acesso.email', 'acesso', 'aviso', 'cadastro por link mágico precisa de e-mail, e o envio de e-mail está desligado: o cadastro fica fechado.', 'Use acesso.cadastro.metodo "email-e-senha" ou configure o Resend.');
       }

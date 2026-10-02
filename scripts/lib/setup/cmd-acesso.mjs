@@ -61,7 +61,7 @@ export const acesso = {
     rel.info(`  ${AVISO_GRAVAR_TELA}`);
     if (r.ok) for (const a of avisosDe(r.config)) rel.info('  Atenção: ' + a);
     rel.dado('modo', m);
-    rel.passo(m === 'publico' ? 'Siga para a conta da Cloudflare: node scripts/setup.mjs cloudflare verificar' : `Siga para a conta da Cloudflare: node scripts/setup.mjs cloudflare verificar${m === 'cadastro' ? ' (lembrete: o modo cadastro também precisa do Turnstile antes de publicar)' : ''}. Depois, no vídeo, o modo restrito precisa da chave de assinatura.`);
+    rel.passo(m === 'publico' ? 'Siga para a conta da Cloudflare: node scripts/setup.mjs cloudflare verificar' : `Siga para a conta da Cloudflare: node scripts/setup.mjs cloudflare verificar${m === 'cadastro' ? ' (lembrete: o modo cadastro também precisa do Turnstile antes de publicar: node scripts/setup.mjs turnstile)' : ''}. Depois, no vídeo, o modo restrito precisa da chave de assinatura.`);
     return 0;
   }
 };

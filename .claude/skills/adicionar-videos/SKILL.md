@@ -2,7 +2,7 @@
 name: adicionar-videos
 description: Ajuda a enviar o primeiro vídeo e os seguintes, cadastrar títulos, capas, legendas e coleções, e a conferir que tocam. Use quando pedirem para subir, adicionar, cadastrar ou organizar vídeos.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
 
 # Adicionar vídeos
 

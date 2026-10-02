@@ -2855,7 +2855,11 @@
       limparEsperaDeRede();
       if (hls) { hls.destroy(); hls = null; }
       avisar('');
+      /* Os dois estados de "está rolando" saem JUNTOS com o painel: sem isto a
+       * rodinha (pl-esperando) e o botão "Pausar" (pl-tocando) continuavam
+       * valendo por baixo da mensagem de erro. */
       caixa.classList.remove('pl-esperando');
+      caixa.classList.remove('pl-tocando');
       caixa.classList.add('pl-falhou');
       painelErro.hidden = false;
       inicioAutomaticoPendente = '';
@@ -2880,7 +2884,8 @@
     var falhasDeRede = 0;
     var manifestoOk = false;
     var esperaDeRede = 0;
-    var ESPERA_REDE_MS = 20000;
+    var ESPERA_REDE_MS = AppPlayerCore.ESPERA_REDE_MS;
+    var TENTATIVAS_DE_REDE = 1;
     function limparEsperaDeRede() {
       if (esperaDeRede) { clearTimeout(esperaDeRede); esperaDeRede = 0; }
     }
@@ -2919,23 +2924,54 @@
         if (!Hls.isSupported()) { cairParaNativoOuMp4(); return; }
         hls = new Hls(AppPlayerCore.configHls());
         manifestoOk = false;
+        /* O relógio corre desde o INÍCIO de cada carga (manifesto, lista de
+         * qualidades, segmento), não só desde o primeiro erro: um segmento que
+         * responde o primeiro byte e depois se arrasta atrasaria o primeiro erro
+         * em até `maxLoadTimeMs`, e o relógio só começaria depois. Cada carga que
+         * termina bem zera o relógio. */
+        /* Quais cargas estão em andamento (manifesto, qualidades, segmento). O hls.js
+         * dispara o FRAG_LOADING de dentro do tratamento do LEVEL_LOADED: se o fim de
+         * uma etapa zerasse o relógio sem olhar as outras, apagaria o do segmento que
+         * acabou de começar. Só quando NÃO resta carga nenhuma o relógio para. */
+        var emCarga = {};
+        function armarEsperaDeRede() {
+          if (esperaDeRede || destruido) return;
+          esperaDeRede = setTimeout(function () {
+            esperaDeRede = 0;
+            emCarga = {};
+            if (!destruido && hls) cairParaMp4(tr('player.problemaDeReproducao'));
+          }, ESPERA_REDE_MS);
+        }
+        function cargaComecou(tipo) { return function () { emCarga[tipo] = true; armarEsperaDeRede(); }; }
+        function cargaTerminou(tipo) {
+          return function () {
+            delete emCarga[tipo];
+            if (!Object.keys(emCarga).length) limparEsperaDeRede();
+          };
+        }
+        [['MANIFEST_LOADING', 'manifesto'], ['LEVEL_LOADING', 'qualidades'], ['FRAG_LOADING', 'segmento']].forEach(function (par) {
+          if (Hls.Events[par[0]]) hls.on(Hls.Events[par[0]], cargaComecou(par[1]));
+        });
+        [['MANIFEST_LOADED', 'manifesto'], ['MANIFEST_PARSED', 'manifesto'], ['LEVEL_LOADED', 'qualidades'], ['FRAG_LOADED', 'segmento']].forEach(function (par) {
+          if (Hls.Events[par[0]]) hls.on(Hls.Events[par[0]], cargaTerminou(par[1]));
+        });
         hls.on(Hls.Events.MANIFEST_PARSED, function () { manifestoOk = true; });
-        hls.on(Hls.Events.FRAG_LOADED, function () { falhasDeRede = 0; manifestoOk = true; limparEsperaDeRede(); });
+        hls.on(Hls.Events.FRAG_LOADED, function () { falhasDeRede = 0; manifestoOk = true; limparEsperaDeRede(); emCarga = {}; });
         hls.on(Hls.Events.ERROR, function (_e, dados) {
-          if (!dados || !dados.fatal) return;      /* o hls.js recupera sozinho */
+          if (!dados) return;
+          /* O RELÓGIO DA FALHA corre desde o PRIMEIRO erro de rede, fatal ou
+           * não: o hls.js tenta de novo por baixo (ver `configHls`), e sem este
+           * relógio quem decide quando desistir é a soma das tentativas dele.
+           * Um segmento que chega (FRAG_LOADED) zera tudo. */
+          if (dados.type === Hls.ErrorTypes.NETWORK_ERROR) armarEsperaDeRede();
+          if (!dados.fatal) return;      /* o hls.js recupera sozinho */
           if (dados.type === Hls.ErrorTypes.NETWORK_ERROR) {
             /* `startLoad()` NÃO refaz o manifesto que falhou: sem manifesto (404,
              * rede abortada) não há o que retomar, e é falha na hora — com
-             * mensagem. Com manifesto, rede que cai e volta se recupera; rede
-             * que não volta, não: três tentativas seguidas, ou o tempo limite
-             * sem nenhum segmento novo, e é falha. */
-            if (!manifestoOk || ++falhasDeRede > 3) { cairParaMp4(tr('player.problemaDeReproducao')); return; }
-            if (!esperaDeRede) {
-              esperaDeRede = setTimeout(function () {
-                esperaDeRede = 0;
-                if (!destruido && hls) cairParaMp4(tr('player.problemaDeReproducao'));
-              }, ESPERA_REDE_MS);
-            }
+             * mensagem. Com manifesto, rede que cai e volta se recupera, uma
+             * vez; rede que não volta, não: a segunda falha fatal, ou o relógio
+             * da falha, e é falha. */
+            if (!manifestoOk || ++falhasDeRede > TENTATIVAS_DE_REDE) { cairParaMp4(tr('player.problemaDeReproducao')); return; }
             hls.startLoad();
             return;
           }

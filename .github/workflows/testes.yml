@@ -1,8 +1,13 @@
 name: testes
 
+# Roda em todo push e Pull Request, e também quando outro fluxo (deploy.yml) chama este como pré-requisito.
 on:
   push:
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   testes:
@@ -12,7 +17,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Os testes do PRODUTO conferem a marca neutra "Plataforma Exemplo": numa cópia já personalizada para um
+      # cliente eles falhariam por isso (não é defeito do cliente). Nesse caso rodam só as conferências de
+      # configuração, segredos e arquivos gerados, que valem para qualquer cópia.
+      - name: Esta cópia é o produto (marca neutra)?
+        id: produto
+        run: |
+          if node -e "process.exit(require('./config/site.json').marca.nome === 'Plataforma Exemplo' ? 0 : 1)"; then
+            echo "produto=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "produto=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cópia personalizada: pulando 'npm test' (testes do produto); as demais conferências rodam."
+          fi
       - name: Testes
+        if: steps.produto.outputs.produto == 'true'
         run: npm test
       - name: Varredura anti-marca
         run: node scripts/anti-marca.mjs
@@ -23,5 +41,6 @@ jobs:
       - name: Config e arquivos gerados em dia
         run: |
           node scripts/validar-config.mjs
+          node scripts/migrar-config.mjs --verificar
           node scripts/aplicar-config.mjs --verificar
           node scripts/gerar-headers.mjs --verificar

@@ -21,6 +21,8 @@ export const ONDE_ACHAR = Object.freeze({
   BUNNY_TOKEN_KEY: 'Bunny: na biblioteca, em Security, ligue a autenticação por token e copie a chave. É secreta e é ela que protege o vídeo nos modos privado e cadastro. (docs/contas-e-chaves.md, seção 2)',
   CLOUDFLARE_ACCOUNT_ID: 'Cloudflare: o ID da conta (32 letras e números) aparece na página Workers e Pages. Não é senha. (docs/contas-e-chaves.md, seção 3)',
   CLOUDFLARE_STREAM_TOKEN: 'Cloudflare: Perfil, Tokens de API, token personalizado com a permissão "Stream: Edit" só para a sua conta. É secreto. (docs/contas-e-chaves.md, seção 3)',
+  CLOUDFLARE_STREAM_KEY_ID: 'Cloudflare: a chave de assinatura dos vídeos. Você NÃO digita: o comando "video" a cria sozinho com o seu token.',
+  CLOUDFLARE_STREAM_KEY_JWK: 'Cloudflare: a parte secreta da chave de assinatura. Você NÃO cola: o comando "video" a cria e a guarda sozinho.',
   CLOUDFLARE_STREAM_SUBDOMINIO: 'Cloudflare: na página do Stream, o endereço "customer-xxxx" dos vídeos. Não é senha. (docs/contas-e-chaves.md, seção 3)'
 });
 

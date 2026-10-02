@@ -51,7 +51,9 @@ export async function onRequestPost({ request, env, config }) {
   if (!usuario || usuario === 'superadmin' || usuario === 'admin') {
     /* Sem ADMIN_PASSWORD o superadmin não existe (e comparar com `undefined`
      * aceitaria a senha "undefined"). */
-    if (!env.ADMIN_PASSWORD || !iguaisEmTempoConstante(senha, env.ADMIN_PASSWORD)) {
+    /* Instalação incompleta: diz o que falta (quem tenta entrar é quem instalou), sem contar como tentativa errada. */
+    if (!env.ADMIN_PASSWORD) return erro(401, 'senha-admin-ausente');
+    if (!iguaisEmTempoConstante(senha, env.ADMIN_PASSWORD)) {
       await falhar(env, chaveFalhas);
       await atraso();
       return erro(401, 'credenciais-incorretas');

@@ -7359,7 +7359,7 @@ test('na mesa, o rascunho não derruba o player da ficha aberta', () => {
  * de ser definidos, sem nenhum teste reclamar. Este cobra que tudo o que a
  * mesa chama de si mesma exista em algum arquivo dela. */
 test('a mesa não chama nem escreve em nada que ela não define', () => {
-  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa.js'];
+  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js'];
   const juntos = arquivos.map(a => semComentarios(lerTexto(path.join(SITE, a)))).join('\n');
   const definidos = new Set([...juntos.matchAll(/\bM\.([A-Za-z_]\w*)\s*=[^=]/g)].map(m => m[1]));
   /* O estado e os poucos objetos que a mesa preenche por dentro. */

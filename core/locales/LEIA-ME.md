@@ -18,8 +18,10 @@ as mesmas chaves, os mesmos `{parâmetros}` e as mesmas formas de plural:
 
 - **Chave**: `namespace.nome`. Os namespaces: `comum` (o que todos usam), `site` (o catálogo
   público), `player`, `catalogo` (rótulos que o core calcula), `pendencia` e `permissao*`
-  (tabelas do core), `mesa`, `painel` e `telas` (a mesa de curadoria) e `api` (as mensagens de
-  erro das APIs: a chave é `api.<codigo>`, o mesmo `codigo` que a resposta traz).
+  (tabelas do core), `mesa`, `painel` e `telas` (a mesa de curadoria), `operacao`, `assistente`,
+  `saude`, `backup` e `custos` (as telas de operação do /admin: o servidor só manda códigos e
+  parâmetros, e a frase sai de `saude.c.<codigo>`, `saude.f.<codigo>`, `assistente.erro.<codigo>`...)
+  e `api` (as mensagens de erro das APIs: a chave é `api.<codigo>`, o mesmo `codigo` que a resposta traz).
   As chaves de `painel.` e `telas.` nasceram do próprio texto em português (`painel.salvar`);
   se o texto mudar, a chave não precisa mudar.
 - **Parâmetros**: `{nome}` entre chaves. `{marca}`, `{marcaCurta}` e `{organizacao}` são

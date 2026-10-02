@@ -8,6 +8,7 @@ import { definirCaminho, lerCaminho, validarBruto } from './config-io.mjs';
 import { salvarConfig, siteAtual, protegerSegredosLocais } from './comum.mjs';
 import { gravarNoArquivoEnv, mascarar, lerArquivoEnv } from './segredos.mjs';
 import { guardarSegredo } from './cmd-segredo.mjs';
+import { criarChaveDeAssinatura, explicarFalhaDaChave, VARIAVEIS_DA_CHAVE } from './stream-chave.mjs';
 import { CREDENCIAIS_DE_ASSINATURA, NAO_SECRETAS, ONDE_ACHAR, credenciaisNecessarias } from './credenciais.mjs';
 
 export { CREDENCIAIS_DE_ASSINATURA };
@@ -21,8 +22,8 @@ export const PROVEDORES_ROTULO = Object.freeze({
 export const video = {
   nome: 'video',
   resumo: 'Escolhe o provedor de vídeo, guarda as chaves (prompt oculto) e testa a conexão.',
-  uso: 'video [--provedor bunny|cloudflare-stream|hls-generico] [--base-url https://...] [--testar] [--sem-teste] [--enviar-segredos]',
-  flags: { provedor: 'valor', 'base-url': 'valor', testar: 'bool', 'sem-teste': 'bool', 'enviar-segredos': 'bool', conta: 'valor' },
+  uso: 'video [--provedor bunny|cloudflare-stream|hls-generico] [--base-url https://...] [--testar] [--sem-teste] [--enviar-segredos] [--criar-chave-assinatura]',
+  flags: { provedor: 'valor', 'base-url': 'valor', testar: 'bool', 'sem-teste': 'bool', 'enviar-segredos': 'bool', 'criar-chave-assinatura': 'bool', conta: 'valor' },
   async executar(ctx, rel) {
     const f = ctx.flags;
     const { bruto, existe } = await siteAtual(ctx);
@@ -54,14 +55,18 @@ export const video = {
     const env = { ...envArquivo };
     for (const [k, v] of Object.entries(ctx.env)) if (typeof v === 'string' && v !== '') env[k] = v;
     const precisa = credenciaisNecessarias(modulo, id, modo);
-    const faltando = precisa.filter(([, def]) => !env[def.env]);
+    /* A chave de assinatura do Stream o setup CRIA sozinho (a pessoa não cola JWK): fica fora dos prompts. */
+    const geraChave = id === 'cloudflare-stream' && (restrito || f['criar-chave-assinatura']);
+    const faltandoTudo = precisa.filter(([, def]) => !env[def.env]);
+    const faltando = faltandoTudo.filter(([, def]) => !(geraChave && VARIAVEIS_DA_CHAVE.includes(def.env)));
     for (const [, def] of precisa) if (env[def.env]) rel.acao(`cred:${def.env}`, `${def.env} já definida (${mascarar(env[def.env])})`, 'ja-estava');
 
     if (faltando.length && !f.testar) {
       if (f.dryRun) for (const [, def] of faltando) rel.acao(`cred:${def.env}`, `Pediria ${def.env} num prompt oculto`, 'simulado');
       else if (!ctx.interativo) {
         const nomes = faltando.map(([, d]) => d.env);
-        throw pendente('credenciais-do-video', `faltam as credenciais do provedor "${id}": ${nomes.join(', ')}. As chaves secretas só podem ser digitadas pela pessoa, num terminal (a digitação fica escondida).`, {
+        const aviso = geraChave ? ' A chave de assinatura do vídeo (CLOUDFLARE_STREAM_KEY_ID e CLOUDFLARE_STREAM_KEY_JWK) NÃO precisa ser digitada: o setup a cria sozinho depois, com o token.' : '';
+        throw pendente('credenciais-do-video', `faltam as credenciais do provedor "${id}": ${nomes.join(', ')}. As chaves secretas só podem ser digitadas pela pessoa, num terminal (a digitação fica escondida).${aviso}`, {
           comando: 'node scripts/setup.mjs video', dados: { faltando: nomes, ondeAchar: Object.fromEntries(nomes.filter((n) => ONDE_ACHAR[n]).map((n) => [n, ONDE_ACHAR[n]])), naoSecretas: nomes.filter((n) => NAO_SECRETAS.has(n)) },
           dica: 'Agente: mostre à pessoa onde achar cada item (docs/contas-e-chaves.md, seção do provedor) e peça que rode o comando num segundo terminal aberto na pasta do projeto. Quem é só um número ou endereço (' + (nomes.filter((n) => NAO_SECRETAS.has(n)).join(', ') || 'nenhum aqui') + ') aparece na tela ao digitar; as chaves secretas ficam escondidas. Alternativa: pôr as variáveis no .env e rodar de novo.'
         });
@@ -78,6 +83,23 @@ export const video = {
           env[def.env] = v;
           rel.acao(`cred:${def.env}`, `${def.env} guardada em .env (ignorado pelo git) ${mascarar(v)}`, estado === 'igual' ? 'ja-estava' : 'feito');
         }
+      }
+    }
+
+    /* chave de assinatura do Stream: criada aqui, com o token que já está no .env; o valor nunca é mostrado */
+    if (geraChave && !f.testar && VARIAVEIS_DA_CHAVE.some((n) => !env[n])) {
+      if (f.dryRun) rel.acao('chave-assinatura', 'Criaria a chave de assinatura do Stream com o seu token (a chave vai direto para o .env, sem aparecer)', 'simulado');
+      else if (!env.CLOUDFLARE_ACCOUNT_ID || !env.CLOUDFLARE_STREAM_TOKEN) {
+        rel.acao('chave-assinatura', 'Chave de assinatura: ainda faltam o ID da conta e o token do Stream para criá-la', 'pendente');
+        rel.pendencia('chave-assinatura', 'falta criar a chave de assinatura do Stream (depende do token)', 'node scripts/setup.mjs video --criar-chave-assinatura');
+      } else {
+        const ch = await criarChaveDeAssinatura({ fetch: ctx.fetch, accountId: env.CLOUDFLARE_ACCOUNT_ID, token: env.CLOUDFLARE_STREAM_TOKEN });
+        if (!ch.ok) throw falha('chave-assinatura-recusada', explicarFalhaDaChave(ch.motivo));
+        await protegerSegredosLocais(ctx, rel);
+        await gravarNoArquivoEnv(path.join(ctx.raiz, '.env'), 'CLOUDFLARE_STREAM_KEY_ID', ch.id);
+        await gravarNoArquivoEnv(path.join(ctx.raiz, '.env'), 'CLOUDFLARE_STREAM_KEY_JWK', ch.jwk);
+        env.CLOUDFLARE_STREAM_KEY_ID = ch.id; env.CLOUDFLARE_STREAM_KEY_JWK = ch.jwk;
+        rel.acao('chave-assinatura', 'Chave de assinatura do Stream criada e guardada em .env (o valor não é mostrado)', 'feito');
       }
     }
 

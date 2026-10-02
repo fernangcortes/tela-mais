@@ -93,7 +93,13 @@ export const PERMISSOES = {
   '/api/autorizacoes': { GET: 'equipe', PUT: 'super' },
   '/api/historico': { GET: 'equipe', POST: 'equipe' },
   '/api/midia': { GET: 'equipe', POST: 'equipe' },
-  '/api/upload-token': { POST: 'equipe' }
+  '/api/upload-token': { POST: 'equipe' },
+
+  /* Operação (M8). Saúde: a equipe vê o retrato (só nomes de segredo, nunca valor); o assistente de configuração e as contas
+   * que ele faz no servidor são do superadmin. Backup: a equipe baixa o que já enxerga (catálogo e configuração operacional);
+   * as CONTAS no arquivo e a importação são do superadmin (o handler confere `?contas=1`). */
+  '/api/saude': { GET: 'equipe', POST: 'super', PUT: 'super' },
+  '/api/backup': { GET: 'equipe', POST: 'super' }
 };
 
 export function nivelDe(caminho, metodo) {

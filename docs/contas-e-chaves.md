@@ -122,15 +122,61 @@ nunca o valor.
 
 ## 5. Checklist antes de divulgar o site
 
-O agente roda o comando de cada item; você só confirma.
+Um comando roda a verificação de cada item e imprime **OK**, **FALHA** ou **MANUAL** (o que só uma pessoa confirma):
 
-- [ ] 2FA ligado na Cloudflare, no GitHub e no serviço de vídeo.
-- [ ] `node scripts/setup.mjs doctor --remote` sem erros e sem avisos.
-- [ ] `node scripts/setup.mjs scan-secrets` sem achados; `.env` fora do git.
-- [ ] Modo de acesso testado de fora: no `privado` e no `cadastro`, abrir o catálogo e o vídeo sem entrar **falha**.
-- [ ] No modo `cadastro`, Turnstile ligado.
-- [ ] Um vídeo de teste processado e tocando no celular **e** no computador.
-- [ ] Limite de banda do Bunny e alerta de gasto da Cloudflare configurados; custo mensal estimado aceito por você.
-- [ ] Senha de admin e e-mail de recuperação guardados; uma segunda pessoa de confiança sabe como recuperar a conta.
-- [ ] Política de privacidade e termos preenchidos (peça orientação jurídica; isto não é aconselhamento jurídico).
-- [ ] Você tem direito de exibir todo o conteúdo publicado.
+```bash
+node scripts/setup.mjs go-live --url https://seu-site.exemplo.com --video-id ID_DO_VIDEO
+node scripts/setup.mjs go-live --json     # o mesmo, para programas (dados.itens[] com id, estado, detalhe, comando)
+```
+
+Códigos de saída: `1` se algum item der FALHA (cada um diz como corrigir); `3` se só faltarem itens MANUAL (o agente lê cada um à
+pessoa, uma pergunta por vez, e confirma com `--confirmado id1,id2`); `0` quando tudo está OK ou confirmado. O teste do limite
+de login envia 12 tentativas com senha errada a uma conta que não existe (`go-live-teste`); `--pular-limite` não o faz.
+Sem o programa `gh` (GitHub CLI) logado, os itens do GitHub viram MANUAL, nunca FALHA de mentira.
+
+Cada caixa abaixo traz o `id` do item e o comando exato que o confere. **auto** = o `go-live` decide sozinho; **manual** = só a
+pessoa confirma, e o comando diz onde olhar.
+
+**A. Contas e acesso**
+
+- [ ] `2fa-cloudflare` (manual) 2FA ligado na Cloudflare. Onde: abrir https://dash.cloudflare.com/profile/authentication
+- [ ] `2fa-github` (manual) 2FA ligado no GitHub. Onde: abrir https://github.com/settings/security
+- [ ] `2fa-video` (manual) 2FA ligado no serviço de vídeo. Onde: painel do provedor, em Segurança
+- [ ] `repo-privado` (auto, com `gh`) repositório do site privado. Comando: `gh repo view --json isPrivate`
+
+**B. Segredos e configuração**
+
+- [ ] `config-valida` (auto) config válida e arquivos gerados em dia. Comando: `npm run config:validar && npm run config:aplicar`
+- [ ] `segredos-presentes` (auto) segredos presentes no Worker, só os nomes. Comando: `node scripts/setup.mjs doctor --only admin,video`
+- [ ] `sem-segredo-no-git` (auto) nenhum segredo nos arquivos e `.env` fora do git. Comando: `node scripts/setup.mjs scan-secrets`
+- [ ] `senhas-guardadas` (manual) senha de admin e e-mail de recuperação no gerenciador de senhas. Pergunte à pessoa; nunca peça a senha.
+
+**C. Modo de acesso**
+
+- [ ] `modo-testado-de-fora` (auto) no `privado` e no `cadastro`, catálogo e vídeo sem entrar **falham** (401/403). Comando: `node scripts/setup.mjs doctor --remote --video-id ID_DO_VIDEO`
+- [ ] `turnstile` (auto) no modo `cadastro`, Turnstile ligado. Comando: `node scripts/setup.mjs turnstile` e `node scripts/setup.mjs doctor --only acesso`
+- [ ] `limite-de-login` (auto) a 11ª tentativa de login em 10 s é recusada. Comando: `node scripts/setup.mjs go-live`
+- [ ] `referrers-do-provedor` (manual) só o seu domínio como origem permitida e autenticação por token ligada. Onde: Bunny, pull zone, Security (Allowed Referrers e Token Authentication)
+
+**D. Conteúdo e custos**
+
+- [ ] `video-de-teste` (manual) um vídeo de teste processado e tocando no celular **e** no computador. Onde: o site, entrando se o modo for restrito; o `/admin` mostra o estado do envio
+- [ ] `custo-aceito` (manual) custo mensal estimado aceito por você. Onde: `/admin`, tela Custos, ou `docs/custos.md`
+- [ ] `alertas-de-gasto` (manual) limite de banda do Bunny e alerta de gasto da Cloudflare. Onde: Cloudflare, Notificações, Billable Usage; Bunny, Billing, Usage Limits
+
+**E. Operação**
+
+- [ ] `dominio-https` (auto) domínio próprio com HTTPS e `www` redirecionando. Comando: `curl -sI https://SEU-DOMINIO/ ; curl -sI https://www.SEU-DOMINIO/` (o `go-live` faz isso com o `marca.dominio` da config)
+- [ ] `deploy-automatico` (auto, com `gh`) deploy automático funcionando, com testes verdes antes. Comando: `gh run list --workflow deploy.yml --limit 3`
+- [ ] `backup-recente` (auto, com `gh`) backup rodado há menos de 48 h. Comando: `gh run list --workflow backup.yml --limit 3` (ou rode um agora: `npm run backup`)
+- [ ] `restauracao-testada` (manual) backup restaurado num projeto de teste. Comando: `node scripts/importar-kv.mjs backup.json` (sem `--yes` só mostra o que mudaria)
+- [ ] `monitor-de-saude` (manual) monitor externo em `/api/saude` com alerta no seu e-mail. Comando: `curl -s -o /dev/null -w "%{http_code}" https://SEU-SITE/api/saude` (esperado 401 sem entrar)
+- [ ] `atualizar-core` (auto, com `gh`) atualização semanal do core ligada. Comando: `gh workflow list` (o fluxo `atualizar-core` deve estar ativo)
+- [ ] `segundo-administrador` (manual) uma segunda pessoa de confiança sabe como recuperar a conta.
+
+**F. Legal**
+
+- [ ] `politica-e-termos` (auto) política de privacidade e termos preenchidos (peça orientação jurídica; isto não é aconselhamento jurídico). Comando: `curl -s https://SEU-SITE/api/legal`
+- [ ] `direito-de-exibir` (manual) você tem direito de exibir todo o conteúdo publicado.
+
+Antes de rodar o `go-live`, rode também `node scripts/setup.mjs doctor --remote`: sem erros e sem avisos.

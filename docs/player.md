@@ -35,7 +35,11 @@ tecla ou toque) e `tocarAutomatico`, que **começa perguntando ao guardião**
 vira `perguntar`.
 
 Quando o vídeo não carrega, o player mostra uma mensagem em português claro (no idioma da pessoa)
-e o botão "Tentar de novo".
+e o botão "Tentar de novo". **A mensagem aparece em até 15 segundos** do primeiro erro de rede: o player
+não usa as tentativas padrão do hls.js (que somavam cerca de 52 s), e sim um prazo próprio, com poucas
+tentativas por segmento e por manifesto e um relógio que corre desde o primeiro erro (`configHls` e
+`ESPERA_REDE_MS` em `core/site/player-core.js`; `orcamentoDeFalhaMs()` faz a conta e um teste a confere).
+Ao aparecer a mensagem, o player também tira os estados de "tocando" e "carregando".
 
 ## `home.destaque.fundo`
 

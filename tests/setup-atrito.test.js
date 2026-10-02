@@ -56,7 +56,7 @@ test('resumo honesto: status conta as etapas, simulação e falha não dizem "Tu
   assert.doesNotMatch(s.json.resumo, /Tudo certo/);
   assert.match(s.json.resumo, /\d+ de \d+ etapas prontas/);
   const ids = s.json.dados.etapas.map((e) => `${e.numero}:${e.id}`);
-  assert.deepEqual(ids, ['0:ambiente', '1:identidade', '2:acesso', '3:cloudflare', '4:recursos', '5:video', '6:segredos', '7:publicacao'], 'a numeração é a do roteiro do AGENTS.md');
+  assert.deepEqual(ids, ['0:ambiente', '1:identidade', '2:acesso', '3:cloudflare', '4:recursos', '5:video', '6:segredos', '7:publicacao', '8:primeiro-video', '9:opcionais'], 'a numeração é a do roteiro do AGENTS.md');
   const d = await rodar(['marca', '--nome', 'Rede Sol', '--dry-run', '--json'], { raiz });
   assert.match(d.json.resumo, /Simulação concluída/);
   const nada = await rodar(['marca', '--json'], { raiz });
@@ -148,7 +148,8 @@ test('cloudflare provisionar --dry-run sem login mostra o plano e o custo, sem c
   const ids = r.json.acoes.map((a) => a.id);
   assert.ok(ids.includes('kv') && ids.includes('d1') && ids.includes('session-secret'));
   assert.ok(r.json.acoes.filter((a) => a.id !== 'login').every((a) => a.estado === 'simulado'));
-  assert.match(r.json.mensagens.join(' '), /Custo: grátis/);
+  assert.match(r.json.mensagens.join(' '), /Custo desta etapa: grátis/);
+  assert.match(r.json.mensagens.join(' '), /vídeo é cobrado à parte/);
   assert.equal(mundo.kv.length + mundo.d1.length, 0);
 });
 
@@ -182,8 +183,8 @@ test('init: diz o que o modelo escolheu e quando o acesso pedido difere do suger
   const raiz = criarProjeto();
   const r = await rodar(['init', '--nome', 'Escola Som & Arte', '--preset', 'escola', '--acesso', 'privado', '--json'], { raiz });
   const m = r.json.mensagens.join(' ');
-  assert.match(m, /O modelo escolheu para você/);
-  assert.match(m, /sugere acesso "cadastro".*"privado"/);
+  assert.match(m, /O modelo ajustou o visual e os recursos/);
+  assert.match(m, /sugeria "cadastro".*"privado"/);
 });
 
 test('doctor --only env não manda "depois de publicar"; o doctor completo aponta para o status', async () => {

@@ -377,3 +377,83 @@ body { margin: 0; background: var(--mesa-fundo); color: var(--texto); font: 14px
 .home-previa li.escondida { opacity: .6; }
 .home-previa small { color: var(--texto-fraco); }
 .home .campo select, .home .campo input[type="number"] { max-width: 360px; }
+
+/* ------------------------------------------- Operação (M8): saúde, backup, custos e o assistente */
+.custos .lista-ajuda, .saude .lista-ajuda, .backup .lista-ajuda, .assistente .lista-ajuda { overflow-wrap: anywhere; }
+.cartao-conta > *, .saude-item, .custo-resultado, .asst-passo, .asst-coluna, .asst-opcao-texto { min-width: 0; }
+.saude-lista { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.saude-item { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--painel); }
+.saude-item.saude-erro { border-color: var(--erro); }
+.saude-item.saude-aviso { border-color: var(--alerta); }
+.saude-item-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.saude-msg { margin: 0; line-height: 1.45; }
+.custo-resultado { display: grid; gap: 10px; }
+.a-tabela tr.custo-melhor td, .a-tabela tr.custo-melhor th { background: var(--painel-alto); }
+.a-tabela th[scope="row"] { color: var(--texto); font-weight: 600; text-align: left; }
+.bkp-partes { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.bkp-partes legend { padding: 0 0 6px; }
+
+.asst-trilha { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.asst-trilha-botao { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px 0 6px; border: 1px solid var(--borda); border-radius: 999px; background: transparent; color: var(--texto-fraco); font: 500 13px/1 var(--ui); cursor: pointer; }
+.asst-trilha-botao:hover { color: var(--texto); background: var(--painel-alto); }
+.asst-trilha-botao.ativo { border-color: var(--marca); color: var(--texto); background: var(--painel-alto); }
+.asst-trilha-botao.feito .asst-trilha-n { background: var(--marca-fraca); color: var(--marca); }
+.asst-trilha-botao:focus-visible, .asst-opcao:focus-within { outline: 2px solid var(--texto); outline-offset: 2px; }
+.asst-trilha-n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--painel-alto); font: 600 12px/1 var(--mono); }
+.asst-titulo { margin-top: 4px; }
+.asst-titulo:focus { outline: none; }
+.asst-passo { display: grid; gap: 16px; max-width: 920px; }
+.asst-colunas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.asst-coluna { display: grid; gap: 14px; min-width: 0; }
+.asst-cor-linha { display: flex; gap: 8px; align-items: center; }
+.asst-cor-linha input[type="color"] { width: 46px; height: 36px; padding: 2px; border: 1px solid var(--contorno); border-radius: 8px; background: var(--painel-alto); cursor: pointer; }
+.asst-cor-linha input[type="text"] { max-width: 120px; font-family: var(--mono); }
+.asst-previas { display: grid; gap: 10px; }
+.asst-previa { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--prev-borda, var(--borda)); border-radius: 12px; background: var(--prev-fundo, var(--painel)); color: var(--prev-texto, var(--texto)); }
+.asst-previa-topo { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.asst-previa-inicial { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--prev-marca, var(--marca)); color: var(--prev-sobre-marca, var(--texto-sobre-marca)); font-weight: 700; }
+.asst-previa-logo { max-width: 120px; max-height: 32px; }
+.asst-previa-fraco { color: var(--prev-texto-fraco, var(--texto-fraco)); font-size: 13px; }
+.asst-previa-cartao { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--prev-borda, var(--borda)); border-radius: 10px; background: var(--prev-superficie, var(--painel-alto)); }
+.asst-previa-link { color: var(--prev-marca, var(--marca)); font-weight: 600; }
+.asst-previa-botao { justify-self: start; padding: 8px 14px; border-radius: 8px; background: var(--prev-marca, var(--marca)); color: var(--prev-sobre-marca, var(--texto-sobre-marca)); font-weight: 600; font-size: 13px; }
+.asst-contraste { display: grid; gap: 10px; }
+.asst-razao { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 4px; }
+.asst-passo .a-tabela td { min-width: 160px; vertical-align: top; }
+.asst-passo .a-tabela th { white-space: normal; }
+/* A comparação dos provedores cabe sem rolar: as colunas curtas (Sim/Não) ficam
+   estreitas e o texto quebra. Se ainda assim faltar largura (tela pequena), a
+   sombra nas bordas de .a-rolagem avisa que há mais para o lado. */
+.asst-passo .a-tabela-provedores td { min-width: 0; overflow-wrap: anywhere; }
+.asst-passo .a-tabela-provedores td:nth-child(4), .asst-passo .a-tabela-provedores td:nth-child(5) { width: 64px; text-align: center; }
+.asst-passo .a-tabela-provedores th[scope="col"] { padding-inline: 8px; }
+.asst-passo .a-rolagem {
+  background:
+    linear-gradient(to right, var(--painel), var(--painel)) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--painel), var(--painel)) right center / 24px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--texto-fraco) 35%, transparent), transparent) left center / 12px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--texto-fraco) 35%, transparent), transparent) right center / 12px 100% no-repeat scroll;
+}
+.asst-opcoes { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.asst-opcoes-linha { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.asst-opcoes legend { padding: 0 0 6px; }
+.asst-opcao { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--painel); cursor: pointer; }
+.asst-opcao.marcada { border-color: var(--marca); background: var(--painel-alto); }
+.asst-opcao input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: var(--marca); flex: none; }
+.asst-opcao-texto { display: grid; gap: 4px; min-width: 0; }
+.asst-opcao-texto small, .asst-detalhes small { display: block; color: var(--texto-fraco); font-size: 12.5px; line-height: 1.45; }
+.asst-detalhes { display: grid; gap: 4px; margin-top: 4px; }
+.asst-sugere { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--texto-fraco); }
+.asst-lista-passos { display: grid; gap: 6px; margin: 0; padding-left: 22px; line-height: 1.5; }
+.asst-blocos { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+.asst-checklist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.asst-check { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.asst-teste { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--painel); }
+.asst-mais summary { cursor: pointer; font-size: 13px; color: var(--texto-fraco); padding: 6px 0; }
+.asst-erros ul { margin: 6px 0 0; }
+.asst-nav { padding-top: 6px; border-top: 1px solid var(--borda); }
+@media (max-width: 760px) {
+  .asst-colunas { grid-template-columns: minmax(0, 1fr); }
+  .asst-trilha-botao span:last-child { display: none; }
+  .asst-trilha-botao.ativo span:last-child { display: inline; }
+}

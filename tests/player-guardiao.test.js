@@ -507,13 +507,13 @@ test('vídeo só com HLS e sem MP4: o erro de reprodução também vira mensagem
 function montarComHls(item, opcoesHls = {}) {
   const instancias = [];
   class HlsFalso {
-    constructor() { this.ouvintes = {}; this.destruido = false; this.cargas = 0; instancias.push(this); }
+    constructor(cfg) { this.cfg = cfg; this.ouvintes = {}; this.destruido = false; this.cargas = 0; instancias.push(this); }
     static isSupported() { return true; }
     on(nome, fn) { (this.ouvintes[nome] = this.ouvintes[nome] || []).push(fn); }
     emitir(nome, dados) { (this.ouvintes[nome] || []).forEach((f) => f(nome, dados)); }
     loadSource() {} attachMedia() {} startLoad() { this.cargas++; } recoverMediaError() {} destroy() { this.destruido = true; }
   }
-  HlsFalso.Events = { ERROR: 'hlsError', FRAG_LOADED: 'fragLoaded', MANIFEST_PARSED: 'manifestParsed' };
+  HlsFalso.Events = { ERROR: 'hlsError', FRAG_LOADED: 'fragLoaded', MANIFEST_PARSED: 'manifestParsed', MANIFEST_LOADING: 'manifestLoading', LEVEL_LOADING: 'levelLoading', FRAG_LOADING: 'fragLoading', MANIFEST_LOADED: 'manifestLoaded', LEVEL_LOADED: 'levelLoaded' };
   HlsFalso.ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };
   const amb = carregar(['guardiao.js', 'player-core.js', 'player.js'], { matchMedia: DESKTOP, globais: { Hls: HlsFalso, MediaSource: function () {} } });
   const p = amb.janela.AppPlayer.criar(item, { player: {} }, { proximo: PROX, abrirProximo() {} });
@@ -536,13 +536,15 @@ test('hls.js: manifesto em 404 (erro fatal de rede) mostra a mensagem na hora', 
   m.p.destruir();
 });
 
-test('hls.js: com manifesto bom, rede que não volta vira mensagem pelo limite de tentativas', async () => {
+test('hls.js: com manifesto bom, rede que não volta vira mensagem na segunda falha fatal', async () => {
   const m = montarComHls(SO_HLS);
   m.janela.__correr();
   await new Promise((r) => setImmediate(r));
   const painel = m.p.no.querySelector('.pl-erro');
   m.hls().emitir('manifestParsed', {});
-  for (let i = 0; i < 3; i++) { m.hls().emitir('hlsError', FATAL_REDE); assert.equal(painel.hidden, true, 'ainda tenta (' + i + ')'); }
+  m.hls().emitir('hlsError', FATAL_REDE);
+  assert.equal(painel.hidden, true, 'a primeira falha fatal ainda tenta uma vez');
+  assert.equal(m.hls().cargas, 1);
   m.hls().emitir('hlsError', FATAL_REDE);
   assert.equal(painel.hidden, false);
   m.p.destruir();
@@ -559,6 +561,132 @@ test('hls.js: com manifesto bom e um único erro, o tempo limite sem segmento ta
   assert.equal(m.hls().cargas, 1, 'tenta retomar uma vez');
   m.janela.__correr();   /* o tempo limite */
   assert.equal(painel.hidden, false);
+  m.p.destruir();
+});
+
+/* PENDÊNCIA DO M6: a mensagem demorava ~52 s (6 tentativas de segmento com
+ * espera de até 8 s, 4 reenvios por tempo esgotado, manifesto com 3 x 20 s e três
+ * `startLoad()` por cima). A promessa agora é <= 15 s do primeiro erro. */
+test('falha de segmento: o relógio da falha começa no primeiro erro de rede (mesmo não fatal) e cabe em 15 s', async () => {
+  const Nucleo = require('../core/site/player-core.js');
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  m.hls().emitir('manifestParsed', {});
+  const antes = m.janela.__temporizadores.length;
+  m.hls().emitir('hlsError', { fatal: false, type: 'networkError', details: 'fragLoadError' });
+  const novos = m.janela.__temporizadores.slice(antes);
+  assert.equal(novos.length, 1, 'um erro não fatal de rede arma o relógio');
+  assert.equal(novos[0].ms, Nucleo.ESPERA_REDE_MS);
+  assert.ok(novos[0].ms <= Nucleo.LIMITE_FALHA_MS, 'o relógio sozinho cabe no limite');
+  /* Outro erro não arma um segundo relógio (o prazo é do primeiro). */
+  m.hls().emitir('hlsError', { fatal: false, type: 'networkError', details: 'fragLoadError' });
+  assert.equal(m.janela.__temporizadores.length, antes + 1);
+  const painel = m.p.no.querySelector('.pl-erro');
+  assert.equal(painel.hidden, true);
+  novos[0].fn();
+  assert.equal(painel.hidden, false, 'o relógio esgotado mostra a mensagem');
+  m.p.destruir();
+});
+
+test('o relógio da falha começa quando a carga COMEÇA: segmento lento que nem chega a dar erro também tem prazo', async () => {
+  const Nucleo = require('../core/site/player-core.js');
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  m.hls().emitir('manifestParsed', {});
+  const antes = m.janela.__temporizadores.length;
+  m.hls().emitir('fragLoading', {});
+  const novos = m.janela.__temporizadores.slice(antes);
+  assert.equal(novos.length, 1, 'iniciar a carga arma o relógio');
+  assert.equal(novos[0].ms, Nucleo.ESPERA_REDE_MS);
+  /* Prazo total, do início da carga ao painel: um único relógio, sem somar o primeiro erro. */
+  assert.ok(Nucleo.ESPERA_REDE_MS <= Nucleo.LIMITE_FALHA_MS - 3000, 'folga de pelo menos 3 s sob o limite de 15 s');
+  m.hls().emitir('hlsError', { fatal: false, type: 'networkError', details: 'fragLoadError' });
+  assert.equal(m.janela.__temporizadores.length, antes + 1, 'o erro não reinicia o prazo');
+  m.hls().emitir('fragLoaded', {});
+  m.janela.__correr();
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, true, 'carga concluída zera o relógio');
+  m.hls().emitir('fragLoading', {});
+  m.janela.__temporizadores[m.janela.__temporizadores.length - 1].fn();
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, false);
+  m.p.destruir();
+});
+
+test('o fim do LEVEL_LOADED não apaga o relógio do segmento que o hls.js já começou de dentro dele', async () => {
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  m.hls().emitir('manifestLoading', {});
+  m.hls().emitir('manifestLoaded', {});
+  m.hls().emitir('manifestParsed', {});
+  m.janela.__correr();   /* a pré-carga do manifesto (sem play) não deixa relógio nenhum armado */
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, true, 'carregar só o manifesto não vira erro');
+  const antes = m.janela.__temporizadores.length;
+  m.hls().emitir('levelLoading', {});
+  m.hls().emitir('fragLoading', {});     /* o hls.js começa o segmento DENTRO do tratamento do LEVEL_LOADED */
+  m.hls().emitir('levelLoaded', {});
+  const novos = m.janela.__temporizadores.slice(antes);
+  assert.equal(novos.length, 1);
+  novos[0].fn();
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, false, 'o relógio do segmento sobreviveu ao fim da etapa anterior');
+  m.p.destruir();
+});
+
+test('segmento que chega zera o relógio da falha: rede que volta não vira mensagem', async () => {
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  m.hls().emitir('manifestParsed', {});
+  m.hls().emitir('hlsError', { fatal: false, type: 'networkError', details: 'fragLoadError' });
+  m.hls().emitir('fragLoaded', {});
+  m.janela.__correr();   /* o relógio velho, se sobrasse, dispararia aqui */
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, true);
+  m.p.destruir();
+});
+
+test('o painel de erro tira pl-esperando e pl-tocando', async () => {
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  const caixa = m.p.no;
+  caixa.classList.add('pl-esperando');
+  caixa.classList.add('pl-tocando');
+  m.hls().emitir('hlsError', FATAL_REDE);
+  assert.equal(m.p.no.querySelector('.pl-erro').hidden, false);
+  assert.equal(caixa.classList.contains('pl-esperando'), false);
+  assert.equal(caixa.classList.contains('pl-tocando'), false);
+  assert.equal(caixa.classList.contains('pl-falhou'), true);
+  m.p.destruir();
+});
+
+test('a política de tentativas do hls.js cabe no limite de 15 s (e o padrão do hls.js não cabia)', () => {
+  const Nucleo = require('../core/site/player-core.js');
+  const cfg = Nucleo.configHls();
+  for (const nome of ['fragLoadPolicy', 'manifestLoadPolicy', 'playlistLoadPolicy']) {
+    const pol = cfg[nome] && cfg[nome].default;
+    assert.ok(pol, nome + ' definido');
+    assert.ok(isFinite(pol.maxTimeToFirstByteMs), nome + ': primeiro byte com prazo (o manifesto padrão não tinha)');
+  }
+  const pior = Nucleo.orcamentoDeFalhaMs(cfg);
+  assert.ok(pior <= Nucleo.ESPERA_REDE_MS, `pior caso por política: ${pior} ms`);
+  assert.ok(Nucleo.ESPERA_REDE_MS + 4000 <= Nucleo.LIMITE_FALHA_MS, 'folga: o relógio, contado do início da carga, mais 4 s de margem, cabe no limite');
+  /* Para a conta provar alguma coisa, ela precisa reprovar o padrão do hls.js 1.6. */
+  const padrao = { default: { maxTimeToFirstByteMs: 1e4, maxLoadTimeMs: 12e4,
+    timeoutRetry: { maxNumRetry: 4, retryDelayMs: 0, maxRetryDelayMs: 0 },
+    errorRetry: { maxNumRetry: 6, retryDelayMs: 1e3, maxRetryDelayMs: 8e3 } } };
+  assert.ok(Nucleo.orcamentoDeFalhaMs({ fragLoadPolicy: padrao, manifestLoadPolicy: padrao, playlistLoadPolicy: padrao }) > 45000);
+  assert.equal(Nucleo.LIMITE_FALHA_MS, 15000);
+});
+
+test('o hls.js recebe as políticas de falha ao ser criado', async () => {
+  const m = montarComHls(SO_HLS);
+  m.janela.__correr();
+  await new Promise((r) => setImmediate(r));
+  const cfg = m.hls().cfg;
+  assert.equal(cfg.fragLoadPolicy.default.errorRetry.maxNumRetry, 2);
+  assert.equal(cfg.manifestLoadPolicy.default.maxTimeToFirstByteMs, 4000);
+  assert.equal(cfg.autoStartLoad, false);
   m.p.destruir();
 });
 

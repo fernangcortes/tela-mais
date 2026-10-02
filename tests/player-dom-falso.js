@@ -125,6 +125,7 @@ function criarAmbiente(opcoes = {}) {
   doc.head = new No('head', doc);
   doc.documentElement = new No('html', doc);
   const temporizadores = [];
+  let proximoId = 0;
   const guardado = o.armazenamento;
   const janela = {
     document: doc,
@@ -137,8 +138,8 @@ function criarAmbiente(opcoes = {}) {
     },
     matchMedia: (q) => ({ matches: !!o.matchMedia(q), addEventListener() {}, removeEventListener() {} }),
     addEventListener() {}, removeEventListener() {},
-    setTimeout: (fn, ms) => { temporizadores.push({ fn, ms }); return temporizadores.length; },
-    clearTimeout: () => {}, setInterval: () => 0, clearInterval: () => {},
+    setTimeout: (fn, ms) => { const id = ++proximoId; temporizadores.push({ fn, ms, id }); return id; },
+    clearTimeout: (id) => { const i = temporizadores.findIndex((t) => t.id === id); if (i >= 0) temporizadores.splice(i, 1); }, setInterval: () => 0, clearInterval: () => {},
     requestAnimationFrame: (fn) => { fn(); return 0; }, cancelAnimationFrame() {},
     console, Promise, Math, Date, JSON, Number, String, Array, Object, Set, Map, Float32Array, RegExp, Error,
     fetch: () => Promise.reject(new Error('sem rede nos testes')),
@@ -153,6 +154,7 @@ function criarAmbiente(opcoes = {}) {
   janela.globalThis = janela;
   /* Os temporizadores só andam quando o teste manda. */
   janela.__correr = () => { const lote = temporizadores.splice(0); lote.forEach((t) => t.fn()); return lote.length; };
+  janela.__temporizadores = temporizadores;   /* só leitura: { fn, ms } pendentes */
   janela.__armazenamento = guardado;
   janela.__leituras = [];
   return { janela, doc };

@@ -528,6 +528,10 @@
     if (M.st.tela === 'enviar' && M.painelEnvio) return M.painelEnvio(cat);
     if (M.st.tela === 'contas' && M.painelContas) return M.painelContas();
     if (M.st.tela === 'acesso' && M.painelAcesso) return M.painelAcesso();
+    if (M.st.tela === 'saude' && M.painelSaude) return M.painelSaude();
+    if (M.st.tela === 'backup' && M.painelBackup) return M.painelBackup();
+    if (M.st.tela === 'custos' && M.painelCustos) return M.painelCustos();
+    if (M.st.tela === 'assistente' && M.painelAssistente) return M.painelAssistente();
     if (M.st.tela === 'conta') return { cab: h('div', { class: 'p-cab' }, h('span', { class: 'chip', text: tr('painel.equipe') }), h('h2', { class: 'p-cab-titulo', text: tr('painel.minhaConta') })),
       corpo: h('div', { class: 'p-corpo-in' }, h('p', { class: 'p-nota', text: M.sessao.super
         ? tr('painel.voceEOSuperadminA')

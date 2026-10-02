@@ -52,7 +52,11 @@ export async function guardarSegredo(ctx, rel, nome, valor, destinos, { forcar =
       if (d === 'worker') {
         /* não finge: guardar no Worker exige login (e o Worker só existe depois da primeira publicação) */
         const wr = criarWrangler(ctx);
-        await exigirLogin(ctx, wr, { contaId: ctx.flags.conta });
+        if (!(await wr.quemSou()).logado) {
+          rel.acao(`segredo:${nome}:worker`, `${nome} só pode ser guardado no Worker depois de entrar na Cloudflare (etapa 3) e de publicar o site (etapa 7); a pessoa o digitaria num campo escondido`, 'pendente');
+          rel.pendencia('cloudflare-sem-login', 'a pessoa ainda não entrou na Cloudflare neste computador (etapa 3).', 'npx wrangler login');
+          continue;
+        }
         const s = await wr.listarSegredos();
         rel.acao(`segredo:${nome}:worker`, s.existeWorker ? `Guardaria ${nome} no Worker (a pessoa digitaria o valor num campo escondido)` : `Ainda não dá para guardar ${nome} no Worker: ele só existe depois da primeira publicação (deploy)`, s.existeWorker ? 'simulado' : 'pendente');
       } else rel.acao(`segredo:${nome}:${d}`, `Guardaria ${nome} em ${d === 'env' ? '.env' : '.dev.vars'}`, 'simulado');
@@ -98,7 +102,7 @@ export const segredo = {
     if (f.dryRun) {
       await guardarSegredo(ctx, rel, nome, '', destinos, { gerado: true });
       rel.dado('segredo', { nome: rotuloDoNome(nome), destinos, valor: null });
-      return 0;
+      return rel.pendencias.length ? 3 : 0;
     }
     const { valor, origem } = await obterValor(ctx, nome, { gerar: f.gerar, stdin: f.stdin, doAmbiente: f['do-ambiente'], confirmar: nome === 'ADMIN_PASSWORD' });
     const problema = validarValorDeSegredo(nome, valor);

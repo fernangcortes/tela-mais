@@ -2,7 +2,7 @@
 name: publicar-e-atualizar
 description: Publica o streaming na Cloudflare e publica atualizações depois, só com o diagnóstico verde, e confere o site no ar. Use quando pedirem para publicar, colocar no ar, atualizar o site ou mudar o domínio.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
 
 # Publicar e atualizar
 

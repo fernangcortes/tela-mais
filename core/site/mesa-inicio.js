@@ -16,7 +16,8 @@
 
   var SCRIPTS = [
     'vendor/tus.min.js', 'home-blocos.js', 'catalogo-core.js', 'indice-core.js',
-    'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa.js'
+    'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js',
+    'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js'
   ];
 
   /* Em ordem: cada <script> só entra quando o anterior terminou (async = false não

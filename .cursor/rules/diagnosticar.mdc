@@ -2,7 +2,7 @@
 description: Descobre e corrige por que o streaming não funciona (site fora do ar, vídeo não toca, login falha, deploy recusado, chave inválida) usando o doctor. Use quando algo der erro, quebrar ou a pessoa disser que não funciona.
 alwaysApply: false
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a13858a39e83 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
 
 # Diagnosticar
 
