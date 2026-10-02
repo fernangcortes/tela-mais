@@ -1,0 +1,9 @@
+{
+  "name": "tela-mais",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Streaming white label de vídeo sob demanda para Cloudflare.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,2054 @@
+/* Plataforma Exemplo — folha de estilo do catálogo.
+ * Sem framework, sem build. Trocar a marca = trocar o bloco :root abaixo.
+ *
+ * UM TEMA SÓ, E ELE É ESCURO. Antes daqui o site
+ * seguia o aparelho por `prefers-color-scheme`, e quem usa o tema claro no
+ * celular — o padrão de muita gente — via o catálogo claro. Streaming é escuro
+ * para todo mundo, e um tema só é um tema só para desenhar, medir e testar.
+ *
+ * Os valores são os que o bloco escuro já tinha: eles estavam no ar e
+ * conferidos, e a fase D1 não era hora de estrear cor. O que entrou de novo
+ * são `--contorno` (a conta está logo abaixo) e as duas cores da marca.
+ *
+ * `color-scheme: dark` não é enfeite: é o que faz o navegador pintar de
+ * escuro o que a folha não alcança — barra de rolagem, campo de busca nativo,
+ * menu de `<select>` do /admin. Sem ele sobram retângulos brancos.
+ *
+ * CONTRASTE MEDIDO (WCAG 2.x, 14/09) — nenhuma cor entra aqui sem a conta:
+ *
+ *   --texto       #eceff4  sobre --fundo 16,39:1 · sobre --superficie 15,13:1
+ *   --texto-fraco #98a2ad  sobre --fundo  7,29:1 · sobre --superficie  6,73:1
+ *   --marca       #6aa6ff  sobre --fundo  7,66:1 · sobre --superficie  7,07:1
+ *   --marca-alt   #4f8de0  sobre --fundo  5,60:1 · sobre --superficie  5,17:1
+ *   --marca-destaque #f5c542 sobre --superficie 10,75:1
+ *   --alerta      #e0b356  sobre --alerta-fundo 7,90:1
+ *   --erro        #f08c86  sobre --erro-fundo   7,04:1
+ *   #07101c sobre --marca (o chip ligado)        7,74:1
+ *
+ * Todas passam os 4,5:1 de texto. A cor da marca padrão passa com folga no tema
+ * escuro, o que não aconteceria sobre branco. */
+
+:root {
+  color-scheme: dark;
+
+  --marca: #6aa6ff;
+  --marca-clara: #8dbcff;
+  --marca-fraca: #151d2b;
+
+  /* As duas cores secundárias da marca, para destaque. Ficam como token desde a
+   * D1 para que a D2 e a D4 não tenham que inventar cor — e já medidas. */
+  --marca-alt: #4f8de0;
+  --marca-destaque: #f5c542;
+
+  --fundo: #0f1115;
+  --superficie: #171a1f;
+
+  /* DOIS tokens de linha, porque são duas funções diferentes e só uma delas
+   * deve contraste a alguém:
+   *
+   *   --borda    separador decorativo — divisória de seção, rodapé, contorno
+   *              de caixa. A WCAG não cobra 3:1 disto, e cobrar deixaria a
+   *              tela com cara de arame.
+   *   --contorno o que DESENHA UM CONTROLE: o campo de busca, o chip, os
+   *              campos do /admin. Aí o 3:1 da 1.4.11 vale, e vale mesmo:
+   *              --fundo e --superficie estão a 1,08:1 um do outro, então o
+   *              preenchimento do campo não o distingue de nada — a linha é o
+   *              único sinal de que ali existe um controle.
+   *
+   * #656f78 dá 3,69:1 sobre --fundo e 3,40:1 sobre --superficie. O #2a2f36 da
+   * --borda dá 1,40:1 e 1,29:1: serve de divisória, nunca de contorno. */
+  --borda: #2a2f36;
+  --contorno: #656f78;
+
+  --texto: #eceff4;
+  --texto-fraco: #98a2ad;
+  --alerta: #e0b356;
+  --alerta-fundo: #2a2415;
+  --erro: #f08c86;
+  --erro-fundo: #2c1817;
+  --raio: 10px;
+  --sombra: none;
+  /* A grade única do catálogo ocupa esta largura inteira; em 1180px sobrava
+   * uma faixa vazia à direita nos monitores de trabalho. */
+  --largura: 1400px;
+
+  /* ESCALA DE ESPAÇO, base 4. Existe para o desenho novo — prateleira,
+   * cartão, destaque — não para reescrever o que já está medido: as
+   * distâncias do player saíram de medição no aparelho e não
+   * se mexem por causa deste plano. Token novo, uso novo. */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  --esp-7: 48px;
+  --esp-8: 64px;
+
+  /* ESCALA DE TIPO. --tipo-base é o 16px que o `body` já usava; os degraus
+   * abaixo dele são os tamanhos que a folha já praticava (12, 13, 15), para
+   * que adotar o token não mude nada de lugar. */
+  --tipo-micro: 12px;
+  --tipo-menor: 13px;
+  --tipo-corpo: 15px;
+  --tipo-base: 16px;
+  --tipo-maior: 18px;
+  --tipo-titulo: 20px;
+  --tipo-secao: 22px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+a { color: var(--marca); }
+
+img { max-width: 100%; display: block; }
+
+.limite { max-width: var(--largura); margin: 0 auto; padding: 0 16px; }
+
+.pular {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  background: var(--superficie); color: var(--texto); padding: 10px 14px;
+}
+.pular:focus { left: 8px; top: 8px; }
+
+/* --------------------------------------------------------------- cabeçalho */
+
+/* O `.topo` puro é o do /admin, e continua sólido. O do catálogo é o mesmo com
+ * `.topo-flutuante` por cima — ver "o cabeçalho de streaming", logo abaixo. A
+ * borda de baixo existe SEMPRE, e é ela que deixa o flutuante trocar de estado
+ * sem mudar de altura. */
+.topo {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+  position: sticky; top: 0; z-index: 20;
+}
+
+.topo-linha {
+  display: flex; align-items: center; gap: 16px;
+  padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap;
+}
+
+.marca {
+  font-size: 20px; font-weight: 700; letter-spacing: -.01em;
+  color: var(--texto); text-decoration: none; white-space: nowrap;
+}
+.marca span { color: var(--marca); }
+
+.marca-sub {
+  font-size: 12px; color: var(--texto-fraco); font-weight: 400;
+  display: block; letter-spacing: 0;
+}
+
+/* O logo do index.html (o admin.html continua com a marca em texto). A altura
+ * é a do desenho inteiro, com a pílula do "Catálogo Interno" dentro. */
+.marca-logo { height: 48px; width: auto; }
+
+.busca { flex: 1 1 260px; min-width: 0; position: relative; }
+
+/* 44 px de altura e 16 px de letra. Os 44 são a regra do briefing: o campo
+ * tinha 37, medido em 15/09 em 375 e em 1400. Os 16 são do iPhone, que AMPLIA
+ * a página inteira ao pôr o foco num campo com letra menor que isso — e a
+ * busca do celular abre pondo o foco no campo. Pendente de aparelho, pela
+ * regra de 04/09. */
+.busca input {
+  width: 100%; min-height: 44px; padding: 9px 12px; font-size: var(--tipo-base); color: var(--texto);
+  background: var(--fundo); border: 1px solid var(--contorno);
+  border-radius: var(--raio);
+}
+.busca input:focus { outline: 2px solid var(--marca); outline-offset: 1px; }
+
+/* ----------------------------------------- o cabeçalho de streaming (D5)
+ *
+ * O logo, dois links — Início e Séries — e a busca, numa linha só. Sem fundo
+ * com a página no alto; sólido assim que alguma coisa passa por baixo dele.
+ * Quem troca é a classe `topo-solido`, ligada no app.js por um
+ * IntersectionObserver que olha a SENTINELA — nenhum ouvinte de `scroll`.
+ *
+ * O DEGRADÊ NÃO ENTROU, e é de propósito. O cabeçalho fica sólido nos
+ * primeiros pixels de rolagem, então nada passa por baixo dele enquanto ele
+ * está sem fundo — e no alto da página, embaixo dele, só há o próprio fundo.
+ * Um degradê ali seria CSS que ninguém vê. Ele volta com a imagem grande do
+ * destaque (a saída (b) da D2, quando as capas do B6 chegarem), que é quando
+ * existe alguma coisa sob o cabeçalho para escurecer. */
+
+.topo-sentinela {
+  position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+  pointer-events: none;
+}
+
+/* Sem fundo, e com a borda TRANSPARENTE em vez de sem borda: tirar 1 px de
+ * borda ao ficar sólido mudaria a altura de um cabeçalho sticky, e a página
+ * inteira pularia 1 px a cada travessia.
+ *
+ * SÓLIDO NA HORA, TRANSPARENTE DEVAGAR. A transição que vale é a do estado de
+ * CHEGADA, e por isso ela mora só aqui: ao voltar ao alto o fundo esmaece em
+ * 0,2 s, e ali não há nada embaixo dele. Na ida não há transição nenhuma. A
+ * primeira versão esmaecia nos dois sentidos, e nos 0,2 s da ida o destaque
+ * passava por baixo do logo com o fundo ainda meio transparente — texto sobre
+ * texto, que é o que o fundo sólido existe para impedir (15/09). */
+.topo-flutuante {
+  background-color: transparent; border-bottom-color: transparent;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.topo-flutuante.topo-solido {
+  background-color: var(--superficie); border-bottom-color: var(--borda);
+  transition: none;
+}
+
+/* Uma linha só, e ela não quebra: no celular a busca recolhe atrás de um
+ * botão, e é assim que cabe. 72 px no computador, 64 no celular.
+ *
+ * A ALTURA É FIXADA, e não deixada ao conteúdo: quem dá os 72 é o logo, de 48
+ * px, e com a busca aberta no celular o logo some e o mais alto passa a ser o
+ * campo, de 44. A linha encolhia para 60, e a página inteira subia 4 px ao
+ * abrir a busca (medido em 15/09, na primeira versão desta fase).
+ *
+ * DOIS seletores de classe, e não um: o `.limite` do celular, lá no fim do
+ * arquivo, é um `padding: 0 12px` que zerava o respiro de cima e de baixo desta
+ * linha — era o que deixava o logo encostado no alto da tela em 375 px. Com a
+ * especificidade maior, a ordem do arquivo deixa de decidir. */
+.topo-flutuante .topo-linha {
+  flex-wrap: nowrap; gap: var(--esp-2); min-height: 72px;
+  padding-top: var(--esp-3); padding-bottom: var(--esp-3);
+}
+
+.topo-flutuante .marca { flex: 0 0 auto; border-radius: 4px; }
+.marca:focus-visible { outline: 2px solid var(--marca); outline-offset: 4px; }
+
+.topo-nav { display: flex; gap: var(--esp-1); margin-left: var(--esp-4); }
+
+/* 44 px de alvo de toque. O sublinhado da seção atual sai do `aria-current`:
+ * o que se vê e o que o leitor de tela ouve são o mesmo atributo. Sublinhado,
+ * e não negrito — negrito alarga a palavra e empurraria a vizinha a cada troca
+ * de tela. */
+.topo-link {
+  display: inline-flex; align-items: center; min-height: 44px;
+  padding: 0 var(--esp-3); border-radius: var(--raio);
+  color: var(--texto-fraco); text-decoration: none; white-space: nowrap;
+  font-size: var(--tipo-corpo); font-weight: 600;
+}
+.topo-link:hover { color: var(--texto); }
+.topo-link[aria-current="page"] {
+  color: var(--texto);
+  text-decoration: underline; text-decoration-color: var(--marca);
+  text-decoration-thickness: 2px; text-underline-offset: 6px;
+}
+.topo-link:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* No computador a busca fica à direita, com teto de largura: o vão entre os
+ * links e ela é o respiro que os cabeçalhos de streaming têm. */
+.topo-flutuante .busca { flex: 0 1 360px; margin-left: auto; }
+
+/* Os dois botões da busca do celular, abrir e fechar. Nascem escondidos, e só
+ * a consulta do celular os mostra. */
+.topo-botao {
+  display: none; flex: 0 0 auto; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; margin: 0;
+  background: none; border: 0; border-radius: var(--raio);
+  color: var(--texto); cursor: pointer;
+}
+.topo-botao svg { width: 22px; height: 22px; }
+.topo-botao:hover { background: var(--marca-fraca); }
+.topo-botao:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* O CELULAR: [logo] … [Início] [Séries] [lupa]. Aberta a busca, o campo e o
+ * botão de fechar tomam a linha inteira, com a mesma altura. */
+@media (max-width: 560px) {
+  .topo-flutuante .topo-linha {
+    gap: var(--esp-1); min-height: 64px;
+    padding-top: var(--esp-2); padding-bottom: var(--esp-2);
+  }
+  .topo-nav { margin-left: auto; gap: 0; }
+  .topo-link { padding: 0 var(--esp-2); }
+  .topo-flutuante .busca { display: none; }
+  .busca-abrir { display: inline-flex; }
+
+  .topo-buscando .marca, .topo-buscando .topo-nav, .topo-buscando .busca-abrir { display: none; }
+  .topo-flutuante.topo-buscando .busca {
+    display: flex; flex: 1 1 auto; align-items: center; gap: var(--esp-2); margin-left: 0;
+  }
+  .topo-buscando .busca-fechar { display: inline-flex; }
+  /* O "x" do próprio navegador sai: com o botão de fechar ao lado, seriam dois
+   * "x" com funções diferentes na mesma linha. */
+  .topo-flutuante .busca input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topo-flutuante { transition: none; }
+}
+
+/* O FILTRO POR SÉRIE, dentro da grade da resposta (D5). Ele morava no
+ * cabeçalho e nascia vazio lá — por isso tinha uma reserva de altura, que saiu
+ * junto com ele: agora a linha nasce no mesmo quadro que os cartões.
+ *
+ * O respiro de 4 px em volta é o que deixa o anel de foco inteiro: uma caixa
+ * com `overflow-x: auto` corta TAMBÉM o que passa das bordas de cima e de
+ * baixo — a mesma armadilha da prateleira. A margem negativa devolve o
+ * alinhamento com a grade. */
+.chips {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 4px 4px 12px; margin: 0 -4px var(--esp-1);
+  scrollbar-width: none;
+}
+/* Sem barra, nunca — a mesma regra da pista, logo
+ * abaixo, e o porquê está lá. */
+.chips::-webkit-scrollbar { display: none; }
+
+/* 44 px, como todo alvo de toque — era 29, e nunca tinha sido medido. */
+.chip {
+  flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 13px; cursor: pointer;
+  background: var(--fundo); color: var(--texto-fraco);
+  border: 1px solid var(--contorno); border-radius: 999px;
+  font-family: inherit; white-space: nowrap;
+}
+.chip:hover { color: var(--texto); }
+.chip:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+/* #07101c e não #fff: sobre a cor da marca o texto escuro dá 7,74:1, e o
+ * branco daria bem menos. Era a regra do tema escuro; com um tema só, é A regra. */
+.chip[aria-pressed="true"] {
+  background: var(--marca); border-color: var(--marca); color: #07101c; font-weight: 500;
+}
+
+/* --------------------------------------------------------------- conteúdo */
+
+main { padding: 24px 0 64px; }
+
+.contagem { color: var(--texto-fraco); font-size: 13px; margin: 0 0 18px; }
+
+/* Uma grade só para o catálogo inteiro. Os blocos por série saíram: com 18
+ * séries, cada faixa mostrava um ou dois cartões e sobrava a tela toda à
+ * direita. `min(280px, 100%)` é o que impede a coluna de estourar a largura
+ * em telas estreitas. */
+.grade {
+  display: grid; gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+}
+
+.card {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--raio); overflow: hidden;
+  text-decoration: none; color: inherit;
+  display: flex; flex-direction: column;
+  box-shadow: var(--sombra);
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.card:hover, .card:focus-visible {
+  transform: translateY(-2px); border-color: var(--marca);
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .1);
+}
+.card:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+.card-capa {
+  aspect-ratio: 16 / 9; background: var(--marca-fraca);
+  position: relative; overflow: hidden;
+}
+.card-capa img { width: 100%; height: 100%; object-fit: cover; }
+
+/* O "sem capa" do B8 (D7): um ícone de imagem e a frase, no meio da caixa
+ * 16:9 que continua do mesmo tamanho. Em --texto-fraco sobre --marca-fraca:
+ * a caixa da capa já tinha esse fundo antes de a imagem chegar.
+ *
+ * O `padding-bottom` é o lugar do selo de duração: sem ele, no cartão de 150
+ * px do celular (84 de altura), a frase caía na mesma linha do "19:12" e os
+ * dois se atropelavam — visto na conferência da D7. */
+.card-capa-vazia {
+  width: 100%; height: 100%; display: flex; flex-direction: column; gap: var(--esp-1);
+  align-items: center; justify-content: center; padding-bottom: 28px;
+  color: var(--texto-fraco); font-size: var(--tipo-micro); text-align: center;
+}
+.card-capa-vazia-icone { width: 24px; height: 24px; opacity: .8; }
+
+/* Trecho animado (preview.webp do Bunny) por cima da capa. O <img> só existe
+ * no DOM enquanto o ponteiro está sobre o cartão — quem cria e destrói é
+ * ligarPreview() em app.js, e é isso que evita ~15 MB na tela inicial. */
+.card-previa {
+  position: absolute; inset: 0; z-index: 1;
+  opacity: 0; transition: opacity .2s ease;
+}
+.card-capa-com-previa .card-previa { opacity: 1; }
+
+.card-duracao {
+  position: absolute; right: 8px; bottom: 8px; z-index: 2;
+  background: rgba(0, 0, 0, .78); color: #fff;
+  font-size: 12px; padding: 1px 6px; border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-corpo {
+  padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px;
+  flex: 1 1 auto; min-width: 0;
+}
+
+.card-titulo { font-size: 16px; font-weight: 600; line-height: 1.3; margin: 0; }
+
+.card-meta { font-size: 12.5px; color: var(--texto-fraco); margin: 0; }
+
+/* Mini-sinopse: 3 linhas com reticências do próprio navegador. O corte grosso
+ * por caracteres é do resumoSinopse(); aqui é a largura real que manda.
+ * Quando não há sinopse o parágrafo nem chega a existir — nada a esconder. */
+.card-sinopse {
+  font-size: 13.5px; line-height: 1.45; color: var(--texto-fraco); margin: 1px 0 0;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+
+.selo {
+  display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+  background: var(--alerta-fundo); color: var(--alerta); margin-top: 4px;
+  align-self: flex-start;
+}
+.selo-erro { background: var(--erro-fundo); color: var(--erro); }
+/* "Sobre o assunto": o título ou o trecho que a busca
+ * achou só pelo SENTIDO. Não é alerta, e por isso não é o amarelo do `.selo`:
+ * é a cor da marca sobre a marca fraca, o par do "Você está aqui" — 6,85:1. */
+.selo-sentido { background: var(--marca-fraca); color: var(--marca); }
+
+/* Quem pediu menos movimento não recebe nem o trecho animado (barrado em
+ * app.js) nem as transições do cartão. */
+@media (prefers-reduced-motion: reduce) {
+  .card, .card-previa { transition: none; }
+  .card:hover, .card:focus-visible { transform: none; }
+}
+
+/* Celular: cartão deitado, capa à esquerda.
+ *
+ * Em retrato, o cartão vertical de largura inteira daria dois títulos por tela
+ * e os 33 viravam 16 rolagens. Em paisagem o problema é a altura: numa tela de
+ * 390 px, um cartão vertical sozinho já tem 359 px.
+ *
+ * O segundo bloco da consulta pede `pointer: coarse` de propósito — janela de
+ * navegador baixinha no computador não é celular deitado e fica de fora.
+ * Uma coluna em retrato e duas em paisagem saem sozinhas do `auto-fill`. */
+@media (max-width: 560px),
+       (orientation: landscape) and (max-height: 480px) and (pointer: coarse) {
+  .grade { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; }
+  .card { flex-direction: row; }
+  .card:hover, .card:focus-visible { transform: none; }
+  /* `stretch` faz a capa acompanhar a altura do cartão em vez de parar no
+   * 16/9 e deixar uma faixa branca embaixo; o object-fit: cover corta. */
+  .card-capa { flex: 0 0 40%; max-width: 180px; align-self: stretch; min-height: 88px; }
+  .card-corpo { padding: 10px 12px; gap: 4px; }
+  .card-titulo { font-size: 15px; }
+  .card-sinopse { -webkit-line-clamp: 2; line-clamp: 2; font-size: 13px; }
+}
+
+/* --------------------------------------------------------------- destaque */
+
+/* Um título no topo da chegada, em DUAS COLUNAS: o texto à esquerda, a capa à
+ * direita.
+ *
+ * A capa não passa de 640 px de CSS, e esse número é a decisão D2, não um
+ * gosto de desenho: a capa tem 640×360. Num destaque de largura inteira, numa
+ * janela de 1400, ela subiria 2,2x e ficaria mole — e as originais em alta não
+ * existem na pull zone, e o Optimizer do Bunny está desligado. Assim fica
+ * nítida em tela 1x e custa zero arquivo novo. A imagem grande entra quando as
+ * capas do B6 chegarem.
+ *
+ * NADA TOCA AQUI: nem trailer, nem preview.webp. Um preview é 1,13 MB na
+ * mediana — o destaque sozinho custaria mais do que as 66 capas juntas. */
+.destaque {
+  display: grid; align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 640px);
+  gap: var(--esp-6);
+  /* PADDING em cima, e não margem: a margem do primeiro filho colapsa através
+   * do <main> e empurra a caixa dele quando o destaque chega — foram os 8 px de
+   * CLS que sobraram depois de consertar o rodapé (ver `#conteudo`). */
+  margin: 0 0 var(--esp-7); padding-top: var(--esp-4);
+}
+
+.destaque-capa {
+  aspect-ratio: 16 / 9; width: 100%; max-width: 640px;
+  border-radius: var(--raio); overflow: hidden;
+  background: var(--marca-fraca); border: 1px solid var(--borda);
+}
+.destaque-capa img { width: 100%; height: 100%; object-fit: cover; }
+
+.destaque-texto { min-width: 0; }
+
+/* A série em amarelo da marca: 12,17:1 sobre --fundo, medido e com teste. */
+.destaque-serie {
+  margin: 0 0 var(--esp-2); color: var(--marca-destaque);
+  font-size: var(--tipo-menor); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+.destaque-titulo {
+  margin: 0 0 var(--esp-3);
+  font-size: clamp(24px, calc(2.2vw + 14px), 44px);
+  font-weight: 700; line-height: 1.1; letter-spacing: -.02em;
+}
+
+.destaque-meta {
+  margin: 0 0 var(--esp-3); color: var(--texto-fraco);
+  font-size: var(--tipo-corpo); font-variant-numeric: tabular-nums;
+}
+
+/* Duas linhas, como o projeto pede. A sinopse inteira está na ficha; aqui é o
+ * convite. A mediana é de 272 caracteres, então quase toda sinopse é cortada
+ * — e é o navegador que corta, porque só ele sabe a largura real. */
+.destaque-sinopse {
+  margin: 0; max-width: 60ch; color: var(--texto);
+  font-size: var(--tipo-base); line-height: 1.5;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+
+.destaque-botoes {
+  display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-5);
+}
+
+/* 44 px de alvo de toque: a regra do briefing, e ela não regride. */
+.destaque-botoes .botao {
+  display: inline-flex; align-items: center; gap: var(--esp-2);
+  min-height: 44px; padding: 0 var(--esp-5);
+  font-size: var(--tipo-corpo); font-weight: 600;
+}
+.destaque-assistir svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+/* Uma coluna abaixo de 900 px — o mesmo corte da ficha. A capa sobe para o
+ * topo pelo `order`, e não pela ordem do HTML: no HTML o título vem antes, e
+ * é nessa ordem que o leitor de tela precisa ouvir. A capa é `alt=""`. */
+@media (max-width: 900px) {
+  .destaque { grid-template-columns: 1fr; gap: var(--esp-4); padding-top: var(--esp-2); }
+  .destaque-capa { order: -1; }
+  .destaque-botoes { margin-top: var(--esp-4); }
+}
+
+/* --------------------------------------------------------------- abertura */
+
+/* A ABERTURA: a marca acende sobre o escuro e a
+ * camada se desfaz; por baixo, o destaque entra como no cinema. Uma vez por
+ * sessão, só na chegada — quem decide é o script do <head> do index.html,
+ * que põe `abrindo` no <html>.
+ *
+ * A REGRA QUE NÃO SE QUEBRA: a capa do destaque nunca fica com `opacity: 0`.
+ * Ela é o LCP, e o Chrome não conta o que está invisível — conta o que está
+ * COBERTO. Por isso a camada vai por cima e a página é pintada inteira por
+ * baixo; e por isso a capa entra só por `transform`. Há teste nas duas. */
+.abertura { display: none; }
+.abrindo .abertura {
+  display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--fundo);
+  /* A REDE DE SEGURANÇA: sem o app.js, ou com ele preso, a camada sai
+   * sozinha aos 3,6 s. Quem a tira antes é o `saindo`, que troca esta
+   * animação pela mesma com a espera curta. */
+  animation: abertura-sai .4s var(--ease-cubica) 3.6s both;
+}
+/* Os .3 s de espera são a marca saindo primeiro; o fundo vem atrás.
+ *
+ * OUTRO NOME, de propósito, com os mesmos quadros: trocar só a espera de
+ * uma animação que já corre NÃO a reinicia — o navegador recalcula a partir
+ * do começo da página, e aos 1,4 s uma saída de .3 + .4 já nasce terminada.
+ * Foi o defeito do primeiro deploy: a camada sumia de um quadro para o
+ * outro, sem esmaecer. */
+.abrindo .abertura.abertura-saindo { animation: abertura-some .4s var(--ease-cubica) .3s both; }
+@keyframes abertura-sai {
+  to { opacity: 0; visibility: hidden; }
+}
+@keyframes abertura-some {
+  from { opacity: 1; }
+  to   { opacity: 0; visibility: hidden; }
+}
+
+/* NO APP INSTALADO, SEM A MARCA (pedido de 23/09, visto no Android): o
+ * sistema já mostra o ícone ao abrir, e a marca logo depois parecia uma
+ * segunda abertura. A abertura continua — é o destaque entrando —, só a
+ * camada não existe. No navegador do celular a marca fica: lá não há ícone.
+ * Quem põe `sem-marca` é o script do <head>. */
+.abrindo.sem-marca .abertura { display: none; }
+
+/* A MARCA (pedido de 23/09, depois de ver no ar): um zoom leve e contínuo —
+ * entra de .92 a 1 aparecendo, fica, e sai de 1 a 1,06 sumindo —, as duas
+ * pontas na curva cúbica de entrada e saída. A primeira versão acendia em
+ * .6 s e a camada saía logo depois: parecia uma piscada. A permanência é o
+ * mínimo do app.js (`ABERTURA_MINIMO_MS`), e é ela que segura a marca na
+ * tela enquanto a capa não desce. */
+.abertura {
+  --ease-cubica: cubic-bezier(.65, 0, .35, 1);
+}
+.abertura-marca {
+  width: min(240px, 60vw); height: auto;
+  animation: marca-entra .8s var(--ease-cubica) both;
+}
+.abertura-saindo .abertura-marca { animation: marca-sai .5s var(--ease-cubica) both; }
+@keyframes marca-entra {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes marca-sai {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.06); }
+}
+/* No computador a marca é maior: 240 px numa tela de 1400 ficava miúda. */
+@media (min-width: 900px) {
+  .abertura-marca { width: 400px; }
+}
+
+/* O DESTAQUE CINEMATOGRÁFICO, quando a camada sai: a capa se afasta devagar,
+ * o texto desliza e as prateleiras sobem. `cinema` fica na grade só durante
+ * a entrada — o app.js a tira depois, e o crescimento do cartão no hover não
+ * disputa com ela. A capa usa SÓ `transform` (ver a regra lá em cima); o
+ * texto e as prateleiras podem nascer transparentes porque não são o LCP. */
+.cinema .destaque-capa img { animation: cinema-capa 1.2s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes cinema-capa {
+  from { transform: scale(1.25); }
+  to   { transform: scale(1); }
+}
+.cinema .destaque-texto > * { animation: cinema-sobe .6s cubic-bezier(.2, .7, .2, 1) both; }
+.cinema .destaque-texto > :nth-child(1) { animation-delay: .15s; }
+.cinema .destaque-texto > :nth-child(2) { animation-delay: .22s; }
+.cinema .destaque-texto > :nth-child(3) { animation-delay: .29s; }
+.cinema .destaque-texto > :nth-child(4) { animation-delay: .36s; }
+.cinema .destaque-texto > :nth-child(n+5) { animation-delay: .43s; }
+.cinema .prateleira { animation: cinema-sobe .7s cubic-bezier(.2, .7, .2, 1) .45s both; }
+.cinema .prateleira + .prateleira { animation-delay: .55s; }
+.cinema .prateleira + .prateleira + .prateleira { animation-delay: .65s; }
+@keyframes cinema-sobe {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* A ENTRADA DA SÉRIE (fase 4): o mesmo cinema, na página da série.
+ * A capa do alto é o LCP dela, e por isso é a mesma regra: só `transform`,
+ * nunca opacidade. O texto do alto sobe, e o resto vem em cascata — o
+ * "Sobre", as três caixas, a lista. `cinema-serie` fica na grade só durante
+ * a entrada; o app.js a tira. */
+.cinema-serie .serie-cabeca .destaque-capa img { animation: cinema-capa 1.2s cubic-bezier(.2, .7, .2, 1) both; }
+.cinema-serie .serie-cabeca .destaque-texto > * { animation: cinema-sobe .6s cubic-bezier(.2, .7, .2, 1) both; }
+.cinema-serie .serie-cabeca .destaque-texto > :nth-child(1) { animation-delay: .1s; }
+.cinema-serie .serie-cabeca .destaque-texto > :nth-child(2) { animation-delay: .17s; }
+.cinema-serie .serie-cabeca .destaque-texto > :nth-child(n+3) { animation-delay: .24s; }
+.cinema-serie .serie-sobre,
+.cinema-serie .serie-caixa,
+.cinema-serie .episodios { animation: cinema-sobe .7s cubic-bezier(.2, .7, .2, 1) .35s both; }
+.cinema-serie .serie-caixa:nth-child(2) { animation-delay: .43s; }
+.cinema-serie .serie-caixa:nth-child(3) { animation-delay: .51s; }
+.cinema-serie .episodios { animation-delay: .55s; }
+
+/* Movimento reduzido: nada disto existe. O script do <head> já não liga a
+ * abertura; aqui é a segunda trava, para quem trocar a preferência no meio. */
+@media (prefers-reduced-motion: reduce) {
+  .abrindo .abertura { display: none; }
+  .cinema .destaque-capa img,
+  .cinema .destaque-texto > *,
+  .cinema .prateleira,
+  .cinema-serie .serie-cabeca .destaque-capa img,
+  .cinema-serie .serie-cabeca .destaque-texto > *,
+  .cinema-serie .serie-sobre,
+  .cinema-serie .serie-caixa,
+  .cinema-serie .episodios { animation: none; }
+}
+
+/* ------------------------------------------------------------ prateleiras */
+
+/* A chegada: linhas que rolam de lado. A grade continua existindo — ela é a
+ * resposta da busca, do "Ver tudo" e do chip de série.
+ *
+ * A LARGURA DO CARTÃO é o número que decide o resto, e ela é um token para
+ * que a conta do celular fique escrita num lugar só. Em 375 px: 375 menos os
+ * 32 de respiro dão 343; dois cartões de 150 e um vão de 12 somam 312, e
+ * sobram 31 px do terceiro. Esse pedaço é o convite para arrastar — quem tem
+ * dedo não vê seta nenhuma. */
+:root { --pcard: 232px; }
+
+.prateleira { margin: 0 0 var(--esp-6); }
+
+.prateleira-cabeca {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--esp-3); margin-bottom: var(--esp-3);
+}
+
+.prateleira-titulo {
+  font-size: var(--tipo-secao); font-weight: 650; letter-spacing: -.01em;
+  margin: 0; min-width: 0;
+}
+
+.prateleira-tudo {
+  flex: 0 0 auto; font-size: var(--tipo-menor); color: var(--texto-fraco);
+  text-decoration: none; padding: var(--esp-2) var(--esp-1);
+  /* 44 px de alvo de toque — a regra do briefing, e ela não regride. */
+  min-height: 44px; display: inline-flex; align-items: center;
+}
+.prateleira-tudo:hover { color: var(--marca); }
+.prateleira-tudo:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; border-radius: 4px; }
+
+/* A PISTA. `overflow-x: auto` é o que faz a linha rolar de lado — e é também a
+ * armadilha desta seção, conhecida antes de desenhar: uma caixa com
+ * `overflow-x: auto` passa a cortar TAMBÉM o eixo vertical, porque o
+ * `overflow-y` deixa de ser `visible`. Um cartão que cresce no hover à moda do
+ * Netflix cresceria DENTRO da linha e apareceria decapitado.
+ *
+ * A saída escolhida foi a barata: crescimento PEQUENO (1,03) e a folga
+ * vertical que o acomoda, em vez de um painel flutuante fora da pista. Os 6 px
+ * de padding são o que sobra do cartão ao crescer; mexer num sem o outro traz
+ * o corte de volta. */
+.prateleira-pista {
+  /* SEM `position: relative`, e isso é a correção de 17/09, não uma limpeza:
+   * era ele que fazia desta caixa a moldura das setas, e uma moldura que ROLA
+   * leva a seta embora junto com os cartões. A moldura agora é o palco, logo
+   * abaixo. Quem puser aqui um filho `position: absolute` traz o defeito de
+   * volta inteiro. */
+  overflow-x: auto; overflow-y: hidden;
+  padding: 6px 0;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  scroll-padding-left: 2px;
+  scroll-behavior: smooth;
+}
+/* SEM BARRA, nem no computador nem no celular. O `thin` de antes não segurava o Android: lá a barra é a
+ * SOBREPOSTA do Chrome, desenhada por cima dos cartões a cada arrasto, e ela
+ * não obedece ao `thin` — só ao `none`. São duas regras porque são dois
+ * navegadores: `scrollbar-width` para o Chrome 121+ e o Firefox, e o
+ * pseudo-elemento para o Safari e os Chrome antigos.
+ *
+ * A rolagem é a mesma — dedo, roda, trackpad, Tab. Quem diz que há mais à
+ * direita é o pedaço do próximo cartão na borda e, com ponteiro fino, as
+ * setas do palco; o mouse sem roda horizontal só anda por elas. */
+.prateleira-pista::-webkit-scrollbar { display: none; }
+
+.prateleira-lista {
+  display: flex; gap: var(--esp-3); list-style: none; margin: 0; padding: 0;
+}
+.prateleira-lista > li { flex: 0 0 var(--pcard); scroll-snap-align: start; }
+
+/* O cartão da prateleira: a capa manda, o texto é pouco. A sinopse não entra —
+ * ela fica no destaque, na ficha e na grade da busca. */
+.pcard {
+  display: flex; flex-direction: column; height: 100%;
+  text-decoration: none; color: inherit;
+  border-radius: var(--raio);
+  transition: transform .12s ease;
+}
+.pcard:focus-visible { outline: 2px solid var(--marca); outline-offset: 3px; }
+.pcard:hover, .pcard:focus-visible { transform: scale(1.03); }
+
+.pcard-capa {
+  aspect-ratio: 16 / 9; background: var(--marca-fraca);
+  position: relative; overflow: hidden;
+  border-radius: var(--raio);
+  border: 1px solid var(--borda);
+}
+.pcard-capa img { width: 100%; height: 100%; object-fit: cover; }
+.pcard:hover .pcard-capa, .pcard:focus-visible .pcard-capa { border-color: var(--marca); }
+
+/* A prévia e o selo de duração são os mesmos da grade: mesma classe, mesmo
+ * app.js, mesmas regras de hover. */
+.pcard-capa .card-previa { border-radius: var(--raio); }
+
+.pcard-corpo { padding: var(--esp-2) 2px 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* Duas linhas, e o corte é do navegador: a largura real é quem sabe onde a
+ * segunda linha acaba. */
+.pcard-titulo {
+  font-size: var(--tipo-corpo); font-weight: 600; line-height: 1.3; margin: 0;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+
+.pcard-meta { font-size: var(--tipo-micro); color: var(--texto-fraco); margin: 0; }
+
+/* O PALCO: a moldura PARADA da linha. É o irmão da pista, e é a ele que as
+ * setas se prendem — ver o comentário da pista, logo acima, para o defeito que
+ * o fez nascer. Nada mais depende dele; se um dia as setas sumirem do desenho,
+ * some o palco junto. */
+.prateleira-palco { position: relative; }
+
+/* O CARTÃO QUE ABRE (15.2): a cópia do cartão, posta no palco pelo app.js
+ * (`abrirPop`), com a largura, a posição e a origem da animação medidas lá.
+ * Ele nasce do tamanho do cartão (`--pop-partida`, 1/1,35) e cresce; por
+ * ser `absolute` no palco, passa por cima dos vizinhos e da prateleira de
+ * baixo sem deslocar nada — o CLS continua 0.
+ *
+ * O z-index 5 fica acima das setas (3) e abaixo do cabeçalho (20). O palco
+ * não tem z-index, e é isso que deixa a cópia passar por cima da prateleira
+ * de BAIXO, que vem depois no documento. */
+.pop {
+  position: absolute; z-index: 5;
+  background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: var(--raio);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  overflow: hidden;
+  opacity: 0; transform: scale(var(--pop-partida, .74));
+  transition: transform .22s cubic-bezier(.2, .7, .2, 1), opacity .12s ease;
+}
+.pop.pop-aberto { opacity: 1; transform: scale(1); }
+.pop-capa { display: block; position: relative; aspect-ratio: 16 / 9; background: var(--marca-fraca); }
+.pop-capa img { width: 100%; height: 100%; object-fit: cover; }
+.pop-painel {
+  display: flex; align-items: center; gap: var(--esp-3);
+  padding: var(--esp-3);
+}
+.pop .pop-assistir {
+  display: inline-flex; align-items: center; gap: var(--esp-2);
+  flex: 0 0 auto; min-height: 44px; padding: 0 var(--esp-4);
+  font-size: var(--tipo-corpo); font-weight: 600;
+}
+.pop .pop-assistir svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.pop-texto { min-width: 0; }
+.pop-titulo {
+  margin: 0; font-size: var(--tipo-corpo); font-weight: 600; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pop-meta {
+  margin: 2px 0 0; font-size: var(--tipo-micro); color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A BORDA QUE ESMAECE (15.2), onde não há ponteiro fino: sem hover não há o
+ * que abrir, e o convite para arrastar é a borda direita sumindo. No fim da
+ * pista — ou na que cabe inteira — o app.js põe `pista-no-fim` e a borda
+ * volta: senão ela só apagaria o último cartão. Os 48 px são menos que o
+ * pedaço do próximo cartão que já aparece. */
+@media (hover: none), (pointer: coarse) {
+  .prateleira-pista:not(.pista-no-fim) {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  }
+}
+
+/* AS SETAS só onde há ponteiro fino. Nascem escondidas e só aparecem na
+ * consulta de mídia lá embaixo: quem tem dedo arrasta, e o pedaço do próximo
+ * cartão já diz que dá para arrastar. */
+.prateleira-seta { display: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .prateleira-seta {
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 0; bottom: 0; z-index: 3;
+    width: 52px; padding: 0; cursor: pointer;
+    border: none; color: var(--texto);
+    /* O degradê segura quase sólido até os 60% e só então abre. Antes começava
+     * a abrir na própria borda, e o bico do V — que fica no MEIO da faixa —
+     * caía justo onde já havia metade da capa aparecendo: sobre a capa clara
+     * de um nome curto ele praticamente sumia. */
+    background: linear-gradient(to right,
+      rgba(16, 19, 21, .96), rgba(16, 19, 21, .72) 60%, rgba(16, 19, 21, 0));
+    opacity: 0; transition: opacity .12s ease;
+  }
+  .prateleira-seta-dir {
+    right: 0;
+    background: linear-gradient(to left,
+      rgba(16, 19, 21, .96), rgba(16, 19, 21, .72) 60%, rgba(16, 19, 21, 0));
+  }
+  .prateleira-seta-esq { left: 0; }
+
+  /* SÓ O TRAÇO. A seta chegou a ter pastilha — círculo de fundo e contorno — no
+   * primeiro corte de 17/09, e ela foi tirada no mesmo dia: resolvia o
+   * contraste e criava um enfeite, um botão desenhado por cima da capa onde
+   * bastava um ícone.
+   *
+   * Quem carrega o contraste é o degradê, e a conta fecha sem a pastilha: o
+   * bico do V fica no MEIO da faixa de 52 px, onde o degradê ainda está a 76%,
+   * e --texto (#eceff4) sobre isso dá 7,69:1 no pior caso imaginável — capa
+   * BRANCA inteira atrás, que vira #494a4d. Sobre capa escura são os 16,39:1
+   * da folha. Encurtar a faixa ou abrir o degradê mais cedo derruba esse
+   * número: são a mesma peça. */
+  .prateleira-seta svg { width: 24px; height: 24px; }
+
+  /* Aparecem quando o ponteiro está na linha — e também quando algum cartão
+   * dela tem foco, senão quem anda de Tab vê a pista mexer sozinha. O gatilho é
+   * o PALCO e não a pista: a seta é irmã da pista agora, e `.prateleira-pista:hover`
+   * não a alcançaria mais.
+   *
+   * `:focus-within` aqui só pode querer dizer UM CARTÃO COM FOCO. A seta também
+   * mora no palco, e enquanto ela pegava foco no clique era ela mesma quem
+   * acendia as duas — e as deixava acesas. Quem garante isso é o `mousedown`
+   * barrado no app.js; mexer lá reabre este buraco aqui. */
+  .prateleira-palco:hover .prateleira-seta,
+  .prateleira-palco:focus-within .prateleira-seta { opacity: 1; }
+
+  /* A seta que não tem para onde levar sai da vista E do caminho do mouse. O
+   * `pointer-events` não é zelo: sem ele a seta continuaria engolindo, de
+   * invisível, o clique no primeiro e no último cartão da linha — e nas cinco
+   * prateleiras que cabem inteiras ela engoliria os dois sem nunca aparecer.
+   *
+   * Os dois seletores repetem os dois de cima porque precisam VENCÊ-LOS: a
+   * regra que acende a seta tem três classes de especificidade, e uma classe
+   * sozinha perderia. */
+  .prateleira-palco:hover .prateleira-seta-quieta,
+  .prateleira-palco:focus-within .prateleira-seta-quieta { opacity: 0; pointer-events: none; }
+}
+
+/* Movimento reduzido: nada desliza e nada cresce. A prévia animada já está
+ * barrada no app.js, pela mesma pergunta. */
+@media (prefers-reduced-motion: reduce) {
+  .prateleira-pista { scroll-behavior: auto; }
+  .pcard { transition: none; }
+  .pcard:hover, .pcard:focus-visible { transform: none; }
+  .prateleira-seta { transition: none; }
+  .pop { transition: none; }
+}
+
+/* Celular: dois cartões e um pedaço. O cartão da prateleira é EM PÉ e estreito
+ * — o cartão deitado de hoje continua na grade da busca, que é onde ele foi
+ * medido. */
+@media (max-width: 560px) {
+  :root { --pcard: 150px; }
+  .prateleira { margin-bottom: var(--esp-5); }
+  .prateleira-titulo { font-size: var(--tipo-maior); }
+  .pcard-titulo { font-size: var(--tipo-menor); }
+  /* Sem hover em toque, o crescimento não tem gatilho — e sem ele a pista não
+   * precisa da folga vertical que o acomodava. */
+  .prateleira-pista { padding: 0; }
+  .pcard:hover, .pcard:focus-visible { transform: none; }
+}
+
+/* O título da grade aberta pelo "Ver tudo", pela rota de uma série e pela
+ * página Séries. */
+.grade-titulo {
+  font-size: var(--tipo-secao); font-weight: 650; margin: 0 0 var(--esp-1);
+  letter-spacing: -.01em;
+}
+
+/* ------------------------------------------------------- a página Séries */
+
+/* D5: para onde os chips da chegada foram (decisão D8). Os cartões vestem o
+ * `.pcard` da prateleira — só a grade e os grupos são daqui. No celular, duas
+ * colunas: é o cartão em pé da prateleira, que a D2 mediu, duas vezes. */
+.indice-grupo { margin: 0 0 var(--esp-6); }
+.indice-grupo-titulo { margin-bottom: var(--esp-3); }
+
+.indice-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: var(--esp-5) var(--esp-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--pcard), 100%), 1fr));
+}
+
+@media (max-width: 560px) {
+  .indice-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-4) var(--esp-3); }
+}
+
+/* ------------------------------------------------ a página da série (D6)
+ *
+ * O ALTO é o `.destaque` inteiro: a caixa leva as duas classes (ver
+ * `cabecaDaSerie` no app.js), e herda dele as duas colunas, a capa de 640 px e
+ * o padding em cima, que é o que mantém o CLS em zero. Não há regra própria
+ * para ele aqui, de propósito — duas cópias do mesmo desenho envelhecem
+ * separadas.
+ *
+ * O que é daqui é a LISTA DE EPISÓDIOS, que serve às duas telas: à página da
+ * série e à ficha, embaixo do vídeo. O formato é o de um catálogo de streaming: capa pequena à esquerda, e o número, o título curto e duas linhas de
+ * sinopse ao lado. */
+
+/* Os 48 px que separam o destaque da primeira prateleira, na chegada, aqui
+ * separam o alto da página do título da lista, que é parte da mesma coisa:
+ * medidos em 375 px, sobravam 60 px de vazio entre os dois. */
+.serie-cabeca { margin-bottom: var(--esp-6); }
+
+/* Um teto de largura: sem ele, numa janela de 1400, a sinopse correria mais
+ * de 1100 px de ponta a ponta, e ninguém lê uma linha assim de uma vez. */
+.episodios { max-width: 960px; margin: 0 0 var(--esp-6); }
+
+.episodios-temporada {
+  margin: var(--esp-5) 0 var(--esp-2); color: var(--texto-fraco);
+  font-size: var(--tipo-menor); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+.episodios-lista { list-style: none; margin: 0; padding: 0; }
+
+/* A linha inteira é o alvo. A margem negativa devolve ao texto o alinhamento
+ * com o título da seção, e deixa o fundo do hover e da linha atual sobrar um
+ * pouco para fora — a caixa acesa tem respiro sem o conteúdo sair do lugar. */
+.ep {
+  display: flex; gap: var(--esp-4); align-items: flex-start;
+  padding: var(--esp-3); margin: 0 calc(-1 * var(--esp-3));
+  border-radius: var(--raio); color: inherit; text-decoration: none;
+}
+a.ep:hover { background: var(--superficie); }
+a.ep:hover .ep-capa { border-color: var(--marca); }
+a.ep:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+/* A linha do título que está na tela, na ficha. A marca fraca é a mesma que
+ * marca o capítulo que está tocando na lista de capítulos: "aqui" tem uma cor
+ * só no site. --texto sobre ele dá 13,67:1; --texto-fraco, 6,21:1. */
+.ep-atual { background: var(--marca-fraca); }
+
+/* 16:9 como toda capa do site. A duração vai no canto dela, com o mesmo selo
+ * do cartão (`.card-duracao`). */
+.ep-capa {
+  flex: 0 0 224px; aspect-ratio: 16 / 9; position: relative; overflow: hidden;
+  border-radius: 8px; background: var(--marca-fraca); border: 1px solid var(--borda);
+}
+.ep-capa img { width: 100%; height: 100%; object-fit: cover; }
+
+.ep-corpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.ep-numero {
+  margin: 0; color: var(--texto-fraco); font-size: var(--tipo-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+.ep-titulo { margin: 0; font-size: var(--tipo-base); font-weight: 600; line-height: 1.3; }
+
+/* --marca sobre a cor da marca fraco da linha atual: 6,93:1. */
+.ep-aqui { margin: 0; color: var(--marca); font-size: var(--tipo-micro); font-weight: 600; }
+
+/* Duas linhas, e o corte é do navegador, como no destaque: só ele sabe a
+ * largura real. A sinopse inteira está na ficha. */
+.ep-sinopse {
+  margin: var(--esp-1) 0 0; color: var(--texto-fraco);
+  font-size: var(--tipo-menor); line-height: 1.45;
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+
+/* No celular a capa é a do cartão deitado da grade — 40% da linha, com teto —,
+ * e o respiro encolhe junto com o do `.limite`. */
+@media (max-width: 560px) {
+  .ep { gap: var(--esp-3); padding: var(--esp-2); margin: 0 calc(-1 * var(--esp-2)); }
+  .ep-capa { flex-basis: 40%; max-width: 160px; }
+  .ep-titulo { font-size: var(--tipo-corpo); }
+}
+
+/* ------------------------------------- a apresentação da série
+ *
+ * "Sobre a série" embaixo do alto e os três destaques numa faixa, antes da
+ * lista de episódios. O teto de largura do texto é o da lista, e pelo mesmo
+ * motivo: ninguém lê uma linha de 1100 px. A faixa é uma grade que se ajeita
+ * sozinha — três colunas no computador, uma no celular —, e sobrevive à série
+ * sem capítulo: o bloco que não existe não deixa buraco.
+ *
+ * SÓ TEXTO: nenhuma capa a mais na carga da página. */
+.serie-sobre { max-width: 760px; margin: 0 0 var(--esp-6); }
+.serie-sobre-texto {
+  margin: var(--esp-2) 0 0; color: var(--texto); font-size: var(--tipo-base); line-height: 1.6;
+}
+
+.serie-destaques {
+  display: grid; gap: var(--esp-5); margin: 0 0 var(--esp-7);
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+}
+.serie-caixa { min-width: 0; }
+.serie-caixa-titulo {
+  margin: 0 0 var(--esp-2); color: var(--texto-fraco);
+  font-size: var(--tipo-menor); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+/* O começo é uma caixa só, clicável inteira, com a borda que acende como a
+ * capa da `.ep` no hover. 44 px de alvo com folga. */
+.serie-comeco-link {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--esp-3) var(--esp-4); border-radius: var(--raio);
+  background: var(--superficie); border: 1px solid var(--borda);
+  color: inherit; text-decoration: none;
+}
+.serie-comeco-link:hover { border-color: var(--marca); }
+.serie-comeco-link:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+.serie-comeco-sinopse {
+  margin-top: var(--esp-1); color: var(--texto-fraco);
+  font-size: var(--tipo-menor); line-height: 1.45;
+}
+
+/* Os momentos vestem o trecho da busca — o minuto na cor da marca e o capítulo —,
+ * e o título curto embaixo, no cinza do número do episódio. */
+.serie-momentos-lista { list-style: none; margin: 0; padding: 0; }
+
+/* O "Continuar" do alto da série (fase 6): o botão do "Assistir", e ao lado
+ * dele, em cinza, qual episódio e de que minuto. */
+.serie-continuar-onde {
+  margin: 0; align-self: center; color: var(--texto-fraco); font-size: var(--tipo-menor);
+}
+
+/* O "Continuar" da ficha: o mesmo botão, alinhado ao começo da coluna. */
+.botao.ficha-continuar {
+  display: inline-flex; align-items: center; gap: var(--esp-2);
+  min-height: 44px; padding: 0 var(--esp-5); margin: var(--esp-2) 0 var(--esp-3);
+  font-size: var(--tipo-corpo); font-weight: 600;
+}
+
+/* Os chips da busca, embrulhando em vez de rolar: são no máximo cinco. */
+.serie-temas-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* O "Sobre" DENTRO do alto (24/09): o título, o texto embaixo e a capa ao
+ * lado. Com texto, a coluna cresce, e o topo alinha com o da capa em vez de
+ * centrar — centrado, a capa descia e o título flutuava no meio. */
+.serie-cabeca-com-sobre { align-items: start; }
+.serie-cabeca .serie-sobre { max-width: 65ch; margin: var(--esp-5) 0 0; }
+.serie-cabeca .serie-sobre .prateleira-titulo { font-size: var(--tipo-maior); }
+
+/* A cópia dos temas para o fim da página só existe no celular. */
+.serie-temas-fim { display: none; }
+
+/* NO CELULAR (24/09): "Comece por aqui" sai — com o texto, os momentos e os
+ * temas, era coisa demais antes da lista —, e os temas vão para depois dela.
+ * A faixa que fica sem nada (série sem capítulo) sai inteira, para não
+ * deixar o vão da margem. */
+@media (max-width: 560px) {
+  .serie-comeco,
+  .serie-destaques .serie-temas { display: none; }
+  .serie-destaques:not(:has(.serie-momentos)) { display: none; }
+  .serie-temas-fim { display: block; margin: 0 0 var(--esp-6); }
+}
+
+/* ------------------------------------------------ os trechos da busca
+ *
+ * Embaixo da grade da resposta, os pedaços do vídeo que
+ * respondem à pergunta, agrupados por vídeo. A cabeça do grupo veste a linha
+ * da "Episódios da série" (D6) — a capa pequena, a série e o número, o nome
+ * curto —, e no lugar da sinopse vêm os trechos: o minuto, o capítulo e a
+ * frase. Cada trecho é um link de 44 px, porque é nele que se clica.
+ *
+ * O teto de largura é o da lista de episódios, e pelo mesmo motivo: a frase
+ * não pode correr 1100 px numa janela de 1400. */
+.trechos { max-width: 960px; margin: var(--esp-7) 0 var(--esp-6); }
+
+.trechos-lista { list-style: none; margin: 0; padding: 0; }
+
+/* Uma GRADE, e não o flex da `.ep`: no computador a capa fica à esquerda e a
+ * cabeça, os trechos e o "mais" descem ao lado dela; no celular os trechos
+ * vão para baixo da capa, na largura inteira. Ao lado de uma capa de 40% a
+ * frase teria 170 px em 375. */
+.trecho-grupo {
+  display: grid; column-gap: var(--esp-4); align-items: start;
+  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-areas: "capa cabeca" "capa trechos" "capa mais";
+  grid-template-rows: auto auto 1fr;
+  padding: var(--esp-4) 0;
+}
+.trecho-grupo + .trecho-grupo { border-top: 1px solid var(--borda); }
+.trecho-grupo > .ep-capa { grid-area: capa; }
+.trecho-cabeca { grid-area: cabeca; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trechos-do-video { grid-area: trechos; list-style: none; margin: var(--esp-2) 0 0; padding: 0; }
+
+/* A margem negativa devolve o minuto ao alinhamento do nome, e deixa o fundo
+ * do hover sobrar para fora — o mesmo truque da `.ep`. */
+.trecho {
+  display: flex; gap: var(--esp-3); align-items: baseline;
+  min-height: 44px; padding: var(--esp-2);
+  margin: 0 calc(-1 * var(--esp-2));
+  border-radius: 8px; color: inherit; text-decoration: none;
+}
+.trecho:hover { background: var(--superficie); }
+.trecho:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+/* O minuto em --marca: 8,0:1 sobre o fundo. Números de largura fixa, para
+ * "2:05" e "12:40" alinharem o que vem depois. */
+.trecho-tempo {
+  flex: 0 0 auto; min-width: 3.4em; color: var(--marca); font-weight: 600;
+  font-size: var(--tipo-menor); font-variant-numeric: tabular-nums;
+}
+
+.trecho-corpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.trecho-capitulo { font-size: var(--tipo-menor); line-height: 1.4; }
+
+/* A palavra que a consulta achou: o amarelo do rótulo da série no destaque,
+ * sem fundo — 12,2:1 sobre o fundo e 11,1:1 sobre o hover. Um fundo amarelo
+ * com texto escuro gritaria mais do que o minuto, que é o que se clica. */
+.trechos mark { background: none; color: var(--marca-destaque); font-weight: 600; }
+
+.trecho-mais {
+  grid-area: mais; justify-self: start;
+  min-height: 44px; padding: 0 var(--esp-2); margin: var(--esp-1) calc(-1 * var(--esp-2)) 0;
+  background: none; border: 0; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: var(--tipo-menor); color: var(--texto-fraco);
+}
+.trecho-mais:hover { color: var(--marca); }
+.trecho-mais:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+@media (max-width: 560px) {
+  .trecho-grupo {
+    column-gap: var(--esp-3);
+    grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+    grid-template-areas: "capa cabeca" "trechos trechos" "mais mais";
+    grid-template-rows: auto;
+  }
+  .trecho-grupo > .ep-capa { max-width: 160px; }
+  .trecho-cabeca .ep-titulo { font-size: var(--tipo-corpo); }
+}
+
+/* ------------------------------------------------------------------ ficha */
+
+/* 44 px de alvo de toque — tinha 22, medido em 375 px em 15/09. A linha fica
+ * com a altura do alvo, e a margem de baixo encolhe para a ficha não descer
+ * mais que 10 px. */
+.voltar {
+  display: inline-flex; align-items: center; min-height: 44px; margin-bottom: var(--esp-1);
+  font-size: 14px; color: var(--texto-fraco); text-decoration: none; border-radius: 4px;
+}
+.voltar:hover { color: var(--marca); }
+.voltar:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+
+/* TRÊS ÁREAS desde a D6: o vídeo, a coluna do lado e a série. No computador a
+ * série fica embaixo do vídeo, na coluna dele, e o lado desce pelas duas
+ * linhas — a lista começa logo embaixo do player, e não embaixo da coluna do
+ * lado, que com os capítulos é a mais alta (749 contra 497 px, em 1400). Numa
+ * coluna só, a ordem é a do HTML: vídeo, texto e capítulos, série. É também a
+ * ordem do Tab e do leitor de tela nas duas larguras.
+ *
+ * `align-items: start` é o que impede a linha do vídeo de esticar até a altura
+ * do lado: sem ele a lista da série desceria junto. */
+.ficha {
+  display: grid; gap: 28px; align-items: start;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  grid-template-areas: "video lado" "serie lado";
+}
+.ficha-video { grid-area: video; min-width: 0; }
+.ficha-lado { grid-area: lado; min-width: 0; }
+.ficha > .episodios { grid-area: serie; margin: 0; }
+
+@media (max-width: 900px) {
+  .ficha { grid-template-columns: 1fr; grid-template-areas: "video" "lado" "serie"; }
+  /* Numa coluna, a lista vem depois de um texto que termina sem régua: o
+   * respiro maior é o que a separa da sinopse ou dos capítulos. */
+  .ficha > .episodios { margin-top: var(--esp-4); }
+}
+
+.player {
+  aspect-ratio: 16 / 9; width: 100%; background: #000;
+  border-radius: var(--raio); overflow: hidden; border: 1px solid var(--borda);
+}
+.player iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+.player-ausente {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  color: #cfd6dd; font-size: 14px; text-align: center; padding: 24px;
+}
+
+/* ------------------------------------------------- o player nosso (fase 0)
+ *
+ * Só entra com `?player=novo`. Até a fase 10 o padrão continua sendo o embed.
+ * Prefixo `pl-` para não esbarrar em nada do resto do site.
+ *
+ * O tema NÃO se aplica aqui: controle de vídeo é claro sobre o quadro em todo
+ * player que existe, e o quadro é preto nos dois temas. O que acompanha o tema
+ * são os ícones, por `currentColor`.
+ */
+.player-nosso { position: relative; }
+
+.pl {
+  position: relative; width: 100%; height: 100%; background: #000;
+  /* Gestos (fase 5). `pan-y` entrega a rolagem VERTICAL da página ao
+     navegador e fica com o resto: é o que faz o arrasto horizontal da linha
+     do tempo (item 11) funcionar sem que o vídeo vire um buraco onde a ficha
+     não rola. `pinch-zoom` fica com o navegador de propósito — o zoom da
+     página é acessibilidade, e a pinça do item 7 é da fase 8.
+     Em tela cheia não há página para rolar e todo gesto é nosso. */
+  touch-action: pan-y pinch-zoom;
+}
+.pl-cheia { touch-action: none; }
+
+/* Os controles somem sozinhos depois de alguns segundos de quietude (03/09) e
+   voltam ao primeiro sinal de vida. O tempo vem do /admin; quem decide SE pode
+   sumir é o player-core, que recusa com o vídeo parado, com o painel de som
+   aberto, no meio de um arrasto e com o foco dentro dos controles.
+
+   `opacity` e não `display: none`: os controles continuam no lugar, e o Tab
+   ainda chega neles — o `focusin` traz tudo de volta antes de o foco pousar
+   num controle invisível. `pointer-events: none` é o que faz um toque naquela
+   faixa cair na camada de gestos em vez de num botão que ninguém está vendo. */
+.pl-controles { transition: opacity .2s ease; }
+.pl-sem-controles .pl-controles { opacity: 0; pointer-events: none; }
+/* O ponteiro some junto, como em qualquer player — o quadro fica limpo. */
+.pl-sem-controles { cursor: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-controles { transition: none; }
+}
+
+.pl-video {
+  width: 100%; height: 100%; display: block; object-fit: contain;
+  /* Pressionar e segurar (item 3) é o gesto do 2×. Sem estas duas linhas o
+     iOS responde ao mesmo gesto com a lupa e o menu de "copiar", e o
+     `pointercancel` derruba o 2× no meio. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* O BRILHO (item 10a) SAIU em 09/09/2026, e havia aqui uma regra
+   `.pl-brilho .pl-video { filter: brightness(...) }`.
+
+   Ele nunca foi o brilho da TELA — navegador nenhum alcança isso, e não é
+   questão de permissão. Era um filtro sobre a imagem, que é muito menos do que
+   o nome prometia, e ocupava a zona esquerda do arrasto vertical em tela
+   cheia: a única superfície livre do player no celular. Ela fica reservada
+   para os dois gestos da fase 7. */
+
+/* Zoom da IMAGEM (item 7, fase 8), e ele SÓ existe em tela cheia. Fora dela a
+   pinça continua sendo do navegador, que a usa para ampliar a página — esse
+   zoom é acessibilidade e não se disputa: quem precisa de letra maior no site
+   inteiro tem que continuar conseguindo em cima do vídeo. É a mesma razão pela
+   qual `touch-action` acima entrega `pinch-zoom`, e é por isso que a linha
+   `.pl-cheia { touch-action: none }` é o que liga o gesto.
+
+   A ORDEM das duas funções importa e não é gosto: `scale` é aplicada primeiro,
+   ao elemento, e `translate` depois, em pixels de TELA — que é a unidade em que
+   o player-core faz a conta e limita o arrasto contra a borda da imagem.
+   Invertê-las faria o deslocamento crescer junto com a ampliação, e o limite
+   calculado lá viraria outro número aqui.
+
+   `transform-origin` é o padrão do navegador, escrito à mão porque a conta do
+   player-core parte dele: a ampliação cresce em volta do CENTRO do quadro, e é
+   o deslocamento que leva o ponto de interesse para lá.
+
+   A classe só entra quando alguém ampliou de verdade:
+   `transform` obriga o navegador a compor o vídeo numa camada própria. */
+.pl-zoom { overflow: hidden; }
+.pl-zoom .pl-video {
+  transform: translate(var(--pl-zoom-x, 0px), var(--pl-zoom-y, 0px))
+             scale(var(--pl-zoom, 1));
+  transform-origin: 50% 50%;
+}
+
+.pl-controles {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 26px 12px 10px;
+  color: #fff;
+  /* Degradê e não faixa sólida: o rodapé do quadro tem imagem, e uma barra
+     opaca cortaria legenda queimada e crédito. */
+  background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, 0));
+}
+
+.pl-b {
+  flex: none; width: 44px; height: 44px;   /* alvo de toque: a mesma medida da lista de capítulos */
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+  border-radius: 999px;
+}
+.pl-b:hover { background: rgba(255, 255, 255, .16); }
+.pl-b:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+
+.pl-ic { width: 24px; height: 24px; display: block; }
+.pl-ic-pause, .pl-ic-mudo { display: none; }
+.pl-tocando .pl-ic-play { display: none; }
+.pl-tocando .pl-ic-pause { display: block; }
+.pl-mudo-ativo .pl-ic-som { display: none; }
+.pl-mudo-ativo .pl-ic-mudo { display: block; }
+
+/* Botão CC (fase 2). "CC" escrito num retângulo — o símbolo que todo mundo
+   reconhece. Preenchido quando a legenda está ligada. */
+.pl-cc-marca {
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .04em; padding: 3px 4px; border-radius: 3px;
+  border: 1.5px solid currentColor;
+}
+.pl-legenda-ativa .pl-cc-marca { background: #fff; color: #000; border-color: #fff; }
+.pl-b:disabled { opacity: .4; cursor: default; }
+.pl-b:disabled:hover { background: none; }
+
+/* Bloqueio de tela (item 9, fase 5). O botão SÓ existe em tela cheia, e é o
+   CSS que decide isso — a medida da fase 3 continua valendo: em 375 px os
+   quatro botões e o relógio comem 317 dos 349 px da linha, e um quinto botão
+   a quebraria em três. Deitado em tela cheia sobra largura de sobra, e é lá
+   que travar a tela serve para alguma coisa. */
+.pl-trava { display: none; }
+.pl-cheia .pl-trava { display: inline-flex; }
+.pl-trava[aria-pressed="true"] { background: rgba(255, 255, 255, .22); }
+
+/* Travado, os controles somem inteiros: é isso que um bloqueio de tela é.
+   O caminho de volta é o toque duplo, e o cadeado no canto é quem diz que o
+   player está travado e não morto. */
+.pl-travado .pl-controles { display: none; }
+.pl-cadeado {
+  position: absolute; right: 12px; top: 12px;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 999px;
+  color: #fff; background: rgba(0, 0, 0, .62); pointer-events: none;
+}
+.pl-cadeado[hidden] { display: none; }
+
+/* O painel de som (fase 4). Pendurado no botão de mudo que já existe, e não
+   numa posição nova da barra: em 375 px a linha de controles não tem onde
+   crescer — os quatro botões e o relógio já comem 317 dos 349 px (medido na
+   fase 3), e um quinto botão de 44 px quebraria a linha em três.
+
+   Onde há ponteiro ele abre ao passar por cima e o clique continua
+   silenciando; onde não há — `(hover: none)`, que é a pergunta certa —, o
+   botão abre o painel e o mudo mora dentro dele.
+
+   AO LADO DO ÍCONE, E ENCOSTADO NELE (04/09) — e isso é correção de um
+   defeito, não gosto. O painel nascia ACIMA do botão, com 8 px de respiro
+   entre os dois: esses 8 px não pertencem a `somCaixa` nem a nenhum filho
+   dela, então o ponteiro que subisse do alto-falante até o controle deslizante
+   atravessava um vão que dispara `pointerleave` — e o painel fechava na cara
+   de quem ia usá-lo. Quanto mais reto o caminho do mouse, pior.
+
+   Agora o painel cresce para a ESQUERDA a partir da borda do botão
+   (`right: 100%`, zero de vão) e o controle deslizante fica DEITADO na mesma
+   altura do ícone. O caminho do ponteiro é uma reta horizontal de 0 px de
+   espaço vazio, e não há mais como escorregar para fora no meio.
+
+   Para a esquerda, e não para a direita, porque à direita só existe o botão de
+   tela cheia e a borda do quadro logo depois: um painel de 232 px ali vazaria
+   para fora. À esquerda ele passa por cima do CC, que é overlay e volta assim
+   que o painel fecha. */
+.pl-som-caixa { position: relative; flex: none; display: inline-flex; }
+
+.pl-som {
+  position: absolute; right: 100%; bottom: 0; z-index: 3;
+  display: flex; flex-direction: column; gap: 9px;
+  width: 232px;
+  /* Teto de largura: num quadro estreito o painel encolhe em vez de vazar. */
+  max-width: calc(100vw - 32px);
+  /* Os 9 px de baixo são medida, não gosto: o botão tem 44 px de altura e a
+     linha do volume tem 26. (44 − 26) / 2 = 9 é o que põe o controle
+     deslizante exatamente no meio do ícone, deitado ao lado dele. */
+  padding: 10px 12px 9px;
+  border-radius: 10px;
+  /* Fundo sólido, ao contrário do degradê da barra: aqui há texto pequeno e
+     uma caixinha de marcar, que precisam de contraste garantido sobre
+     qualquer quadro. */
+  background: rgba(18, 18, 18, .96);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+  color: #fff;
+  font: 400 13px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+/* ARMADILHA JÁ PAGA na fase 3: `display` do autor ganha do `hidden` do
+   navegador. Sem esta linha o painel nasceria aberto e não fecharia nunca. */
+.pl-som[hidden] { display: none; }
+
+.pl-som-linha { display: flex; align-items: center; gap: 8px; }
+
+/* O mudo do painel: texto, não ícone. Duplicar o alto-falante em SVG faria
+   dois lugares para manter o mesmo desenho. */
+.pl-som-mudo {
+  flex: none; width: auto; height: 26px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid currentColor; border-radius: 4px;
+  background: none; color: inherit; cursor: pointer;
+  font: 600 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .04em;
+}
+.pl-som-mudo:hover { background: rgba(255, 255, 255, .16); }
+.pl-som-mudo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pl-som-mudo[aria-pressed="true"] { background: #fff; color: #000; border-color: #fff; }
+
+/* `margin: 0` NÃO é enfeite: o navegador dá 2 px de margem de brinde a todo
+   `input[type=range]`, e com eles a linha do volume mede 30 px em vez de 26 —
+   o alinhamento com o meio do ícone sai 2 px torto, e o número é diferente em
+   cada navegador. Zerando, a conta dos 9 px de padding fecha e fecha igual em
+   todos. Medido no navegador em 04/09. */
+.pl-som-faixa {
+  flex: 1 1 auto; min-width: 0; height: 26px; margin: 0; accent-color: #fff;
+}
+.pl-som-faixa:disabled { opacity: .4; }
+
+.pl-som-valor {
+  flex: none; min-width: 42px; text-align: right;
+  /* `tabular-nums` pelo mesmo motivo do relógio: sem ele o painel inteiro
+     treme a cada 5% enquanto o dedo arrasta. */
+  font-variant-numeric: tabular-nums;
+}
+/* Acima de 100% o número muda de cor. Reforço tem que ser VISÍVEL: um 200%
+   guardado da sessão passada, invisível, vira susto no próximo vídeo. */
+.pl-reforco .pl-som-valor { color: #ffd166; font-weight: 700; }
+
+.pl-som-rotulo { cursor: pointer; gap: 8px; }
+.pl-som-caixinha { flex: none; width: 16px; height: 16px; accent-color: #fff; }
+.pl-som-caixinha:disabled { opacity: .4; }
+
+.pl-som-recado { font-size: 12px; line-height: 1.35; opacity: .85; }
+
+
+/* A legenda. Fica acima da barra de controles — nunca por baixo dela. */
+.pl-legenda {
+  position: absolute; left: 0; right: 0; bottom: 74px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 0 5%; text-align: center;
+  /* O dedo e o ponteiro atravessam: tocar o quadro tem que dar play mesmo
+     quando o toque cai em cima da legenda. */
+  pointer-events: none;
+}
+.pl-legenda-linha { max-width: 100%; }
+.pl-legenda-texto {
+  display: inline-block;
+  /* --pl-leg é o multiplicador das teclas + e -, escrito pelo player. */
+  font-size: calc(var(--pl-leg, 1) * 19px);
+  line-height: 1.34;
+  color: #fff;
+  background: rgba(0, 0, 0, .78);
+  padding: .1em .38em; border-radius: 4px;
+  /* A legenda do Bunny é ASR: vem em caixa baixa e sem pontuação confiável.
+     Nada de `text-transform` aqui — o texto é o que é. */
+  text-wrap: balance;
+}
+@media (max-width: 700px) {
+  /* 82 px = os 54 px da linha de botões + os 22 px da barra, que no celular
+     ganhou linha própria (fase 3), + 6 px de folga. A legenda nunca encosta na
+     barra de controles. */
+  .pl-legenda { bottom: 82px; }
+  .pl-legenda-texto { font-size: calc(var(--pl-leg, 1) * 15px); }
+}
+/* Em tela cheia o quadro é muito maior: 19px viraria formiga. */
+.pl:fullscreen .pl-legenda-texto,
+.pl:-webkit-full-screen .pl-legenda-texto { font-size: calc(var(--pl-leg, 1) * 30px); }
+
+.pl-tempo {
+  flex: none; font-size: 13px; font-variant-numeric: tabular-nums;
+  /* `tabular-nums` impede a barra inteira de tremer a cada segundo, quando o
+     "1" é mais estreito que o "8". */
+  white-space: nowrap; opacity: .95;
+}
+.pl-tempo-sep { opacity: .6; }
+
+/* As duas setas de capítulo, encostadas uma na outra (08/09). Pular capítulo é
+   uma função só com duas direções, e o vão de 10 px que separa os OUTROS
+   controles as faria ler como dois botões sem parentesco. Aqui são 2 px, que
+   com os 10 px de respiro que cada alvo de 44 já tem em volta do desenho de 24
+   viram 22 px entre um ícone e o outro — contra os 15 ou mais que o
+   `space-between` do celular põe entre os itens vizinhos.
+
+   Ele também é o que faz o par SOBREVIVER a esse `space-between`: a linha
+   distribui a sobra entre os ITENS, e sem o par ser um item só as duas setas
+   se afastariam exatamente onde deviam se juntar. */
+.pl-cap-par { display: flex; align-items: center; gap: 2px; flex: none; }
+
+/* O relógio e a barra, juntos (08/09). No computador o contêiner é inerte —
+   ele ocupa a mesma largura que os dois ocupavam soltos. Ele existe pelo
+   celular, onde é ele que sobe inteiro para a linha da barra e devolve à linha
+   dos botões os 66,9 px do relógio, que é onde as setas de capítulo cabem.
+
+   `min-width: 0` porque um filho de flex não encolhe abaixo do conteúdo sem
+   isso, e a barra tem largura mínima de conteúdo zero — sem a linha, uma
+   janela estreita empurraria a barra para fora em vez de encolhê-la. */
+.pl-tempo-barra {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1 1 auto; min-width: 0;
+}
+
+.pl-barra {
+  flex: 1 1 auto; position: relative; height: 20px; cursor: pointer;
+  /* Sem isto, arrastar na barra rola a página no celular em vez de procurar. */
+  touch-action: none;
+}
+
+/* No celular a barra vai para uma LINHA SÓ DELA, acima dos botões.
+   Medido em 375 px: quatro botões de 44 px, o relógio e os vãos comem 317 dos
+   349 px da linha, e sobravam 32 px de barra. Numa barra de 32 px os 11 vãos
+   de 2 px dos 12 capítulos do Título X não deixam nada para desenhar — sete
+   segmentos ficavam com largura zero. É a mesma linha própria que o YouTube e
+   o Vimeo usam no celular, e ela também dá área de arrasto para a fase 5. */
+@media (max-width: 700px) {
+  /* O topo do degradê e o vão entre as duas linhas encolhem: numa tela de
+     375 px o vídeo tem 195 px de altura, e a barra numa linha própria fazia os
+     controles cobrirem 56% do quadro. Com o corte ficam em 45%, perto dos 41%
+     que cobriam antes — com a barra dez vezes maior. */
+  .pl-controles { flex-wrap: wrap; padding-top: 12px; row-gap: 2px; }
+  .pl-barra { order: -1; flex-basis: 100%; }
+
+  /* A linha dos botões DISTRIBUI a sobra, em vez de amontoar tudo à esquerda
+     (08/09, depois de ver num Android). O vão é um MÍNIMO, não a medida final:
+     em 375 px os botões enchem a linha e o `space-between` não tem o que
+     distribuir, mas num aparelho de 412 px em tela cheia sobravam 68 px — e
+     eles ficavam todos num vazio à direita, do tamanho de um botão, como se
+     faltasse alguma coisa ali. A barra da linha de cima já vai de ponta a
+     ponta; a dos botões passa a ir também. */
+  .pl-controles { justify-content: space-between; }
+
+  /* Com capítulo, o RELÓGIO sobe junto com a barra, e é daí que sai a largura
+     das duas setas (08/09). Medido em 375 px: a linha tem 325 px de conteúdo,
+     e os seis botões de 44 px com cinco vãos de 10 comem 314 — antes eram
+     282,9 com o relógio dentro, e as duas setas pediam 108 para 42,1 livres.
+
+     O relógio e a barra andam juntos porque estão no mesmo contêiner, e não
+     por um `flex-basis` calculado: `calc(100% - 77px)` daria o mesmo desenho
+     hoje e mentiria no dia em que o relógio mudar de largura — um título de
+     mais de uma hora, ou a fonte do sistema aumentada. O contêiner mede o
+     relógio sozinho. */
+  .pl-tempo-barra { order: -1; flex-basis: 100%; }
+  /* Dentro do contêiner a barra volta a ser o que era antes da regra acima:
+     sem ela, o `flex-basis: 100%` herdado empurraria o relógio para uma linha
+     só dele e a barra para outra — três linhas de novo. */
+  .pl-tempo-barra .pl-barra { order: 0; flex-basis: auto; }
+
+  /* Tela cheia em RETRATO é a linha mais apertada que existe, porque é a única
+     em que o cadeado (fase 5) divide 325 px com todo o resto. Ela já quebrava
+     em TRÊS linhas antes desta entrega — os controles iam de 88 px de altura
+     para 134, e a tela cheia ia sozinha para o terceiro andar. O comentário do
+     `.pl-trava` dizia "deitado em tela cheia sobra largura": deitado sobra,
+     em pé não.
+
+     Com sete botões de 44 px sobram 17 px para os cinco vãos (o par de capítulo
+     conta como um item). O vão cai para 2 px, e ele é o PISO: onde a tela é
+     mais larga que 375 px, o `space-between` acima distribui o resto. Antes
+     de ele existir, este 2 px era a medida final e a sobra toda ia para a
+     direita — foi o que se viu num Android e o que mandou consertar. */
+  .pl-cheia .pl-controles { column-gap: 2px; }
+}
+/* Os trilhos (fase 3). A barra é SEMPRE feita de segmentos: um por capítulo
+   quando o título tem, um só quando não tem — 22 dos 33 no ar. Assim existe um
+   caminho de desenho só, e a barra de quem não tem capítulo continua idêntica
+   à de antes desta fase.
+
+   Quem posiciona cada pedaço é o player.js, em porcentagem da duração, com o
+   vão saindo da LARGURA e não de uma margem: a esquerda é o relógio. */
+.pl-trilhos {
+  position: absolute; left: 0; right: 0; top: 8px; height: 4px;
+  pointer-events: none;
+}
+.pl-seg {
+  position: absolute; top: 0; height: 100%; overflow: hidden;
+  background: rgba(255, 255, 255, .3); border-radius: 2px;
+  transition: top .12s ease, height .12s ease;
+}
+.pl-seg-carregado, .pl-seg-tocado {
+  position: absolute; left: 0; top: 0; height: 100%; width: 0;
+}
+.pl-seg-carregado { background: rgba(255, 255, 255, .45); }
+.pl-seg-tocado { background: var(--marca-clara); }
+/* O pedaço sob o ponteiro engorda. Sem esse retorno os vãos parecem sujeira
+   na barra em vez de divisões — e o capítulo que se vai clicar fica sem
+   confirmação nenhuma antes do clique. */
+.pl-seg-sob { top: -2px; height: 8px; }
+
+/* A dica que segue o ponteiro: título do capítulo e o tempo daquele ponto.
+   É o hover que o embed do Bunny dava de graça dentro do iframe. */
+.pl-dica {
+  position: absolute; bottom: 22px; left: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  max-width: 260px; padding: 5px 9px;
+  border-radius: 6px; background: rgba(0, 0, 0, .82);
+  color: #fff; font-size: 12px; line-height: 1.3; white-space: nowrap;
+  /* A dica fica DENTRO da barra, que é quem recebe o arrasto: sem isto ela
+     roubaria o ponteiro do próprio controle que está descrevendo. */
+  pointer-events: none;
+}
+.pl-dica-titulo {
+  display: block; min-width: 0; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; font-weight: 600;
+}
+.pl-dica-tempo { font-variant-numeric: tabular-nums; opacity: .85; }
+/* `display` declarado pelo autor ganha do `display: none` que o navegador dá
+   ao atributo `hidden`. Sem esta linha, `hidden = true` não esconde nada —
+   vale para a dica, para o título dela e para a camada de legenda. */
+.pl-dica[hidden], .pl-dica-titulo[hidden], .pl-legenda[hidden] { display: none; }
+.pl-barra-bolinha {
+  position: absolute; top: 10px; left: 0; width: 13px; height: 13px;
+  margin: -6.5px 0 0 -6.5px; border-radius: 50%;
+  background: var(--marca-clara); pointer-events: none;
+  transform: scale(0); transition: transform .12s ease;
+}
+.pl-barra:hover .pl-barra-bolinha,
+.pl-barra:focus-visible .pl-barra-bolinha,
+.pl-barra-ativa .pl-barra-bolinha { transform: scale(1); }
+.pl-barra:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 2px; }
+
+.pl-recado {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: 80%; text-align: center; color: #fff; font-size: 14px;
+  background: rgba(0, 0, 0, .72); padding: 10px 14px; border-radius: var(--raio);
+}
+
+/* Selo passageiro do teclado (fase 1) e, depois, do zoom (fase 8).
+   Fica no ALTO e à esquerda para não disputar espaço com a barra de controles
+   nem cobrir legenda, que na fase 2 vem embaixo. */
+.pl-selo {
+  position: absolute; left: 12px; top: 12px;
+  color: #fff; font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  background: rgba(0, 0, 0, .72); padding: 7px 12px; border-radius: 999px;
+  pointer-events: none; white-space: nowrap;
+  /* O selo passou a mostrar título de capítulo (fase 3), que é texto de
+     tamanho livre vindo do catálogo — sem o corte, um título comprido
+     atravessaria o quadro inteiro. */
+  max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
+}
+/* A prévia do arrasto — item 6, o scrubber (fase 6).
+
+   NO CANTO SUPERIOR ESQUERDO, e o motivo é o dedo: arrastando na horizontal a
+   mão cobre o meio e a metade de baixo do quadro, e na barra ela cobre
+   justamente a dica que a fase 3 desenhou logo acima dela. O canto de cima é o
+   único que sobra. Fica no MESMO lugar do selo de propósito — durante o
+   arrasto quem fala é a moldura, que já mostra o relógio; os dois nunca
+   aparecem juntos. */
+.pl-previa {
+  position: absolute; left: 12px; top: 12px;
+  border-radius: 6px; overflow: hidden; pointer-events: none;
+  background: rgba(0, 0, 0, .82);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+  /* A LARGURA é a do quadro, e não a do texto (04/09). Sem isto um título de
+     capítulo comprido esticava a moldura para além da imagem — 269 px de caixa
+     para 200 px de quadro, medido no navegador —, e sobrava uma faixa preta à
+     direita que parecia defeito. Com a largura presa, quem se aparta é o
+     título, que já tem reticências. E a moldura para de mudar de tamanho a
+     cada capítulo enquanto o ponteiro anda, que no hover era pior ainda. */
+  width: 200px;
+  /* O teto é do QUADRO, não da tela: num player embutido estreito a moldura
+     encolhe junto, em vez de vazar por cima dos controles. */
+  max-width: 58%;
+  transition: opacity .12s ease;
+}
+.pl-previa[hidden] { display: none; }
+.pl-previa-quadro {
+  width: 200px; max-width: 100%; aspect-ratio: 16 / 9;
+  object-fit: contain; background: #000;
+  /* Enquanto o primeiro quadro não chega, o vídeo é um retângulo preto que
+     parece defeito. A moldura só mostra a imagem depois do primeiro `seeked`;
+     até lá sobram o capítulo e o relógio, que já valem sozinhos. */
+  display: none;
+}
+.pl-previa-viva .pl-previa-quadro { display: block; }
+.pl-previa-cap {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 9px 6px; color: #fff; font-size: 13px; line-height: 1.3;
+}
+.pl-previa-titulo {
+  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pl-previa-titulo[hidden] { display: none; }
+.pl-previa-tempo { font-variant-numeric: tabular-nums; opacity: .9; white-space: nowrap; }
+
+/* O SEGUNDO lugar da moldura (04/09): com o mouse ela sai do canto e vai para
+   cima da barra, seguindo o ponteiro. O canto existia por causa da MÃO — ela
+   cobre a barra e o que está logo acima dela —, e o mouse não cobre nada: ali
+   o quadro fica onde o olho já está, em cima do ponto que se vai clicar.
+
+   Quem posiciona é o player.js, em px, a cada movimento do ponteiro; o CSS só
+   desfaz a âncora do canto. Sem `top: auto` o `top: 12px` da regra de cima
+   ganharia do `bottom` em linha e a moldura ficaria no alto do quadro. */
+.pl-previa-barra { top: auto; }
+
+/* Em tela cheia o quadro é muito maior e 200 px viram selo. A moldura cresce
+   junto: a largura dela é a da imagem, e as duas medidas andam sempre iguais. */
+.pl-cheia .pl-previa { width: 340px; }
+.pl-cheia .pl-previa-quadro { width: 340px; }
+.pl-cheia .pl-previa-cap { font-size: 14px; }
+
+/* Jogando o dedo para baixo: a moldura desbota ANTES de o arrasto ser
+   desfeito. É o aviso que torna o gesto aprendível — sem ele, cancelar seria
+   um segredo de quem leu o código. */
+/* Enquanto se procura, os BOTÕES saem da frente da moldura — ninguém aperta
+   play no meio de um arrasto. A barra NÃO desbota: ela é a única coisa que
+   mostra para onde o ponteiro do vídeo está indo. */
+.pl-procurando .pl-b,
+.pl-procurando .pl-tempo,
+.pl-procurando .pl-som-caixa {
+  opacity: .2; transition: opacity .12s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-procurando .pl-b,
+  .pl-procurando .pl-tempo,
+  .pl-procurando .pl-som-caixa { transition: none; }
+}
+
+.pl-previa-indo { opacity: .45; }
+.pl-previa-indo .pl-previa-tempo { opacity: 1; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-previa { transition: none; }
+}
+.pl-selo-vivo { animation: pl-selo-sumir .9s ease forwards; }
+@keyframes pl-selo-sumir {
+  0%, 62% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-selo-vivo { animation: none; }
+}
+
+/* Modo teatro (tecla T). A ficha é uma grade de duas colunas; o teatro força
+   uma coluna, e o player passa a ocupar a largura toda do conteúdo. A classe
+   fica no <body> porque quem manda no layout da ficha é o site, não o player —
+   e `destruir()` a remove ao sair, senão a grade voltaria estreita.
+
+   Desde a D6 a grade tem ÁREAS, e uma coluna só não basta: com as áreas de
+   duas colunas valendo, "lado" continuaria pedindo a segunda coluna e a
+   grade a criaria de volta. As áreas descem junto, na ordem do celular. */
+body.app-teatro .ficha { grid-template-columns: 1fr; grid-template-areas: "video" "lado" "serie"; }
+body.app-teatro .player { border-radius: 0; border-left: 0; border-right: 0; }
+
+/* Rodinha de espera. Só aparece quando o vídeo está esperando rede — não no
+   estado parado, que é onde 100% das sessões começam por causa do preload. */
+.pl-esperando::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 36px; height: 36px; margin: -18px 0 0 -18px;
+  border: 3px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+  border-radius: 50%; animation: pl-girar .8s linear infinite;
+}
+@keyframes pl-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pl-esperando::after { animation-duration: 2.4s; }
+  .pl-barra-bolinha, .pl-seg { transition: none; }
+}
+
+.ficha h1 { font-size: 24px; line-height: 1.25; margin: 0 0 6px; }
+
+/* A série e o episódio em cima do título (D6), com o amarelo do destaque —
+ * `.destaque-serie` vem junto no mesmo nó. Sem série nem número a linha some,
+ * em vez de deixar o vão dela em cima do título. */
+.ficha-serie:empty { display: none; }
+
+.ficha-meta { color: var(--texto-fraco); font-size: 14px; margin: 0 0 18px; font-variant-numeric: tabular-nums; }
+
+.sinopse { font-size: 15.5px; margin: 0 0 20px; white-space: pre-wrap; }
+.sinopse-vazia { color: var(--texto-fraco); font-style: italic; }
+
+.dados {
+  border-top: 1px solid var(--borda); margin: 0; padding-top: 14px;
+  display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13.5px;
+}
+.dados dt { color: var(--texto-fraco); }
+.dados dd { margin: 0; }
+
+/* Capítulos — a lista clicável abaixo do player.
+ *
+ * A linha do tempo segmentada e o título no hover são do PLAYER do Bunny, não
+ * daqui: o iframe é de outro domínio e esta folha de estilo não o alcança.
+ *
+ * Rolagem própria com teto de altura: o vídeo mais longo tem 15 capítulos, e
+ * sem o teto a lista empurraria a sinopse para bem abaixo da dobra. */
+.capitulos {
+  margin-top: 22px; border-top: 1px solid var(--borda); padding-top: 16px;
+}
+
+.capitulos-titulo {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--texto-fraco); margin: 0 0 10px; font-weight: 600;
+}
+
+.capitulos-lista {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 340px; overflow-y: auto; overscroll-behavior: contain;
+}
+
+.capitulo {
+  display: flex; gap: 12px; align-items: baseline; width: 100%; text-align: left;
+  padding: 7px 10px; border: 0; border-radius: var(--raio); background: none;
+  color: var(--texto); font: inherit; font-size: 14.5px;
+  /* `default` e não `pointer`: enquanto o Player.js não responde o clique não
+   * pula nada, e prometer o contrário com o cursor é mentira. A classe
+   * `capitulos-ativos` entra no `ready` e é ela que promove para `pointer`. */
+  cursor: default;
+  /* MEDIDO NO DEDO em 03/09, e é metade do conserto de "a página não rola em
+     cima dos capítulos": arrastar o dedo por cima do texto de uma linha vira
+     SELEÇÃO, com as alças de copiar, e a seleção come a rolagem. Uma linha de
+     capítulo é um alvo de toque com um horário e um título — não é texto para
+     copiar, e a lista é o único jeito de navegar por capítulo no celular.
+     `manipulation` completa: tira a espera do duplo-toque-para-ampliar, que é
+     o que fazia o toque parecer lento. A outra metade do conserto está no
+     `overflow` da lista, logo abaixo. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+}
+
+.capitulo-tempo {
+  flex: none; min-width: 46px; font-variant-numeric: tabular-nums;
+  color: var(--marca); font-size: 13.5px;
+}
+
+.capitulo-nome { flex: 1 1 auto; }
+
+.capitulos-ativos .capitulo { cursor: pointer; }
+.capitulos-ativos .capitulo:hover { background: var(--marca-fraca); }
+.capitulo:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+/* O capítulo que está tocando. `aria-current` é o próprio estado, não uma
+ * classe paralela: o leitor de tela anuncia junto com o destaque visual. */
+.capitulo[aria-current] { background: var(--marca-fraca); font-weight: 600; }
+.capitulo[aria-current] .capitulo-tempo { font-weight: 700; }
+
+/* Em telas de toque a lista é o ÚNICO jeito de navegar por capítulo: o hover
+ * na linha do tempo do player não existe. Por isso ela ganha alvo maior aqui,
+ * em vez de encolher. */
+@media (max-width: 900px) {
+  /* `max-height: none` tira o TETO da lista — e tem que tirar junto o
+     CONTÊINER DE ROLAGEM, senão sobra um `overflow-y: auto` que não rola nada.
+     Medido em 03/09, em 375 px: `scrollHeight` e `clientHeight` iguais em
+     624 px, com `overscroll-behavior: contain` por cima. Um contêiner de
+     rolagem que não rola engole o dedo e NÃO passa a rolagem adiante — a
+     página trava exatamente em cima da lista de capítulos, que é o pedaço mais
+     alto da ficha no celular. É a outra metade do conserto; a primeira é o
+     `user-select` da linha. */
+  .capitulos-lista { max-height: none; overflow-y: visible; }
+  .capitulo { padding: 11px 10px; }
+}
+
+.botao {
+  display: inline-block; padding: 8px 14px; font-size: 14px; cursor: pointer;
+  background: var(--superficie); color: var(--texto); text-decoration: none;
+  border: 1px solid var(--contorno); border-radius: var(--raio); font-family: inherit;
+}
+.botao:hover { border-color: var(--marca); color: var(--marca); }
+/* O anel padrão do navegador some sobre o botão da marca. O `offset` é o que o
+ * salva: o vão de 2 px fica na cor do fundo, e o contorno da marca (7,66:1 sobre
+ * --fundo) aparece do lado de fora. */
+.botao:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+/* Texto ESCURO sobre a cor da marca, e isto é conserto (14/09, na D4), não gosto.
+ *
+ * Era `#fff`, e dava 2,32:1 em repouso e 1,90:1 no hover — o botão principal
+ * do site reprovando os 4,5:1 de texto. No tema claro de antes da D1 o
+ * `--marca` era uma cor escura e o branco passava; no escuro já reprovava, só que só
+ * para quem usava escuro. A D1 fez do escuro o único tema e passou a falha
+ * para todo mundo, e o teste de contraste dela não viu: ele media PARES DE
+ * TOKENS, e este `#fff` estava escrito direto na regra. Por isso o teste
+ * ganhou uma segunda metade, que varre as regras.
+ *
+ * #07101c dá 7,74:1 sobre --marca e 9,79:1 sobre --marca-clara — é a cor que
+ * o chip ligado já usava pelo mesmo motivo. */
+.botao-primario {
+  background: var(--marca); border-color: var(--marca); color: #07101c; font-weight: 500;
+}
+.botao-primario:hover { background: var(--marca-clara); border-color: var(--marca-clara); color: #07101c; }
+.botao:disabled, .botao[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+
+.aviso {
+  border: 1px solid var(--borda); border-left: 3px solid var(--alerta);
+  background: var(--alerta-fundo); color: var(--alerta);
+  padding: 10px 14px; border-radius: var(--raio); font-size: 14px; margin: 0 0 18px;
+}
+
+/* OS ESTADOS VAZIOS E DE ERRO (D7, o B8 do briefing): ícone, título, a
+ * explicação, e o que fazer — nesta ordem, centrados, com espaço. Um desenho
+ * só para todos; o de erro muda só a cor do ícone. O `.aviso` continua sendo
+ * a faixa de dentro da ficha (a pendência), e não é mais usado para estado.
+ *
+ * O texto tem teto de largura (46ch) porque a ajuda passa de uma linha: em
+ * 1400 px ela correria de ponta a ponta, sem o olho achar a volta. */
+.vazio {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: var(--esp-8) var(--esp-4);
+  color: var(--texto-fraco);
+}
+.vazio-icone { width: 48px; height: 48px; color: var(--texto-fraco); margin-bottom: var(--esp-4); }
+.vazio-erro .vazio-icone { color: var(--erro); }
+.vazio-titulo { color: var(--texto); font-size: var(--tipo-titulo); font-weight: 650; margin: 0; }
+.vazio-termo {
+  color: var(--texto); font-size: var(--tipo-base); margin: var(--esp-1) 0 0;
+  max-width: 46ch; overflow-wrap: anywhere;
+}
+.vazio-texto { max-width: 46ch; margin: var(--esp-3) 0 0; font-size: var(--tipo-corpo); }
+.vazio-acoes {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-3);
+  margin-top: var(--esp-5);
+}
+/* 44 px de alvo de toque, como os botões do destaque. */
+.vazio-acoes .botao {
+  display: inline-flex; align-items: center; min-height: 44px;
+  padding: 0 var(--esp-5); font-size: var(--tipo-corpo); font-weight: 600;
+  text-decoration: none;
+}
+.vazio-detalhe { margin: var(--esp-5) 0 0; font-size: var(--tipo-micro); overflow-wrap: anywhere; }
+
+/* O ESQUELETO (D7): a forma da chegada enquanto a API não responde. O
+ * HTML dele mora no index.html. As medidas são as do destaque e da prateleira
+ * — a mesma grade de duas colunas, o mesmo cartão de --pcard —, para que a
+ * troca pelo conteúdo de verdade não pareça um salto. Não precisa ser exato:
+ * ele sai INTEIRO, e nada que estava na tela é deslocado (CLS 0).
+ *
+ * As capas no --marca-fraca, que é o fundo da caixa da capa de verdade antes
+ * de a imagem chegar; as linhas de texto no --superficie. Pulsa devagar; para
+ * quem pediu menos movimento, fica PARADO. */
+.esqueleto { overflow: hidden; }
+.esq-destaque {
+  display: grid; align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 640px);
+  gap: var(--esp-6); margin: 0 0 var(--esp-7); padding-top: var(--esp-4);
+}
+.esq-texto { display: flex; flex-direction: column; gap: var(--esp-3); }
+.esq-linha { display: block; height: 14px; border-radius: 4px; background: var(--superficie); }
+.esq-l1 { width: 30%; height: 12px; }
+.esq-l2 { width: 75%; height: 36px; }
+.esq-l3 { width: 40%; }
+.esq-botao { display: block; width: 140px; height: 44px; margin-top: var(--esp-3); border-radius: var(--raio); background: var(--superficie); }
+.esq-capa, .esq-pista > span {
+  display: block; aspect-ratio: 16 / 9; border-radius: var(--raio);
+  background: var(--marca-fraca); border: 1px solid var(--borda);
+}
+.esq-prateleira { margin: 0 0 var(--esp-6); }
+.esq-rotulo { width: 180px; height: 20px; margin: 12px 0 var(--esp-4); }
+.esq-pista { display: flex; gap: var(--esp-3); padding: 6px 0; }
+.esq-pista > span { flex: 0 0 var(--pcard); }
+
+.esq-destaque, .esq-prateleira { animation: esq-pulsar 1.6s ease-in-out infinite; }
+@keyframes esq-pulsar { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) {
+  .esq-destaque, .esq-prateleira { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .esq-destaque { grid-template-columns: 1fr; gap: var(--esp-4); padding-top: var(--esp-2); }
+  .esq-capa { order: -1; }
+}
+@media (max-width: 560px) {
+  .esq-pista { padding: 0; }
+  .esq-rotulo { width: 140px; }
+}
+
+.rodape {
+  border-top: 1px solid var(--borda); padding: 20px 0 40px;
+  color: var(--texto-fraco); font-size: 12.5px;
+}
+
+/* O "Administração" tinha 16 px de alvo (medido em 375 px em 15/09). O
+ * padding dá os 44 px — 19 da linha mais 13 em cima e 13 embaixo — e a margem
+ * negativa do mesmo tamanho os devolve, então o rodapé não cresce nem um
+ * pixel: é o alvo que aumenta, não a linha. O rodapé já foi o dono do CLS
+ * desta página, e mudar a altura dele é mexer onde dói. */
+.rodape a {
+  display: inline-block; padding: 13px 6px; margin: -13px -6px;
+  border-radius: 4px;
+}
+.rodape a:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+/* O RODAPÉ ERA O DONO DO CLS de 0,0985 medido na D0, e isto é o conserto.
+ *
+ * Enquanto `/api/catalogo` não responde, o <main> está vazio e o rodapé fica
+ * logo abaixo do cabeçalho — em 375×812, em y=108, 80 px de altura. Quando o
+ * catálogo chega ele é empurrado para y=2850, fora da tela: 375×80 sobre
+ * 375×812 dá exatamente os 0,0985, com a distância no máximo. Medido por
+ * GEOMETRIA em 14/09, com a API atrasada de propósito — não pelo observador
+ * de layout-shift, que neste navegador de sessão só registra quadro que foi
+ * forçado a desenhar, e por isso deu 0 e 0,0985 para a mesma página.
+ *
+ * A D0 tinha posto a culpa na capa do cartão, e estava errado: a caixa da capa
+ * sempre teve `aspect-ratio: 16/9`, então nunca empurrou ninguém.
+ *
+ * Com o <main> de pelo menos uma tela de altura, o rodapé já NASCE abaixo da
+ * dobra e o salto acontece fora da vista, onde não conta. `100vh` e não
+ * `100dvh`: no celular o `vh` é a altura com a barra do navegador recolhida,
+ * a MAIOR das duas, e é justamente a que garante a dobra.
+ *
+ * O preço: numa busca sem resultado o rodapé fica uma rolagem abaixo. É o
+ * lugar do link do /admin, que ninguém procura no meio de uma busca.
+ *
+ * Por id, e não por `main`: o <main> que nasce vazio é o do site. A mesa
+ * (admin.html, desde 15/09) tem outro <main> e nem carrega esta folha. */
+/* `flow-root` fecha a outra porta do mesmo problema: sem ele, a margem de
+ * cima de QUALQUER primeiro filho — o `p.contagem`, o `.vazio`, um aviso —
+ * colapsa através do <main> e o desloca quando o conteúdo chega. O destaque
+ * já usa padding; isto protege o que vier depois dele. */
+#conteudo { min-height: 100vh; display: flow-root; }
+
+/* O <main> recebe foco só pelo atalho de pular (D5), e só para que o próximo
+ * Tab entre no conteúdo. Um anel em volta da página inteira não diz nada a
+ * ninguém — quem mostra onde o foco está é o controle que vem depois. */
+#conteudo:focus { outline: none; }
+
+@media (max-width: 420px) {
+  .topo-linha { gap: 10px; }
+  .marca { font-size: 18px; }
+  .card-titulo { font-size: 14px; }
+  .ficha h1 { font-size: 20px; }
+  .limite { padding: 0 12px; }
+}
+
+/* ---------------------------------------------------------------- modo mesa
+ *
+ * O /admin mostra o site num <iframe> com ?mesa=1, e o
+ * app.js põe a classe `modo-mesa` no <html>. Nada daqui existe fora da mesa.
+ *
+ * O destaque da marca é a camada de edição, e só ela o usa: tracejado no que se
+ * pode escolher, contínuo no que está escolhido. O contorno fica POR DENTRO
+ * (offset negativo) porque a prateleira rola de lado, e uma caixa com
+ * `overflow-x: auto` corta o que passa da borda dela — o contorno inclusive.
+ * É a mesma armadilha da prateleira que rola de lado, vista por outro lado. */
+.modo-mesa [data-mesa] { cursor: pointer; }
+.modo-mesa [data-mesa]:hover { outline: 1px dashed var(--marca-destaque); outline-offset: -1px; }
+.modo-mesa .mesa-sel,
+.modo-mesa .mesa-sel:hover { outline: 2px solid var(--marca-destaque); outline-offset: -2px; }
+.modo-mesa [data-mesa-campo][contenteditable] { cursor: text; border-radius: 4px; }
+.modo-mesa [data-mesa-campo][contenteditable]:focus { outline: 2px solid var(--marca-destaque); outline-offset: 3px; }
+.modo-mesa .sinopse-vazia:empty::before { content: attr(data-vazio); }
+/* Dentro da mesa, "Administração" abriria a mesa dentro dela mesma. */
+.modo-mesa .rodape a[href="admin.html"] { pointer-events: none; }

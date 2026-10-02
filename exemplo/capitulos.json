@@ -1,0 +1,74 @@
+{
+  "versao": 1,
+  "observacao": "Capítulos de exemplo: só `inicio` (segundos) e `titulo`. O `end` é derivado pelos scripts.",
+  "titulos": {
+    "exemplo-serie-1-ep01": {
+      "titulo": "Primeiros passos (Episódio 1)",
+      "capitulos": [
+        {
+          "inicio": 0,
+          "titulo": "Abertura"
+        },
+        {
+          "inicio": 70,
+          "titulo": "O tema em linhas gerais"
+        },
+        {
+          "inicio": 260,
+          "titulo": "Três exemplos curtos"
+        },
+        {
+          "inicio": 430,
+          "titulo": "O que vem a seguir"
+        }
+      ]
+    },
+    "exemplo-serie-1-ep02": {
+      "titulo": "Montando a base (Episódio 2)",
+      "capitulos": [
+        {
+          "inicio": 0,
+          "titulo": "Retomada do episódio anterior"
+        },
+        {
+          "inicio": 90,
+          "titulo": "Os conceitos centrais"
+        },
+        {
+          "inicio": 300,
+          "titulo": "Passo a passo completo"
+        },
+        {
+          "inicio": 610,
+          "titulo": "Resultado final"
+        }
+      ]
+    },
+    "exemplo-serie-2-ep01": {
+      "titulo": "Bastidores de um projeto (Episódio 1)",
+      "capitulos": [
+        {
+          "inicio": 0,
+          "titulo": "Abertura"
+        },
+        {
+          "inicio": 95,
+          "titulo": "A equipe e o plano"
+        },
+        {
+          "inicio": 410,
+          "titulo": "Mãos à obra"
+        },
+        {
+          "inicio": 880,
+          "titulo": "Revisão e entrega"
+        }
+      ]
+    }
+  },
+  "sem_capitulos": {
+    "observacao": "Publicados que NÃO ganham capítulo, e por quê (id: motivo).",
+    "exemplo-curta-01": "Curto demais para dividir em capítulos.",
+    "exemplo-institucional-01": "Sem LEGENDA: o áudio é só trilha, então não há transcrição de onde tirar capítulos, e não vale pagar transcrição de um vídeo sem fala."
+  }
+}

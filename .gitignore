@@ -1,0 +1,23 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+.dev.vars
+*.pem
+*.key
+segredos/
+secrets/
+
+# Dependências e ferramentas
+node_modules/
+.wrangler/
+.DS_Store
+Thumbs.db
+
+# Dados locais (catálogos reais, exportações, legendas, mídia)
+dados/
+data/
+*.seed.local.json
+catalogo.seed.json
+*.log
+tmp/
