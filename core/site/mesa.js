@@ -43,6 +43,9 @@
   function enviarCatalogo() {
     if (!st.servidor) return;
     var cat = st.semRascunho ? st.servidor : M.efetivo();
+    /* A home por blocos (M6): o `site` da mesa com o que o config/site.json diz por baixo — o mesmo que o
+     * servidor entrega ao site no ar —, para a prévia não discordar dele. */
+    var siteDaPrevia = App.siteComPadroes(App.siteSaneado(cat.site), st.servidor.padroes);
     enviarAoSite({
       tipo: 'catalogo',
       editavel: M.pode('conteudo'),
@@ -50,7 +53,7 @@
        * escondida das prateleiras, na classe das séries, no destaque e nos
        * textos. Sem esta chave a prévia mostraria a chegada padrão enquanto o
        * site no ar mostra outra — a mesa mentiria sobre o próprio efeito. */
-      dados: { rev: cat.rev, config: st.servidor.config || {}, ajustes: cat.ajustes || {}, site: cat.site || {}, itens: cat.itens }
+      dados: { rev: cat.rev, config: st.servidor.config || {}, ajustes: cat.ajustes || {}, site: siteDaPrevia, itens: cat.itens }
     });
   }
   var tempoCatalogo = 0;
@@ -130,6 +133,7 @@
         M.pode('conteudo') && cat ? itemMenu('fila-pendencias', 'alerta', tr('mesa.pendencias'), App.filaPendencias(cat.itens).length, 'b-ouro') : null,
         M.pode('conteudo') && cat ? itemMenu('fila-semsinopse', 'imagem', tr('mesa.semSinopse'), App.filaSemSinopse(cat.itens).length, 'b-ouro') : null,
         M.pode('player') || M.pode('estrutura') ? h('li', { class: 'menu-grupo', text: tr('mesa.ajustes') }) : null,
+        M.pode('estrutura') ? itemMenu('home', 'tabela', tr('mesa.home')) : null,
         M.pode('estrutura') ? itemMenu('estrutura', 'estrutura', tr('mesa.estrutura')) : null,
         M.pode('player') ? itemMenu('player', 'player', tr('mesa.player')) : null,
         h('li', { class: 'menu-grupo', text: tr('mesa.equipe') }),
@@ -181,6 +185,7 @@
       : st.tela === 'capa' ? [tr('mesa.site'), tr('mesa.escolherCapa')]
       : st.tela === 'player' ? [tr('mesa.ajustes'), tr('mesa.player')]
       : st.tela === 'estrutura' ? [tr('mesa.ajustes'), tr('mesa.estrutura')]
+      : st.tela === 'home' ? [tr('mesa.ajustes'), tr('mesa.home')]
       : st.tela === 'historico' ? [tr('mesa.catalogo'), tr('mesa.historico')]
       : st.tela === 'enviar' ? [tr('mesa.catalogo'), tr('mesa.enviarTitulo')]
       : st.tela === 'contas' ? [tr('mesa.equipe'), tr('mesa.contas')]
@@ -227,6 +232,7 @@
         : st.tela === 'conta' ? M.telaMinhaConta()
         : st.tela === 'fila-pendencias' ? M.telaPendencias(cat)
         : st.tela === 'estrutura' ? M.telaEstrutura(cat)
+        : st.tela === 'home' ? M.telaHome(cat)
         : st.tela === 'historico' ? M.telaHistorico(cat)
         : M.telaCatalogo(cat));
     el.admin.scrollTop = topo;

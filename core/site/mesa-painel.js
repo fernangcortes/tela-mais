@@ -13,7 +13,8 @@
     tags: tr('painel.tags'), pendencia: tr('painel.pendencia'), publicar: tr('mesa.noAr'), titularidade: tr('painel.titularidade'),
     nivel_evidencia: tr('painel.nivelDeEvidencia'), capa_arquivo: tr('painel.capa'), capa_versao: tr('painel.versaoDaCapa'),
     nota_curadoria: tr('painel.notaDeCuradoria'), destaque: tr('painel.destaque'), arrastoTeto: tr('painel.arrastoMaximo'), controlesEspera: tr('painel.sumicoDosControles'),
-    prateleiras: tr('painel.prateleiras'), classes: tr('painel.classeDasSeries'), textos: tr('painel.textosFixos'), series: tr('painel.apresentacaoDasSeries')
+    prateleiras: tr('painel.prateleiras'), classes: tr('painel.classeDasSeries'), textos: tr('painel.textosFixos'), series: tr('painel.apresentacaoDasSeries'),
+    blocos: tr('painel.blocosDaHome'), colecoes: tr('painel.colecoes'), modeloDeConteudo: tr('painel.modeloDeConteudo')
   };
   M.CAMPO = CAMPO;
 
@@ -133,7 +134,7 @@
     var faixas = [[tr('painel.ate2'), 0, 120], ['2–5', 120, 300], ['5–10', 300, 600], ['10–20', 600, 1200], ['20+', 1200, Infinity]];
     var contas = faixas.map(function (f) { return c.no.filter(function (i) { return i.duracao_seg > f[1] && i.duracao_seg <= f[2]; }).length; });
     var max = Math.max.apply(null, contas.concat([1]));
-    var curtos = (App.prateleiras(cat.itens).find(function (p) { return p.id === 'curtos'; }) || { itens: [] }).itens.length;
+    var curtos = (App.prateleiras(cat.itens, M.site(), M.CTX).find(function (p) { return p.id === 'curtos'; }) || { itens: [] }).itens.length;
     corpo.appendChild(secao(tr('painel.duracaoEmMinutos'),
       h('div', { class: 'histo', role: 'img', 'aria-label': faixas.map(function (f, k) { return tr('painel.faixaMin', { faixa: f[0], n: contas[k] }); }).join(', ') },
         faixas.map(function (f, k) {
@@ -305,7 +306,7 @@
   /* ---------------------------------------------------------- título: no site */
 
   function noSite(cat, it) {
-    var ps = App.prateleiras(cat.itens).filter(function (p) { return p.itens.some(function (x) { return x.id === it.id; }); });
+    var ps = App.prateleiras(cat.itens, M.site(), M.CTX).filter(function (p) { return p.itens.some(function (x) { return x.id === it.id; }); });
     var lista = h('ul', { class: 'lugares' }, ps.map(function (p) {
       var pos = p.itens.findIndex(function (x) { return x.id === it.id; }) + 1;
       return h('li', null, h('button', { type: 'button', class: 'linha-link', 'data-acao': 'escolher', 'data-alvo': 'prateleira:' + p.id },
@@ -362,20 +363,20 @@
    * então meia ordem embaralharia o resto (é o `comOrdemPrateleiras`). */
   function inspPrateleira(cat, id) {
     var site = M.site();
-    var todas = App.prateleiras(cat.itens, site);
+    var todas = App.prateleiras(cat.itens, site, M.CTX);
     var pos = -1;
     todas.forEach(function (x, k) { if (x.id === id) pos = k; });
     if (pos < 0) return null;
     var p = todas[pos];
     var escolha = site.prateleiras[id] || {};
-    var padrao = App.prateleiras(cat.itens).find(function (x) { return x.id === id; });
+    var padrao = App.prateleiras(cat.itens, null, M.CTX).find(function (x) { return x.id === id; });
     var min = Math.round(p.itens.reduce(function (a, i) { return a + (i.duracao_seg || 0); }, 0) / 60);
     var pode = M.pode('estrutura');
 
     /* Quantos títulos sairiam da chegada se esta prateleira fosse escondida —
      * a conta feita ANTES do clique, sobre a estrutura de agora. Eles não saem
      * do ar: continuam na busca, na página da série e no link direto. */
-    var somem = p.escondida ? [] : App.titulosSoEmEscondidas(cat.itens, App.comPrateleira(site, id, { escondida: true }));
+    var somem = p.escondida ? [] : App.titulosSoEmEscondidas(cat.itens, App.comPrateleira(site, id, { escondida: true }), M.CTX);
 
     var corpo = h('div', { class: 'p-corpo-in' },
       h('p', { class: 'p-nota', text: tr('painel.prateleiraResumo', { n: p.itens.length, min: min }) }),
@@ -540,6 +541,8 @@
     if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '—';
     if (v === true) return tr('comum.sim');
     if (v === false) return tr('comum.nao');
+    if (campoNome === 'blocos' && Array.isArray(v)) return tr('painel.blocosN', { n: v.length });
+    if (campoNome === 'colecoes' && Array.isArray(v)) return tr('painel.colecoesN', { n: v.length });
     if (Array.isArray(v)) return v.join(', ');
     /* Os campos da estrutura (M4) são MAPAS inteiros, e "[object Object]" não
      * diz nada a ninguém. O rascunho mostra o tamanho da escolha; o que mudou

@@ -1557,17 +1557,44 @@ const semComentarios = (js) => {
 };
 const PLAYER_CODIGO = semComentarios(PLAYER_JS);
 
+/* A REGRA DO GUARDIÃO (decisão D-8, M6). Antes: UMA chamada de `play()` no
+ * projeto, em `alternarPlay`. Agora: DUAS, e cada uma tem dono e condição —
+ *   - `tocarPorGesto`: o play de quem apertou o botão, a tecla, o toque;
+ *   - `tocarAutomatico`: o único que pode começar SEM gesto, e a sua primeira
+ *     instrução é perguntar ao guardião (`podeIniciarSozinho`, guardiao.js), que
+ *     com a config padrão (`autoplay.modo: 'nunca'`) sempre diz não.
+ * Um terceiro `.play(` em qualquer lugar do player quebra aqui. O vídeo de fundo
+ * do destaque tem o seu (destaque-fundo.js), conferido em
+ * tests/player-fundo.test.js. */
+function corpoDaFuncao(codigo, nome) {
+  const m = codigo.match(new RegExp('function ' + nome + '\\([^)]*\\)\\s*\\{([\\s\\S]*?)\\n    \\}'));
+  return m ? m[1] : null;
+}
+function conferirPlaySoNoGuardiao(porque) {
+  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
+  assert.equal(chamadas.length, 2,
+    porque + ': player.js tem ' + chamadas.length + ' chamadas de play(); a regra são duas, em tocarPorGesto e tocarAutomatico');
+  const gesto = corpoDaFuncao(PLAYER_CODIGO, 'tocarPorGesto');
+  const auto = corpoDaFuncao(PLAYER_CODIGO, 'tocarAutomatico');
+  assert.ok(gesto && auto, 'faltam tocarPorGesto/tocarAutomatico em player.js');
+  assert.equal((gesto.match(/\.play\s*\(/g) || []).length, 1, 'tocarPorGesto deve ter o play do gesto');
+  assert.equal((auto.match(/\.play\s*\(/g) || []).length, 1, 'tocarAutomatico deve ter o play sem gesto');
+  /* O guardião vem ANTES de qualquer outra coisa, inclusive do play. */
+  assert.ok(auto.indexOf('podeIniciarSozinho(') >= 0 && auto.indexOf('podeIniciarSozinho(') < auto.indexOf('.play('),
+    'tocarAutomatico dá o play sem perguntar ao guardião');
+  assert.match(auto, /^\s*var contexto = contextoDeInicio\(origem\);\s*if \(!AppPlayerCore\.podeIniciarSozinho\(contexto, config\)\) return false;/,
+    'tocarAutomatico deve COMEÇAR pelo guardião');
+}
+
 test('REGRA 1 — o player nosso não toca sozinho', () => {
   assert.equal(AppPlayerCore.REGRAS.autoplay, false);
   assert.equal(AppPlayerCore.atributosVideo().autoplay, false);
 
-  /* Uma única chamada de play() no projeto inteiro, dentro de alternarPlay,
-   * que só roda a partir de um gesto de quem está assistindo. Se este número
-   * subir, alguém arrumou um segundo lugar de onde o vídeo pode começar
+  /* Duas chamadas de play() no player: `tocarPorGesto` (só por gesto de quem
+   * está assistindo) e `tocarAutomatico` (que começa pelo guardião). Se este
+   * número subir, alguém arrumou um terceiro lugar de onde o vídeo pode começar
    * sozinho — e é exatamente isso que não pode existir. */
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1,
-    'player.js tem ' + chamadas.length + ' chamadas de play(); a regra é uma só, em alternarPlay');
+  conferirPlaySoNoGuardiao('REGRA 1');
 });
 
 /* A VIRADA DE 03/09: o player nosso deixou de estar atrás de uma chave.
@@ -1627,8 +1654,11 @@ test('nada é baixado antes do play — nem pelo <video>, nem pelo hls.js', () =
   assert.match(liberar[1], /if \(!hls \|\| carregouAlgo\) return;/, 'o download pode ser liberado duas vezes');
   assert.match(liberar[1], /hls\.startLoad\(inicio\)/, 'alguém tem que liberar o download no primeiro play');
   const alternar = PLAYER_CODIGO.match(/function alternarPlay\(\)\s*\{([\s\S]*?)\n    \}/);
-  assert.match(alternar[1], /if \(video\.paused\) \{\s*liberarDownload\(\);/,
+  assert.match(alternar[1], /if \(video\.paused\) tocarPorGesto\(\);/, 'o botão deixou de passar por tocarPorGesto');
+  assert.match(corpoDaFuncao(PLAYER_CODIGO, 'tocarPorGesto'), /liberarDownload\(\);/,
     'o play do botão deixou de liberar o download');
+  assert.match(corpoDaFuncao(PLAYER_CODIGO, 'tocarAutomatico'), /liberarDownload\(\);/,
+    'o início sem gesto deixou de liberar o download');
 });
 
 /* O MOMENTO ANTES DO PLAY (fase 2 da busca, 21/09). O clique num trecho abre
@@ -1673,10 +1703,9 @@ test('o "Assistir" entra pelo mesmo alternarPlay, e só com o vídeo parado', ()
   assert.match(tocar[1], /^\s*if \(!video\.paused\) return;/,
     'tocar() deixou de sair quando o vídeo já toca — pedir de novo viraria pausa');
   assert.ok(!/\.play\s*\(/.test(tocar[1]), 'tocar() virou um segundo caminho para o play()');
-  assert.match(PLAYER_CODIGO, /irPara: irPara, aoTempo: aoTempo, tocar: tocar/,
+  assert.match(PLAYER_CODIGO, /aoTempo: aoTempo, tocar: tocar/,
     'o player deixou de oferecer a entrada tocar()');
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1, 'a D6 abriu um segundo caminho para o play()');
+  conferirPlaySoNoGuardiao('a D6');
 });
 
 /* O "ASSISTIR" QUE SÓ TOCAVA UMA VEZ (21/09, visto no ar logo depois do deploy
@@ -1753,8 +1782,15 @@ test('o player grava onde parou, e nunca lê nem retoma sozinho', () => {
   /* A TRAVA de verdade: o player não lê a chave. Ler é o primeiro passo de
    * retomar sozinho. A única `getItem` dela é a de dentro da gravação, que
    * lê o mapa para acrescentar. */
+  /* M6: duas leituras, a da gravação e a de `lerOndeParou`, e esta só é
+   * chamada por `pontoSalvo`, que devolve null já na primeira linha com
+   * `player.retomar.modo: 'nunca'` (o padrão). */
   const leituras = PLAYER_CODIGO.match(/getItem\(App\.CHAVE_ONDE_PAROU\)/g) || [];
-  assert.equal(leituras.length, 1, 'o player lê onde parou fora da gravação');
+  assert.equal(leituras.length, 2, 'o player lê onde parou fora da gravação e do lerOndeParou');
+  const lendo = PLAYER_CODIGO.match(/lerOndeParou\(/g) || [];
+  assert.equal(lendo.length, 2, 'declaração + um uso (pontoSalvo): ninguém mais lê onde parou');
+  assert.match(corpoDaFuncao(PLAYER_CODIGO, 'pontoSalvo'), /^\s*if \(cfg\.retomar\.modo === 'nunca'\) return null;/,
+    'com retomar nunca, o player não pode nem ler a chave');
   assert.ok(!/currentTime\s*=\s*[^=;]*(OndeParou|ONDE_PAROU|mapa)/.test(PLAYER_CODIGO), 'o player retoma onde parou');
 });
 
@@ -1796,9 +1832,10 @@ test('o Continuar mora na página da série, lê com try/catch, e o clique é o 
   const ler = app.match(/function lerOndeParou\(\)\s*\{([\s\S]*?)\n  \}/);
   assert.ok(ler, 'não achei lerOndeParou');
   assert.match(ler[1], /try\s*\{/);
-  /* Três: a definição, a página da série e a ficha (24/09). Uma quarta é
-   * alguém lendo a memória num lugar novo — que passe por aqui de propósito. */
-  assert.equal((app.match(/lerOndeParou\(\)/g) || []).length, 3, 'onde parou é lido fora da série e da ficha');
+  /* Quatro: a definição, a página da série, a ficha (24/09) e o contexto da home por blocos (M6: o bloco
+   * "continuar assistindo" lê a mesma memória, para listar). Uma quinta é alguém lendo a memória num lugar
+   * novo — que passe por aqui de propósito. */
+  assert.equal((app.match(/lerOndeParou\(\)/g) || []).length, 4, 'onde parou é lido fora da série, da ficha e da home');
   const i = app.indexOf('function cabecaDaSerie(');
   const cab = app.slice(i, app.indexOf('\n  }\n', i));
   assert.match(cab, /App\.continuarDaSerie\(estado\.itens, s\.nome, lerOndeParou\(\)\)/);
@@ -1947,7 +1984,7 @@ test('o player desce depois da chegada, e a queda para o iframe continua', () =>
   assert.ok(!/<script src="player(-core)?\.js"/.test(html),
     'o player voltou ao index.html — 77 KB na frente da capa do destaque, que é o LCP');
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(scripts, ['i18n.js', 'catalogo-core.js', 'app.js']);
+  assert.deepEqual(scripts, ['i18n.js', 'home-blocos.js', 'catalogo-core.js', 'app.js']);   /* guardiao.js e destaque-fundo.js também descem sob demanda */
 
   const app = semComentarios(lerTexto(path.join(SITE, 'app.js')));
 
@@ -1955,7 +1992,7 @@ test('o player desce depois da chegada, e a queda para o iframe continua', () =>
    *    ficha precisa ver `AppPlayer` indefinido, e não uma promessa quebrada. */
   const carregar = app.match(/function carregarPlayer\(\)\s*\{([\s\S]*?)\n  \}/);
   assert.ok(carregar, 'não achei carregarPlayer em app.js');
-  assert.match(carregar[1], /\['player-core\.js', 'player\.js'\]/, 'a ordem dos dois arquivos mudou');
+  assert.match(carregar[1], /\['guardiao\.js', 'player-core\.js', 'player\.js'\]/, 'a ordem dos arquivos mudou (o guardião vem antes do core)');
   assert.match(carregar[1], /tag\.async = false/, 'sem async = false o player.js pode rodar antes do core');
   assert.ok(!/reject/.test(carregar[1]), 'o carregamento do player rejeita — a ficha não cai no iframe');
   assert.match(carregar[1], /carregandoPlayer = null/, 'uma falha de rede prende o player fora para sempre');
@@ -2443,8 +2480,9 @@ test('o grafo só é montado a partir de um gesto', () => {
   const chamadas = (PLAYER_CODIGO.match(/montarGrafo\(\)/g) || []).length;
   assert.equal(chamadas, 4, 'declaração + 3 chamadas, todas dentro de gesto');
   /* somDaPreferencia é chamada de dentro do play, e não solta no corpo. */
-  const play = PLAYER_CODIGO.match(/function alternarPlay\(\)\s*\{([\s\S]*?)\n    \}/);
-  assert.match(play[1], /somDaPreferencia\(\)/);
+  assert.match(corpoDaFuncao(PLAYER_CODIGO, 'tocarPorGesto'), /somDaPreferencia\(\)/);
+  assert.ok(!/somDaPreferencia\(\)/.test(corpoDaFuncao(PLAYER_CODIGO, 'tocarAutomatico')),
+    'o início sem gesto não monta o grafo de áudio: o contexto nasceria suspenso');
 });
 
 /* ---------- o iPhone não tem controle de volume nosso (04/09) ------------ */
@@ -2597,8 +2635,7 @@ test('preventDefault só depois de a tecla ser reconhecida como nossa', () => {
  * passa pelo mesmo alternarPlay do botão, que é o único dono do play(). */
 test('o teclado usa o mesmo caminho de play do botão', () => {
   assert.match(PLAYER_CODIGO, /case 'alternarPlay':\s*\n\s*alternarPlay\(\);/);
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1, 'a fase 1 abriu um segundo caminho para o play()');
+  conferirPlaySoNoGuardiao('a fase 1 abriu um segundo caminho para o play()');
 });
 
 /* ================= legenda do player — fase 2 ===========================
@@ -3183,8 +3220,7 @@ test('o Ctrl+seta posiciona o vídeo — nunca manda tocar', () => {
 
   /* E o total do arquivo continua sendo um: a fase 3 não abriu um segundo
    * lugar de onde o vídeo pode começar sozinho. */
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1, 'a fase 3 abriu um segundo caminho para o play()');
+  conferirPlaySoNoGuardiao('a fase 3 abriu um segundo caminho para o play()');
 });
 
 /* Um título sem capítulos não pode virar uma tecla morta: `preventDefault` já
@@ -4518,9 +4554,7 @@ test('o toque duplo é a única saída da tela travada', () => {
 test('o gesto executa pelo mesmo caminho do teclado', () => {
   assert.match(PLAYER_CODIGO, /default: executar\(acao\); break;/,
     'as ações comuns do gesto precisam cair no executar() do teclado');
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1,
-    'a fase 5 abriu um segundo caminho para o play()');
+  conferirPlaySoNoGuardiao('a fase 5 abriu um segundo caminho para o play()');
 });
 
 /* Antes desta fase, play/pause no toque era um `click` no <video> — e com ele
@@ -4752,8 +4786,7 @@ test('a prévia do arrasto sai do 240p, e nada é baixado antes de alguém arras
   assert.match(PLAYER_CODIGO, /previaQuadro\.preload = 'metadata'/);
 
   /* E ela nunca toca — a REGRA 1 continua com um dono só. */
-  const chamadas = PLAYER_CODIGO.match(/\.play\s*\(/g) || [];
-  assert.equal(chamadas.length, 1, 'a prévia virou um segundo caminho para o play()');
+  conferirPlaySoNoGuardiao('a prévia virou um segundo caminho para o play()');
 });
 
 /* A fila tem UM lugar. O dedo pede um segundo diferente a cada quadro da tela,
@@ -5324,7 +5357,7 @@ test('a prateleira de até 5 minutos não recolhe institucional curto', () => {
   const curtos = App.prateleiras(catalogoPrateleiras).find(p => p.id === 'curtos');
   assert.ok(curtos, 'a prateleira de duração sumiu');
   for (const i of curtos.itens) {
-    assert.ok(App.SERIES_INSTITUCIONAIS.indexOf(i.serie) < 0,
+    assert.notEqual(App.classeDaSerie(i.serie), 'institucional',
       i.id + ' é institucional e entrou na prateleira de curtos');
     assert.ok(i.duracao_seg <= 300, i.id + ' passa de 5 minutos');
   }
@@ -5339,19 +5372,17 @@ test('a prateleira de até 5 minutos não recolhe institucional curto', () => {
  * teste: nenhuma série em duas listas, e toda série do catálogo de exemplo
  * cai numa classe válida. (Cada instalação troca as listas pelas suas, ou usa
  * `site.classes`; o invariante continua o mesmo.) */
-test('toda série está em exatamente uma das três listas', () => {
-  const listas = {
-    institucionais: App.SERIES_INSTITUCIONAIS,
-    curtas: App.SERIES_CURTAS,
-    pedagogicas: App.SERIES_PEDAGOGICAS
-  };
+test('toda série está em exatamente uma coleção e tem uma classe válida', () => {
+  /* As coleções de sempre (curtas e institucional) listam séries de exemplo; nenhuma série pode estar
+   * em duas delas, e toda série do catálogo de exemplo cai numa classe válida. */
+  const colecoes = App.colecoesEfetivas(null);
   const conta = Object.create(null);
-  for (const nome of Object.keys(listas)) {
-    assert.ok(Array.isArray(listas[nome]) && listas[nome].length > 0, 'a lista ' + nome + ' ficou vazia');
-    for (const serie of listas[nome]) conta[serie] = (conta[serie] || 0) + 1;
+  for (const c of colecoes) {
+    assert.ok(Array.isArray(c.series) && c.series.length > 0, 'a coleção ' + c.id + ' ficou sem séries');
+    for (const serie of c.series) conta[serie] = (conta[serie] || 0) + 1;
   }
   for (const serie of Object.keys(conta)) {
-    assert.equal(conta[serie], 1, '"' + serie + '" está em mais de uma lista de séries');
+    assert.equal(conta[serie], 1, '"' + serie + '" está em mais de uma coleção');
   }
 
   /* Toda série do catálogo de exemplo tem classe, listada ou pelo padrão. */
@@ -5445,7 +5476,9 @@ test('a chegada é prateleira, e a grade é a resposta a uma pergunta', () => {
   /* A regra é a mesma; o nome da função mudou na M4, quando a prateleira
    * escondida passou a existir: a chegada desenha as VISÍVEIS, e a lista
    * inteira continua saindo de `prateleiras()` para o "Ver tudo" e a mesa. */
-  assert.match(app, /App\.prateleirasVisiveis\(/, 'a chegada não monta mais as prateleiras pelo core');
+  /* Desde a M6 a chegada vem dos blocos: `App.home` devolve a sequência (destaque, fileiras, textos), e a
+   * escondida continua fora da tela (renderChegada pula `escondida`). */
+  assert.match(app, /App\.home\(/, 'a chegada não monta mais as prateleiras pelo core');
 });
 
 /* O leitor de tela precisa ouvir "Até 5 minutos — lista, 17
@@ -7149,13 +7182,23 @@ test('o manifest tem os ícones de 192 e 512, "any" e "maskable", do tamanho que
   }
 });
 
-/* A D8 é SEM offline: um service worker guardaria catálogo e site
- * velhos no aparelho, e o deploy deixaria de chegar a quem instalou. */
-test('nenhum service worker — a tela inicial não faz nada offline', () => {
-  for (const nome of fs.readdirSync(SITE).filter(n => /\.(js|html)$/.test(n))) {
-    assert.ok(!/serviceWorker/.test(semComentarios(lerTexto(path.join(SITE, nome)))),
-      nome + ' registra um service worker');
+/* A D8 era SEM offline: um service worker guardaria catálogo e site velhos no aparelho, e o deploy deixaria de
+ * chegar a quem instalou. Na M6 ele passou a ser OPCIONAL e MÍNIMO (`recursos.pwaCacheDoShell`, desligado por
+ * padrão; guarda só a casca e nunca API, conta ou mídia — tests/home-pwa.test.js confere o sw.js). O que continua
+ * valendo daqui: nenhum arquivo do site mexe com service worker, a não ser o app.js, e ele só REGISTRA quando o
+ * config pediu. */
+test('service worker só no app.js, e só registrado quando o config liga', () => {
+  for (const nome of fs.readdirSync(SITE).filter(n => /\.(js|html)$/.test(n) && n !== 'sw.js')) {
+    const fonte = semComentarios(lerTexto(path.join(SITE, nome)));
+    if (nome === 'app.js') continue;
+    assert.ok(!/serviceWorker/.test(fonte), nome + ' registra um service worker');
   }
+  const app = semComentarios(lerTexto(path.join(SITE, 'app.js')));
+  const corpo = app.match(/function cuidarDoServiceWorker\(\)\s*\{([\s\S]*?)\n  \}/);
+  assert.ok(corpo, 'não achei cuidarDoServiceWorker');
+  assert.match(corpo[1], /pwaCacheDoShell === true/, 'o registro não olha o config');
+  assert.match(corpo[1], /if \(ligado\)[\s\S]*register\(/, 'o register saiu de trás do config');
+  assert.equal((app.match(/serviceWorker\.register\(/g) || []).length, 1, 'há mais de um lugar registrando service worker');
 });
 
 /* "Margem interna maior que a do favicon — o Android recorta em círculo" (E8).
@@ -7316,7 +7359,7 @@ test('na mesa, o rascunho não derruba o player da ficha aberta', () => {
  * de ser definidos, sem nenhum teste reclamar. Este cobra que tudo o que a
  * mesa chama de si mesma exista em algum arquivo dela. */
 test('a mesa não chama nem escreve em nada que ela não define', () => {
-  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-acesso.js', 'mesa.js'];
+  const arquivos = ['mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa.js'];
   const juntos = arquivos.map(a => semComentarios(lerTexto(path.join(SITE, a)))).join('\n');
   const definidos = new Set([...juntos.matchAll(/\bM\.([A-Za-z_]\w*)\s*=[^=]/g)].map(m => m[1]));
   /* O estado e os poucos objetos que a mesa preenche por dentro. */
@@ -8049,11 +8092,12 @@ test('os textos fixos do site saem do dado, e não de uma frase solta no app.js'
  * e com os nomes do dado, e o destaque pelo id. */
 test('a chegada do site lê a estrutura, e a prévia da mesa recebe a mesma', () => {
   const app = semComentarios(lerTexto(path.join(SITE, 'app.js')));
-  assert.match(app, /App\.prateleirasVisiveis\(estado\.itens, estado\.site\)/,
-    'a chegada continua montando a lista sem a estrutura, ou sem tirar as escondidas');
+  assert.match(app, /App\.home\(estado\.itens, estado\.site, contextoDaHome\(\)\)/,
+    'a chegada continua montando a lista sem a estrutura');
+  assert.match(app, /!e\.prateleira\.escondida/, 'a chegada não tira as prateleiras escondidas');
   assert.match(app, /App\.destaque\(estado\.itens, estado\.site\)/);
   for (const chamada of app.split('App.prateleiraPorId(').slice(1)) {
-    assert.match(chamada.slice(0, 120), /estado\.site\)/,
+    assert.match(chamada.slice(0, 120), /estado\.site, contextoDaHome\(\)\)/,
       'um "Ver tudo" ainda acha a prateleira pelo padrão, e não pela estrutura escolhida');
   }
   assert.match(app, /estado\.site = dados\.site \|\| \{\};/, 'o site não guarda a estrutura que a API mandou');
@@ -8064,7 +8108,9 @@ test('a chegada do site lê a estrutura, e a prévia da mesa recebe a mesma', ()
   const mesa = semComentarios(lerTexto(path.join(SITE, 'mesa.js')));
   const carga = mesa.match(/tipo: 'catalogo',[\s\S]*?\n(.*dados: \{.*)/);
   assert.ok(carga, 'não achei a mensagem do catálogo em mesa.js');
-  assert.match(carga[1], /site: cat\.site \|\| \{\}/);
+  assert.match(carga[1], /site: siteDaPrevia/);
+  assert.match(mesa, /var siteDaPrevia = App\.siteComPadroes\(App\.siteSaneado\(cat\.site\), st\.servidor\.padroes\);/,
+    'a prévia da mesa não leva os padrões do config por baixo da estrutura, como o site no ar');
 });
 
 /* A mesa da M4: a tela Estrutura e a prateleira do painel editam A MESMA
@@ -8104,7 +8150,7 @@ test('mover prateleira grava a ordem inteira, e não só as duas que trocaram', 
   const base = semComentarios(lerTexto(path.join(SITE, 'mesa-base.js')));
   const corpo = base.match(/M\.moverPrateleira = function \(id, passo\) \{([\s\S]*?)\n  \};/);
   assert.ok(corpo, 'não achei M.moverPrateleira');
-  assert.match(corpo[1], /App\.prateleiras\(M\.efetivo\(\)\.itens, M\.site\(\)\)\.map/,
+  assert.match(corpo[1], /App\.prateleiras\(M\.efetivo\(\)\.itens, M\.site\(\), M\.CTX\)\.map/,
     'a ordem nova não parte da ordem que está na tela');
   assert.match(corpo[1], /App\.comOrdemPrateleiras\(M\.site\(\), ids\)/);
 

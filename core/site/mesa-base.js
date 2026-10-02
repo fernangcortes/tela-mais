@@ -208,7 +208,9 @@
    * estado que o site não desenharia. */
   M.site = function (doServidor) {
     var cat = doServidor ? M.st.servidor : M.efetivo();
-    return App.siteSaneado(cat && cat.site);
+    /* O que o config/site.json diz sobre a home (`cat.padroes`, que o servidor entrega junto) fica POR BAIXO do que
+     * a mesa escolheu: a tela mostra a home que o site desenha. As escritas gravam só o que a mesa escolhe. */
+    return App.siteComPadroes(App.siteSaneado(cat && cat.site), cat && cat.padroes);
   };
 
   /* Uma escrita da estrutura é UMA mudança no rascunho, com o objeto inteiro —
@@ -242,7 +244,7 @@
    * trocaram poria as duas na frente de todas as outras — quem tem ordem
    * escolhida vem antes de quem não tem (App.prateleiras). */
   M.moverPrateleira = function (id, passo) {
-    var ids = App.prateleiras(M.efetivo().itens, M.site()).map(function (p) { return p.id; });
+    var ids = App.prateleiras(M.efetivo().itens, M.site(), M.CTX).map(function (p) { return p.id; });
     var i = ids.indexOf(id), j = i + passo;
     if (i < 0 || j < 0 || j >= ids.length) return;
     ids[i] = ids[j];

@@ -898,7 +898,7 @@
 
   function linhaPrateleira(cat, site, p, pos, total, pode) {
     var escolha = site.prateleiras[p.id] || {};
-    var padrao = App.prateleiras(cat.itens).find(function (x) { return x.id === p.id; });
+    var padrao = App.prateleiras(cat.itens, null, M.CTX).find(function (x) { return x.id === p.id; });
     return h('tr', { class: p.escondida ? 'escondida' : '' },
       h('td', { class: 'mono col-ordem', text: String(pos + 1) }),
       h('td', null,
@@ -919,8 +919,8 @@
   M.telaEstrutura = function (cat) {
     var site = M.site();
     var pode = M.pode('estrutura');
-    var todas = App.prateleiras(cat.itens, site);
-    var somem = App.titulosSoEmEscondidas(cat.itens, site);
+    var todas = App.prateleiras(cat.itens, site, M.CTX);
+    var somem = App.titulosSoEmEscondidas(cat.itens, site, M.CTX);
     var a = h('div', { class: 'a' },
       topo(tr('telas.estrutura'), tr('telas.aChegadaEOsTextos'),
         pode ? null : chip(tr('telas.soLeitura'), 'chip-alerta')));
@@ -993,6 +993,8 @@
     if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '—';
     if (v === true) return tr('comum.sim');
     if (v === false) return tr('comum.nao');
+    if (campo === 'blocos' && Array.isArray(v)) return tr('painel.blocosN', { n: v.length });
+    if (campo === 'colecoes' && Array.isArray(v)) return tr('painel.colecoesN', { n: v.length });
     if (Array.isArray(v)) return v.join(', ');
     if (campo === 'arrastoTeto') return Math.round(v * 100) + '%';
     if (campo === 'controlesEspera') return v + ' s';

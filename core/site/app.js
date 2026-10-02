@@ -17,6 +17,12 @@
      * SANEADA do servidor, e `{}` significa "ninguém escolheu nada" — aí vale
      * o padrão do `catalogo-core.js`, que é a chegada de sempre. */
     site: {},
+    /* Quem está olhando (M6): { logado, espectador, minhaLista } — o servidor diz, e a home usa para os
+     * blocos "só com conta" e para oferecer a Minha lista. */
+    quem: {},
+    /* Os ids da Minha lista da pessoa (D1), do guardado mais recente ao mais antigo; `null` = não há lista
+     * (sem conta, ou ainda não chegou). */
+    minhaLista: null,
     termo: '',
     /* O chip ligado no filtro da grade — '' quando nenhum. Refina a resposta
      * de UMA tela, e trocar de tela o desfaz. */
@@ -197,12 +203,14 @@
     if (typeof AppPlayer !== 'undefined') return Promise.resolve();
     if (carregandoPlayer) return carregandoPlayer;
     carregandoPlayer = new Promise(function (resolve) {
-      var faltam = 2;
+      var faltam = 3;
       var fim = function (ok) {
         if (!ok) { faltam = 0; carregandoPlayer = null; resolve(); return; }
         if (--faltam === 0) resolve();
       };
-      ['player-core.js', 'player.js'].forEach(function (src) {
+      ['guardiao.js', 'player-core.js', 'player.js'].forEach(function (src) {
+        /* O guardião pode já estar na página (o fundo do destaque o usa). */
+        if (src === 'guardiao.js' && typeof AppGuardiao !== 'undefined') { fim(true); return; }
         var tag = document.createElement('script');
         tag.src = src;
         tag.async = false;
@@ -212,6 +220,61 @@
       });
     });
     return carregandoPlayer;
+  }
+
+  /* O FUNDO EM MOVIMENTO DO DESTAQUE (`home.destaque.fundo`, M6). Com o padrão
+   * (`capa`) isto não baixa NADA: nem os dois arquivos abaixo. Com `previa-
+   * animada` ou `video-mudo`, eles só descem DEPOIS da capa do destaque (o
+   * LCP), e quem decide se algo começa é o guardião (guardiao.js), dentro do
+   * `montarFundoDoDestaque` (destaque-fundo.js). Devolve `{ destruir }` para
+   * o bloco do destaque chamar ao ser redesenhado, ou `null` se não há fundo
+   * a montar. Este arquivo não chama `play()`: quem chama é o destaque-fundo. */
+  var carregandoFundo = null;
+
+  function carregarFundo() {
+    if (typeof montarFundoDoDestaque === 'function') return Promise.resolve();
+    if (carregandoFundo) return carregandoFundo;
+    carregandoFundo = new Promise(function (resolve) {
+      var lista = ['guardiao.js', 'destaque-fundo.js'];
+      var fim = function (ok) {
+        if (!ok) { carregandoFundo = null; resolve(); return; }
+        if (!lista.length) { resolve(); return; }
+        proximo();
+      };
+      var proximo = function () {
+        var src = lista.shift();
+        if (src === 'guardiao.js' && typeof AppGuardiao !== 'undefined') { fim(true); return; }
+        var tag = document.createElement('script');
+        tag.src = src;
+        tag.async = false;
+        tag.addEventListener('load', function () { fim(true); });
+        tag.addEventListener('error', function () { fim(false); });
+        document.head.appendChild(tag);
+      };
+      proximo();
+    });
+    return carregandoFundo;
+  }
+
+  function ligarFundoDoDestaque(elDestaque, item) {
+    var destaque = estado.config && estado.config.home && estado.config.home.destaque;
+    var fundo = destaque && destaque.fundo;
+    if (!elDestaque || !item || !fundo || !fundo.tipo || fundo.tipo === 'capa') return null;
+    var vivo = {
+      montado: null, morto: false,
+      destruir: function () {
+        vivo.morto = true;
+        if (vivo.montado) { vivo.montado.destruir(); vivo.montado = null; }
+      }
+    };
+    depoisDaCapaPrincipal(function () {
+      carregarFundo().then(function () {
+        if (vivo.morto || typeof window.montarFundoDoDestaque !== 'function') return;
+        var comportamento = estado.config;
+        vivo.montado = window.montarFundoDoDestaque(elDestaque, item, comportamento);
+      });
+    });
+    return vivo;
   }
 
   /* O player a tempo para UMA ficha: o carregamento, ou o prazo — o que vier
@@ -372,6 +435,22 @@
    * defeito novo. */
   var pedidoDeTocar = '';
 
+  /* O PRÓXIMO EPISÓDIO (player.proximoEpisodio). Quem abre a ficha seguinte é o
+   * player, pelo gancho `abrirProximo`; este arquivo só a navega. Com o clique em
+   * "Assistir agora" (`automatico` falso) o pedido é o mesmo do "Assistir": um
+   * gesto, e o play é o `tocar()` do player. No avanço por contagem
+   * (`automatico` verdadeiro) NÃO há gesto: a ficha nova nasce pedindo ao
+   * guardião o início (`origemDoInicio`), e o guardião diz se pode — com
+   * `autoplay.modo: 'nunca'` nunca pode. O pedido vale UMA troca de tela, como
+   * o do "Assistir". */
+  var proximoAutomatico = '';
+  function abrirProximoEpisodio(alvo, opcoes) {
+    if (!alvo || !alvo.id) return;
+    if (opcoes && opcoes.automatico) proximoAutomatico = alvo.id;
+    else pedidoDeTocar = alvo.id;
+    window.location.hash = '#/ep/' + encodeURIComponent(alvo.id);
+  }
+
   function iconePlay() {
     var play = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     play.setAttribute('viewBox', '0 0 24 24');
@@ -394,6 +473,87 @@
     } catch (e) {
       return {};
     }
+  }
+
+  /* ----------------------------------------- a home por blocos (M6) */
+
+  /* 'seriado' (padrão) ou 'avulso': no avulso não há "T1 E3" nem a página Séries. */
+  function modeloAvulso() { return App.modeloDeConteudo(estado.site) === 'avulso'; }
+
+  function rotuloEp(item) { return modeloAvulso() ? '' : App.rotuloEpisodio(item); }
+
+  function aplicarModelo() {
+    if (el.linkSeries) el.linkSeries.hidden = modeloAvulso();
+  }
+
+  /* O que os blocos precisam saber de QUEM olha e do que o navegador guardou. Nada disto sai do aparelho:
+   * `ondeParou` é a memória local do player, e `minhaLista` vem do D1 só para quem tem conta. Dentro da mesa
+   * a pessoa que edita não é o público: ela vê todos os blocos (`ignorarVisibilidade`). */
+  function contextoDaHome() {
+    var q = estado.quem || {};
+    return {
+      logado: q.logado === true,
+      ondeParou: mesa.ligada ? null : lerOndeParou(),
+      minhaLista: estado.minhaLista,
+      ignorarVisibilidade: mesa.ligada
+    };
+  }
+
+  /* A MINHA LISTA. Quem decide se ela existe é o servidor (`quem.minhaLista`: o recurso ligado e o site com
+   * contas); quem tem conta de espectador a lê aqui. Falha de rede ou sessão que caiu: a lista some em silêncio,
+   * e o site é o de sempre. */
+  function minhaListaDisponivel() { return !mesa.ligada && estado.quem && estado.quem.minhaLista === true && estado.quem.espectador === true; }
+
+  function carregarMinhaLista() {
+    if (!minhaListaDisponivel() || estado.minhaLista) return;
+    fetch('/api/minha-lista', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !Array.isArray(d.ids)) return;
+        estado.minhaLista = d.ids;
+        /* Na chegada, a fileira entra agora; nas outras telas ela espera a próxima visita à chegada. */
+        if (estado.carregado && !estado.termo && !estado.serie && !estado.prateleira && !estado.serieRota &&
+            !estado.indiceSeries && !App.rotaDaFicha(window.location.hash || '')) renderGrade();
+      })
+      .catch(function () { /* sem lista: o resto do site segue */ });
+  }
+
+  function naMinhaLista(id) { return Array.isArray(estado.minhaLista) && estado.minhaLista.indexOf(id) >= 0; }
+
+  /* O botão "Minha lista" de um título: guarda ou tira. Otimista — o rótulo muda na hora e volta atrás, com
+   * aviso, se o servidor recusar. É um clique: nada aqui toca vídeo. */
+  function botaoMinhaLista(id) {
+    if (!minhaListaDisponivel() || !Array.isArray(estado.minhaLista)) return null;
+    var b = criar('button', 'botao botao-minha-lista');
+    b.type = 'button';
+    var pintar = function () {
+      var dentro = naMinhaLista(id);
+      b.textContent = dentro ? tr('home.naMinhaLista') : tr('home.guardarNaMinhaLista');
+      b.setAttribute('aria-pressed', dentro ? 'true' : 'false');
+    };
+    pintar();
+    b.addEventListener('click', function () {
+      var antes = estado.minhaLista.slice();
+      var guardar = !naMinhaLista(id);
+      estado.minhaLista = guardar ? [id].concat(antes.filter(function (x) { return x !== id; })) : antes.filter(function (x) { return x !== id; });
+      pintar();
+      var pedido = guardar
+        ? fetch('/api/minha-lista', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: id }) })
+        : fetch('/api/minha-lista?id=' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' });
+      pedido.then(function (r) {
+        if (r.ok) { anunciar(guardar ? tr('home.guardadoNaMinhaLista') : tr('home.tiradoDaMinhaLista')); return; }
+        return r.json().catch(function () { return {}; }).then(function (c) {
+          estado.minhaLista = antes;
+          pintar();
+          anunciar(c && c.codigo && I18n.tem('api.' + c.codigo) ? tr('api.' + c.codigo, c.params) : tr('home.minhaListaFalhou'));
+        });
+      }).catch(function () {
+        estado.minhaLista = antes;
+        pintar();
+        anunciar(tr('home.minhaListaFalhou'));
+      });
+    });
+    return b;
   }
 
   function ligarAssistir(link, id) {
@@ -525,12 +685,16 @@
     /* Os ajustes do player (o teto do arranco, hoje) viajam DENTRO do
      * config: é o objeto que já chega ao player e à capa, e criar um
      * segundo canal para um número seria um caminho a mais para manter.
+     * `comportamento` é `player.*` e `home.destaque.fundo`, já saneados pelo
+     * guardião no Worker (nada do ambiente: `config` não sai pela API).
      * Eles vêm do catálogo, não do ambiente — por isso são um campo à
      * parte na resposta da API. */
-    estado.config = Object.assign({}, dados.config || {},
+    estado.config = Object.assign({}, dados.comportamento || {},
       { ajustes: dados.ajustes || {} });
     estado.site = dados.site || {};
+    estado.quem = dados.quem && typeof dados.quem === 'object' ? dados.quem : {};
     estado.carregado = true;
+    aplicarModelo();
     pintarRodape();
   }
 
@@ -625,7 +789,7 @@
      * Digitar na busca SAI do "Ver tudo" e procura no catálogo inteiro — ver
      * `aoDigitar`. */
     if (estado.prateleira) {
-      var p = App.prateleiraPorId(estado.itens, estado.prateleira, estado.site);
+      var p = App.prateleiraPorId(estado.itens, estado.prateleira, estado.site, contextoDaHome());
       return p ? p.itens : [];
     }
     return App.publicaveis(estado.itens);
@@ -1223,7 +1387,7 @@
     var corpo = criar('div', 'card-corpo');
     corpo.appendChild(criar('h2', 'card-titulo', item.titulo || tr('comum.semTitulo')));
 
-    var meta = [item.serie, App.rotuloEpisodio(item), item.ano]
+    var meta = [item.serie, rotuloEp(item), item.ano]
       .filter(Boolean).join(' · ');
     if (meta) corpo.appendChild(criar('p', 'card-meta', meta));
 
@@ -1299,7 +1463,7 @@
     /* ---- o texto ---- */
     var texto = criar('div', 'destaque-texto');
 
-    var acima = [item.serie, App.rotuloEpisodio(item)].filter(Boolean).join(' · ');
+    var acima = [item.serie, rotuloEp(item)].filter(Boolean).join(' · ');
     if (acima) texto.appendChild(criar('p', 'destaque-serie', acima));
 
     var h1 = criar('h1', 'destaque-titulo', App.tituloCurto(item) || item.titulo || tr('comum.semTitulo'));
@@ -1784,11 +1948,105 @@
     return secao;
   }
 
-  /* A CHEGADA: prateleiras. A grade não morreu — ela é a resposta da busca, do
-   * "Ver tudo" e do filtro por série, que é o que ela faz bem. */
+  /* O destaque como BLOCO da home. O fundo em movimento (home.destaque.fundo) é montado por
+   * `ligarFundoDoDestaque`, que entrega `{ destruir }` — guardado aqui para a chegada redesenhada
+   * (ou a ficha que abre) soltar o vídeo de fundo antes de o nó sair da página. O ponto de extensão do
+   * fundo é `montarFundoDoDestaque(el, item, config)`, em destaque-fundo.js. */
+  var fundoDoDestaque = null;
+
+  function soltarFundoDoDestaque() {
+    if (fundoDoDestaque) { fundoDoDestaque.destruir(); fundoDoDestaque = null; }
+  }
+
+  function blocoDoDestaque(item) {
+    var caixa = destaqueHtml(item);
+    var botoes = caixa.querySelector('.destaque-botoes');
+    var guardar = botoes && botaoMinhaLista(item.id);
+    if (guardar) botoes.appendChild(guardar);
+    soltarFundoDoDestaque();
+    fundoDoDestaque = ligarFundoDoDestaque(caixa, item);
+    return caixa;
+  }
+
+  /* Bloco de texto e banner: texto por idioma, e (no banner) imagem e link. Tudo entra como TEXTO
+   * (textContent): o que o cliente escreve na home nunca vira marcação. */
+  function blocoDeTexto(entrada) {
+    var t = entrada.texto;
+    var secao = criar('section', 'bloco-texto bloco-texto-' + t.variante);
+    var rotulo = null;
+    if (t.titulo) {
+      rotulo = criar('h2', 'bloco-texto-titulo', t.titulo);
+      secao.appendChild(rotulo);
+    }
+    if (t.imagem) {
+      var img = criar('img', 'bloco-texto-imagem');
+      img.src = t.imagem;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.addEventListener('error', function () { if (img.parentNode) img.parentNode.removeChild(img); });
+      secao.appendChild(img);
+    }
+    String(t.texto).split(/\n\s*\n/).forEach(function (par) {
+      if (par.trim()) secao.appendChild(criar('p', 'bloco-texto-corpo', par.trim()));
+    });
+    if (t.link) {
+      var a = criar('a', 'botao bloco-texto-link', tr('home.saibaMais'));
+      a.href = t.link;
+      if (/^https:/.test(t.link)) a.rel = 'noopener noreferrer';   /* i18n-ignorar: valor do atributo rel, não é texto de tela */
+      secao.appendChild(a);
+    }
+    marcarMesa(secao, 'bloco:' + entrada.bloco.id);
+    return secao;
+  }
+
+  /* A busca em destaque: um campo grande no meio da home. Enviar leva o termo ao MESMO campo do cabeçalho e
+   * à mesma resposta — não há uma segunda busca. */
+  function blocoDeBusca(entrada) {
+    var secao = criar('section', 'bloco-busca');
+    secao.setAttribute('role', 'search');
+    var titulo = entrada.texto && entrada.texto.titulo;
+    var rotuloId = 'busca-bloco-' + entrada.bloco.id;
+    if (titulo) {
+      var cab = criar('h2', 'bloco-busca-titulo', titulo);
+      cab.id = rotuloId + '-titulo';
+      secao.appendChild(cab);
+      secao.setAttribute('aria-labelledby', cab.id);
+    } else {
+      secao.setAttribute('aria-label', tr('site.buscarNoCatalogo'));
+    }
+    var form = criar('form', 'bloco-busca-form');
+    var campo = criar('input', 'bloco-busca-campo');
+    campo.type = 'search';
+    campo.id = rotuloId;
+    campo.setAttribute('aria-label', tr('site.buscarNoCatalogo'));
+    campo.placeholder = tr('site.buscaPlaceholder');
+    campo.autocomplete = 'off';
+    var enviar = criar('button', 'botao botao-primario', tr('home.buscar'));
+    enviar.type = 'submit';
+    form.appendChild(campo);
+    form.appendChild(enviar);
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var termo = campo.value.trim();
+      if (!termo) { campo.focus(); return; }
+      el.busca.value = termo;
+      aoDigitar();
+    });
+    secao.appendChild(form);
+    marcarMesa(secao, 'bloco:' + entrada.bloco.id);
+    return secao;
+  }
+
+  /* A CHEGADA: os blocos da home, na ordem da lista (home-blocos.js). Com a config padrão é a de sempre —
+   * o destaque e as prateleiras. A grade não morreu — ela é a resposta da busca, do "Ver tudo" e do filtro
+   * por série, que é o que ela faz bem. */
   function renderChegada() {
-    var ps = App.prateleirasVisiveis(estado.itens, estado.site);
-    if (!ps.length) {
+    var h = App.home(estado.itens, estado.site, contextoDaHome());
+    var temFileira = h.sequencia.some(function (e) { return e.tipo === 'prateleira' && !e.prateleira.escondida; });
+    var emDestaque = App.destaque(estado.itens, estado.site);
+    var temDestaque = h.sequencia.some(function (e) { return e.tipo === 'destaque'; }) && !!emDestaque;
+    if (!temFileira && !temDestaque && !h.sequencia.some(function (e) { return e.tipo === 'texto' || e.tipo === 'banner' || e.tipo === 'busca'; })) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
         titulo: tr('site.nadaAindaTitulo'),
@@ -1796,11 +2054,19 @@
       }));
       return;
     }
-    var emDestaque = App.destaque(estado.itens, estado.site);
-    if (emDestaque) el.grade.appendChild(destaqueHtml(emDestaque));
 
     seqPrateleira = 0;
-    ps.forEach(function (p) { el.grade.appendChild(prateleira(p)); });
+    h.sequencia.forEach(function (e) {
+      if (e.tipo === 'destaque') {
+        if (emDestaque) el.grade.appendChild(blocoDoDestaque(emDestaque));
+      } else if (e.tipo === 'prateleira') {
+        if (e.prateleira && !e.prateleira.escondida) el.grade.appendChild(prateleira(e.prateleira));
+      } else if (e.tipo === 'busca') {
+        el.grade.appendChild(blocoDeBusca(e));
+      } else if (e.tipo === 'texto' || e.tipo === 'banner') {
+        el.grade.appendChild(blocoDeTexto(e));
+      }
+    });
 
     /* AQUI, e não dentro de `prateleira()`: só depois de entrar na página a
      * pista tem largura, e é a largura que diz se a linha tem para onde rolar.
@@ -2243,6 +2509,7 @@
 
   function renderGrade() {
     soltarCapas();
+    soltarFundoDoDestaque();
     fecharPop();
     limpar(el.grade);
     limpar(el.avisos);
@@ -2303,7 +2570,7 @@
     /* De onde a resposta veio, dito em uma linha. O "Ver tudo" abre uma grade
      * que não tem termo digitado nem chip aceso: sem este título ela pareceria
      * o catálogo inteiro. */
-    var prat = estado.prateleira ? App.prateleiraPorId(estado.itens, estado.prateleira, estado.site) : null;
+    var prat = estado.prateleira ? App.prateleiraPorId(estado.itens, estado.prateleira, estado.site, contextoDaHome()) : null;
     if (estado.prateleira && !prat) {
       el.grade.appendChild(estadoVazio({
         icone: 'lista',
@@ -2564,7 +2831,7 @@
    * cima do título, em amarelo, e a duração, o ano e os capítulos embaixo
    * dele. Até a D6 era uma linha só, embaixo do título, com as cinco coisas. */
   function serieDaFicha(item) {
-    return [item.serie, App.rotuloEpisodio(item)].filter(Boolean).join(' · ');
+    return [item.serie, rotuloEp(item)].filter(Boolean).join(' · ');
   }
 
   function metaDaFicha(item) {
@@ -2631,12 +2898,23 @@
    * `momento` é o `?t=` do endereço: o segundo em que o
    * vídeo abre. O clique num trecho traz os dois — o momento na URL e o
    * pedido de tocar fora dela —, e o link colado traz só o momento. */
+  /* De onde vem o início sem gesto desta ficha (só 'proximo-episodio'), lido
+   * por `renderFicha` logo ao criar o player. Zerado a cada ficha. */
+  var origemDoInicioDaFicha = '';
+  function consumirOrigemDoInicio() {
+    var o = origemDoInicioDaFicha;
+    origemDoInicioDaFicha = '';
+    return o;
+  }
+
   function renderFicha(id, tocar, momento, jaEsperou) {
     /* Trocar de episódio — pela lista da série embaixo do vídeo, ou pelo
      * Shift+N — vem de uma ficha direto para outra, sem passar pela grade: sem
      * isto, o hls.js do título anterior continuaria puxando segmentos enquanto
      * o novo começa. */
     destruirPlayer();
+    /* A chegada fica escondida (não apagada) atrás da ficha: o vídeo de fundo do destaque, se havia, sai agora. */
+    soltarFundoDoDestaque();
     limpar(el.ficha);
     limpar(el.avisos);
     el.grade.hidden = true;
@@ -2714,6 +2992,8 @@
     if (midia && playerNovoLigado()) {
       playerAtivo = AppPlayer.criar(item, estado.config, {
         anterior: viz.anterior, proximo: viz.proximo,
+        abrirProximo: abrirProximoEpisodio,
+        origemDoInicio: consumirOrigemDoInicio(),
         /* O deslize ↓ da fase 7, em tela cheia deitada: o player pede para ser
          * fechado, e quem sabe fazer isso é daqui.
          *
@@ -2790,6 +3070,9 @@
         if (continuar.parentNode) continuar.parentNode.removeChild(continuar);
       }, { once: true });
     }
+
+    var guardarNaLista = botaoMinhaLista(item.id);
+    if (guardarNaLista) lado.appendChild(guardarNaLista);
 
     if (item.pendencia) {
       lado.appendChild(campoDaFicha(aviso(App.rotuloPendencia(item.pendencia)), item, 'pendencia'));
@@ -2909,6 +3192,9 @@
      * em todas, tocando ou não (ver `ligarAssistir`). */
     var pedido = pedidoDeTocar;
     pedidoDeTocar = '';
+    var pedidoAutomatico = proximoAutomatico;
+    proximoAutomatico = '';
+    origemDoInicioDaFicha = '';
 
     /* `#/ep/<id>`, e `#/ep/<id>?t=<segundos>` desde a fase 2 da busca — o
      * link de um trecho. Quem separa o momento do id é o core
@@ -2918,6 +3204,7 @@
       /* A busca fica guardada — o botão de voltar do navegador devolve a
        * resposta —, mas o campo recolhe: a ficha é do vídeo. */
       marcarBusca(false);
+      origemDoInicioDaFicha = pedidoAutomatico === ficha.id ? 'proximo-episodio' : '';
       renderFicha(ficha.id, pedido === ficha.id, ficha.t);
       return;
     }
@@ -3047,6 +3334,33 @@
     });
   }
 
+  /* O SERVICE WORKER é OPCIONAL e mínimo (`recursos.pwaCacheDoShell`, desligado por padrão): guarda só a casca do
+   * site para abrir com a rede ruim, e nunca toca em API, conta, mesa ou vídeo (ver o sw.js, gerado por
+   * aplicar-config). Ligado: registra depois do `load`, para não disputar banda com a capa do destaque.
+   * Desligado: se algum dia ele foi instalado, o sw.js "de desligar" apaga os caches e se desinstala — aqui só se
+   * pede a ele que olhe o arquivo de novo. Na mesa nunca se registra nada. */
+  function cuidarDoServiceWorker() {
+    if (mesa.ligada || !('serviceWorker' in navigator) || !window.isSecureContext) return;
+    var ligado = !!(CONFIG_PUBLICA && CONFIG_PUBLICA.recursos && CONFIG_PUBLICA.recursos.pwaCacheDoShell === true);
+    var agir = function () {
+      if (ligado) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { /* o site segue sem ele */ });
+      } else {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) {
+            var a = r.active || r.waiting || r.installing;
+            /* Só o NOSSO: o sw.js da raiz. Outro app no mesmo domínio tem o dele, e não é daqui mexer. */
+            var nosso = false;
+            try { nosso = !!a && new URL(a.scriptURL).pathname === '/sw.js'; } catch (e) { nosso = false; }
+            if (nosso) r.update().catch(function () { /* ignora */ });
+          });
+        }).catch(function () { /* ignora */ });
+      }
+    };
+    if (document.readyState === 'complete') agir();
+    else window.addEventListener('load', agir, { once: true });
+  }
+
   function iniciar() {
     /* O catálogo e o idioma descem JUNTOS; a primeira tela só é desenhada quando
      * os dois chegaram (um texto sem catálogo de idioma sairia como chave). */
@@ -3101,6 +3415,8 @@
     Promise.all([idiomaPronto, carregar(idiomaPronto)]).then(function () {
       rotear();
       abrirChegada();
+      carregarMinhaLista();
+      cuidarDoServiceWorker();
       if (!comecaNaFicha) depoisDaCapaPrincipal(carregarPlayer);
     }).catch(function (erro) {
       /* O texto da falha precisa do idioma já carregado (ele nunca rejeita). */

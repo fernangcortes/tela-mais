@@ -15,8 +15,8 @@
   if (typeof window.APP_PREFIXO === 'string' && /^[A-Za-z0-9_-]{1,12}$/.test(window.APP_PREFIXO)) PREFIXO = window.APP_PREFIXO;
 
   var SCRIPTS = [
-    'vendor/tus.min.js', 'catalogo-core.js', 'indice-core.js',
-    'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-acesso.js', 'mesa.js'
+    'vendor/tus.min.js', 'home-blocos.js', 'catalogo-core.js', 'indice-core.js',
+    'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa.js'
   ];
 
   /* Em ordem: cada <script> só entra quando o anterior terminou (async = false não

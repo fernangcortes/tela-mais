@@ -5,13 +5,18 @@
  * quebrar num navegador que ninguém testou.
  *
  * REGRAS DE PRODUTO — as mesmas três de sempre, agora responsabilidade nossa:
- *   1. nada toca sozinho   -> `autoplay` nunca; `.play()` só dentro de um
- *                             manipulador de clique/tecla. Há teste varrendo
+ *   1. nada toca sozinho   -> o <video> nunca leva o atributo `autoplay`; `.play()`
+ *                             só em DUAS funções: `tocarPorGesto` (clique, tecla,
+ *                             toque) e `tocarAutomatico`, que começa perguntando
+ *                             ao guardião (`podeIniciarSozinho`, guardiao.js).
+ *                             Com a config padrão (`player.autoplay.modo:
+ *                             'nunca'`) o guardião nunca deixa. Há teste varrendo
  *                             este arquivo atrás de chamadas fora disso.
  *   2. nada repete         -> `loop` nunca.
- *   3. nada avança sozinho -> o listener de `ended` existe, mas SÓ mexe no
- *                             ícone do botão. Ele não navega, não chama play,
- *                             não carrega outro título. Há teste.
+ *   3. nada avança sozinho -> não há listener do fim do vídeo. O próximo episódio
+ *                             (`player.proximoEpisodio`) só aparece como cartão,
+ *                             e só avança sozinho com `modo: 'automatico'` E
+ *                             `autoplay.modo` diferente de 'nunca'. Há teste.
  *
  * Quem decide qualquer coisa é player-core.js. Aqui só se aplica.
  */
@@ -34,6 +39,75 @@
   /* A curva do moldador, feita na primeira vez que alguém usa reforço e
    * reusada daí em diante: são 2048 casas que não mudam nunca. */
   var curvaDoMoldador = null;
+
+  /* ------------------------------------------- a pessoa já interagiu?
+   *
+   * O guardião só deixa o som sair (modo `com-som-apos-interacao`, próximo
+   * episódio) depois de um gesto REAL nesta página. Ele é anotado aqui, uma
+   * vez por carga, por quem chega primeiro: o clique no cartão, a tecla, o
+   * toque. Evento sintético (`isTrusted` falso) não conta. */
+  var jaInteragiu = false;
+  (function observarInteracao() {
+    var doc = raiz.document;
+    if (!doc || !doc.addEventListener) return;
+    var nomes = ['pointerdown', 'keydown', 'touchend', 'click'];
+    function marcar(ev) {
+      if (ev && ev.isTrusted === false) return;
+      jaInteragiu = true;
+      nomes.forEach(function (n) { doc.removeEventListener(n, marcar, true); });
+    }
+    nomes.forEach(function (n) { doc.addEventListener(n, marcar, { capture: true, passive: true }); });
+  })();
+
+  function perguntaDeMidia(consulta, padrao) {
+    try {
+      return !!(raiz.matchMedia && raiz.matchMedia(consulta).matches);
+    } catch (e) { return padrao; }
+  }
+
+  /* Sem `matchMedia` o navegador é velho: nas perguntas de "movimento" e de
+   * "tela pequena" a dúvida fecha (devolve true). */
+  function movimentoReduzido() {
+    if (!raiz.matchMedia) return true;
+    return perguntaDeMidia('(prefers-reduced-motion: reduce)', true);
+  }
+
+  function telaPequena() {
+    if (!raiz.matchMedia) return true;
+    return perguntaDeMidia('(max-width: 768px), (pointer: coarse)', true);
+  }
+
+  /* `saveData` não existe no Safari nem no Firefox: sem a API, vale o que os
+   * outros portões decidirem. */
+  function economiaDeDados() {
+    try {
+      var c = raiz.navigator && (raiz.navigator.connection || raiz.navigator.mozConnection);
+      if (!c) return false;
+      return c.saveData === true || /(^|-)2g$/.test(String(c.effectiveType || ''));
+    } catch (e) { return false; }
+  }
+
+  /* A prévia do /admin é a página de verdade dentro de um quadro: ali nada
+   * começa sozinho, nem com a config mais aberta. */
+  function naMesa() {
+    try {
+      return raiz.parent !== raiz && /[?&]mesa=1(&|$)/.test(raiz.location.search);
+    } catch (e) { return true; }
+  }
+
+  function contextoDeInicio(origem) {
+    var doc = raiz.document;
+    var ativacao = false;
+    try { ativacao = !!(raiz.navigator && raiz.navigator.userActivation && raiz.navigator.userActivation.hasBeenActive); } catch (e) { /* sem a API */ }
+    return {
+      origem: origem,
+      jaInteragiu: jaInteragiu || ativacao,
+      visivel: !!doc && doc.visibilityState !== 'hidden' && !naMesa(),
+      telaPequena: telaPequena(),
+      economiaDeDados: economiaDeDados(),
+      movimentoReduzido: movimentoReduzido()
+    };
+  }
 
   /* ------------------------------------------------ preferência da legenda
    *
@@ -104,10 +178,13 @@
   }
 
   /* A TERCEIRA COISA GUARDADA, desde a fase 6 (23/09):
-   * onde o vídeo parou, para o "Continuar" da página da série. A regra que
-   * fica é a de sempre — NADA RETOMA SOZINHO —, e ela está escrita como
-   * ausência: este arquivo GRAVA a chave e nunca a LÊ. Quem lê é a página da
-   * série, e o que ela oferece é um link que a pessoa clica.
+   * onde o vídeo parou, para o "Continuar" da página da série. A regra de
+   * sempre — NADA RETOMA SOZINHO — é o padrão (`player.retomar.modo: 'nunca'`):
+   * com ele este arquivo só GRAVA a chave, e quem lê é a página da série, que
+   * oferece um link que a pessoa clica. Com `perguntar` o player mostra um
+   * cartão com a pergunta; com `automatico` ele posiciona o vídeo no ponto —
+   * e nos dois a LEITURA só acontece quando o cliente escolheu isso, e o play
+   * continua sendo da pessoa (`tocarPorGesto`).
    *
    * O mapa é montado pelo core (`App.lembrarOndeParou`): o começo e o fim do
    * vídeo não ficam, e só os 50 mais recentes. */
@@ -117,6 +194,15 @@
       var mapa = App.lembrarOndeParou(cru ? JSON.parse(cru) : {}, id, t, duracao, Date.now());
       raiz.localStorage.setItem(App.CHAVE_ONDE_PAROU, JSON.stringify(mapa));
     } catch (e) { /* sem armazenamento: o "Continuar" não aparece, e é só isso */ }
+  }
+
+  function lerOndeParou(id) {
+    try {
+      var cru = raiz.localStorage.getItem(App.CHAVE_ONDE_PAROU);
+      return App.ondeParouDe(cru ? JSON.parse(cru) : {}, id);
+    } catch (e) {
+      return null;
+    }
   }
 
   /* --------------------------------------------------------------- auxílio */
@@ -228,6 +314,10 @@
      * outro lugar que monte um player fora da ficha. */
     var g = ganchos || {};
 
+    /* A config `player.*`, já saneada. Sem nada, é o comportamento de sempre:
+     * nada toca, nada avança, nada retoma. */
+    var cfg = AppPlayerCore.configDoPlayer(config);
+
     /* Os capítulos do item, saneados pelo MESMO `App.capitulos` que a lista
      * clicável da ficha usa. Tem que ser a mesma leitura nos dois lugares,
      * senão o segmento desenhado na barra e a linha destacada da lista
@@ -272,6 +362,14 @@
      * explica por que o pedido espera a fonte. */
     var temFonte = false;
     var tocarQuandoLigar = false;
+    /* Origem de um início sem gesto que o guardião já autorizou e que espera
+     * a fonte ('' = nenhum). */
+    var inicioAutomaticoPendente = '';
+    var carregouFonte = false;
+    var usandoMp4 = false;
+    /* Quem mexeu no tempo antes do primeiro play (`?t=`, capítulo) manda mais
+     * do que o "onde parou". */
+    var pediuMomento = false;
 
     /* ---------------------------------------------------------- controles */
 
@@ -513,6 +611,172 @@
     recado.hidden = true;
     caixa.appendChild(recado);
 
+    /* A FALHA AO CARREGAR. Antes não havia nada: se o hls.js e o MP4 falhavam,
+     * o quadro ficava preto, parado, sem dizer por quê. Agora há uma mensagem
+     * (traduzida, sem jargão) e um botão para tentar de novo. */
+    var painelErro = criar('div', 'pl-erro');
+    painelErro.setAttribute('role', 'alert');
+    painelErro.hidden = true;
+    var textoErro = criar('p', 'pl-erro-texto', tr('player.erroAoCarregar'));
+    var bRecarregar = botao('pl-erro-botao', tr('player.tentarDeNovo'));
+    bRecarregar.textContent = tr('player.tentarDeNovo');
+    painelErro.appendChild(textoErro);
+    painelErro.appendChild(bRecarregar);
+    caixa.appendChild(painelErro);
+
+    /* Marca d'água de texto (opcional, `player.marcaDagua`): só desenho, não
+     * recebe toque nem foco. */
+    if (cfg.marcaDagua.ligada) {
+      var marca = criar('div', 'pl-marca', cfg.marcaDagua.texto);
+      marca.setAttribute('aria-hidden', 'true');
+      caixa.appendChild(marca);
+    }
+
+    /* Download (`player.download.ligado`): só existe se o provedor entregou um
+     * MP4 — o HLS puro não se baixa. É um link comum: o clique é da pessoa. */
+    var urlBaixar = cfg.download.ligado ? AppPlayerCore.urlMp4(midia, '720p') : null;
+    if (urlBaixar) {
+      var linkBaixar = criar('a', 'pl-baixar', tr('player.baixar'));
+      linkBaixar.href = urlBaixar;
+      linkBaixar.setAttribute('download', '');
+      linkBaixar.rel = 'noopener';
+      caixa.appendChild(linkBaixar);
+    }
+
+    /* Os cartões: o de "Continuar de onde parou?" e o do próximo episódio. O
+     * mesmo molde, e cada um só nasce se a config escolheu. */
+    function montarCartao(classe, rotuloDoGrupo) {
+      var no = criar('div', 'pl-cartao ' + classe);
+      no.setAttribute('role', 'group');
+      no.setAttribute('aria-label', rotuloDoGrupo);
+      no.hidden = true;
+      var texto = criar('p', 'pl-cartao-texto');
+      var linha = criar('div', 'pl-cartao-botoes');
+      no.appendChild(texto);
+      no.appendChild(linha);
+      caixa.appendChild(no);
+      return {
+        no: no, texto: texto, linha: linha,
+        get hidden() { return no.hidden; },
+        mostrar: function (sim) { no.hidden = !sim; },
+        focarPrimeiro: function () {
+          var b = linha.querySelector('button');
+          if (b) b.focus();
+        }
+      };
+    }
+
+    /* ---- retomar (player.retomar.modo) ---- */
+    var cartaoDeRetomada = null;
+
+    function pontoSalvo() {
+      if (cfg.retomar.modo === 'nunca') return null;
+      var ponto = lerOndeParou(item.id);
+      return AppPlayerCore.pontoParaRetomar(ponto, config, momentoAntesDoPlay > 0 || pediuMomento);
+    }
+
+    /* `automatico`: no primeiro play, vai ao ponto antes. */
+    function retomarNoPrimeiroPlay() {
+      if (cfg.retomar.modo !== 'automatico' || jaTocou) return;
+      var t = pontoSalvo();
+      if (t != null && (video.currentTime || 0) < 1) irPara(t);
+    }
+
+    /* `perguntar`: o cartão. Escolher "Continuar" é um gesto, e toca por ele. */
+    function oferecerRetomada() {
+      if (destruido || jaTocou || cfg.retomar.modo !== 'perguntar') return;
+      var t = pontoSalvo();
+      if (t == null) return;
+      cartaoDeRetomada = montarCartao('pl-cartao-retomar', tr('player.retomarGrupo'));
+      cartaoDeRetomada.texto.textContent = tr('player.retomarPergunta', { tempo: App.formatarTempo(t) });
+      var sim = botao('pl-cartao-b pl-cartao-primario', tr('player.retomarSim'));
+      sim.textContent = tr('player.retomarSim');
+      var nao = botao('pl-cartao-b', tr('player.retomarNao'));
+      nao.textContent = tr('player.retomarNao');
+      sim.addEventListener('click', function () {
+        cartaoDeRetomada.mostrar(false);
+        irPara(t);
+        tocarPorGesto();
+      });
+      nao.addEventListener('click', function () {
+        cartaoDeRetomada.mostrar(false);
+        tocarPorGesto();
+      });
+      cartaoDeRetomada.linha.appendChild(sim);
+      cartaoDeRetomada.linha.appendChild(nao);
+      cartaoDeRetomada.mostrar(true);
+    }
+
+    /* ---- próximo episódio (player.proximoEpisodio) ---- */
+    var cartaoDoProximo = null;
+    var proximoDispensado = false;
+    var proximoDisparado = false;
+
+    function abrirProximo(automatico) {
+      if (!g.proximo) return;
+      if (typeof g.abrirProximo === 'function') {
+        g.abrirProximo(g.proximo, { automatico: !!automatico });
+      } else {
+        raiz.location.hash = '#/ep/' + encodeURIComponent(g.proximo.id);
+      }
+    }
+
+    function montarCartaoDoProximo() {
+      cartaoDoProximo = montarCartao('pl-cartao-proximo', tr('player.proximoGrupo'));
+      var agora = botao('pl-cartao-b pl-cartao-primario', tr('player.assistirAgora'));
+      agora.textContent = tr('player.assistirAgora');
+      var cancelar = botao('pl-cartao-b', tr('player.cancelar'));
+      cancelar.textContent = tr('player.cancelar');
+      /* "Assistir agora" é um clique: abre a ficha seguinte COM o pedido de
+       * tocar, o mesmo do "Assistir" do destaque. */
+      agora.addEventListener('click', function () {
+        proximoDisparado = true;
+        abrirProximo(false);
+      });
+      cancelar.addEventListener('click', function () {
+        proximoDispensado = true;
+        cartaoDoProximo.mostrar(false);
+      });
+      cartaoDoProximo.linha.appendChild(agora);
+      cartaoDoProximo.linha.appendChild(cancelar);
+      cartaoDoProximo.titulo = criar('strong', 'pl-cartao-titulo', '');
+      cartaoDoProximo.contagem = criar('span', 'pl-cartao-contagem', '');
+      cartaoDoProximo.no.insertBefore(cartaoDoProximo.titulo, cartaoDoProximo.texto);
+      cartaoDoProximo.texto.appendChild(cartaoDoProximo.contagem);
+    }
+
+    /* Chamado a cada `timeupdate`. Sem próximo, ou com `modo: 'nunca'`, não
+     * faz nada — e é o que acontece com a config padrão. */
+    function atualizarProximo() {
+      if (!g.proximo || proximoDispensado || proximoDisparado || destruido) return;
+      var t = video.currentTime || 0;
+      var d = duracao();
+      var visivel = AppPlayerCore.cartaoDoProximoVisivel(t, d, config, true);
+      if (!visivel) {
+        if (cartaoDoProximo && !cartaoDoProximo.hidden) cartaoDoProximo.mostrar(false);
+        return;
+      }
+      if (!cartaoDoProximo) montarCartaoDoProximo();
+      if (cartaoDoProximo.hidden) {
+        cartaoDoProximo.titulo.textContent = tr('player.proximoTitulo', { titulo: g.proximo.titulo || '' });
+        cartaoDoProximo.mostrar(true);
+      }
+      var falta = AppPlayerCore.contagemDoProximo(t, d, config);
+      cartaoDoProximo.contagem.textContent = falta == null ? '' : tr('player.proximoEm', { n: falta });
+      if (falta === 0 || (video.ended && falta != null)) {
+        proximoDisparado = true;
+        /* O guardião tem a última palavra: com a aba escondida, por exemplo,
+         * a contagem não avança — vira pergunta. */
+        if (AppPlayerCore.podeIniciarSozinho(contextoDeInicio('proximo-episodio'), config)) {
+          abrirProximo(true);
+        } else {
+          proximoDisparado = false;
+          proximoDispensado = true;
+          cartaoDoProximo.contagem.textContent = '';
+        }
+      }
+    }
+
     function avisar(texto) {
       recado.textContent = texto;
       recado.hidden = !texto;
@@ -692,36 +956,65 @@
 
     /* --------------------------------------------------------- reprodução */
 
-    /* O ÚNICO lugar do projeto que chama video.play(). Sempre a partir de um
-     * gesto de quem está assistindo — clique aqui, tecla na fase 1, toque na
-     * fase 5. Nada mais pode chamar isto. */
+    /* O PLAY DE QUEM ESTÁ ASSISTINDO. Um dos DOIS lugares do projeto que chamam
+     * play() (o outro é `tocarAutomatico`, logo abaixo, e ele pergunta ao
+     * guardião antes). Este só roda a partir de um gesto: clique no botão,
+     * tecla, toque, o "Assistir" do destaque, um botão do cartão. */
+    function tocarPorGesto() {
+      /* A pessoa pediu: conta como interação, e o som pode sair. */
+      jaInteragiu = true;
+      /* `preload: none` e `autoStartLoad: false` seguraram a rede até agora.
+       * O primeiro play é quem libera — é a tradução fiel do `preload=false`
+       * que o embed do Bunny recebia. */
+      liberarDownload();
+      /* Retomar `automatico`: o ponto da última vez vale ANTES do primeiro
+       * play, e só nele. */
+      retomarNoPrimeiroPlay();
+      /* O gesto que o AudioContext exige. Fica ANTES do `play()` para que
+       * o grafo esteja montado quando o primeiro quadro tocar — montado
+       * depois, o começo do vídeo sairia com o volume errado. */
+      somDaPreferencia();
+      var p = video.play();
+      /* Navegador pode recusar o play (política de mídia, aba em segundo
+       * plano). Recusa não pode virar exceção não tratada no console. */
+      if (p && p.catch) p.catch(function () { sincronizarPlay(); });
+    }
+
+    /* O OUTRO play: o que começa SEM gesto, e por isso a PRIMEIRA coisa que ele
+     * faz é perguntar ao guardião (guardiao.js). Com `player.autoplay.modo:
+     * 'nunca'` — o padrão — a resposta é sempre não, para qualquer origem.
+     * Quando o guardião deixa, o início sai MUDO, a não ser que o modo seja
+     * `com-som-apos-interacao` e a pessoa já tenha interagido com a página.
+     * `origem`: 'autoplay' (abrir a ficha) ou 'proximo-episodio'. */
+    function tocarAutomatico(origem) {
+      var contexto = contextoDeInicio(origem);
+      if (!AppPlayerCore.podeIniciarSozinho(contexto, config)) return false;
+      if (destruido || !video.paused) return false;
+      var decisao = AppPlayerCore.decisaoDeInicio(contexto, config);
+      /* Sem gesto não há grafo de áudio (o contexto nasceria suspenso): o
+       * volume do elemento basta, e o reforço espera o primeiro gesto. */
+      liberarDownload();
+      if (decisao.mudo) definirMudo(true);
+      var p = video.play();
+      if (p && p.catch) p.catch(function () { sincronizarPlay(); });
+      return true;
+    }
+
+    /* O botão, a tecla e o toque. Pausar não é "começar": só o play passa pelo
+     * gesto de cima. */
     function alternarPlay() {
-      if (video.paused) {
-        /* `preload: none` e `autoStartLoad: false` seguraram a rede até agora.
-         * O primeiro play é quem libera — é a tradução fiel do `preload=false`
-         * que o embed do Bunny recebia. */
-        liberarDownload();
-        /* O gesto que o AudioContext exige. Fica ANTES do `play()` para que
-         * o grafo esteja montado quando o primeiro quadro tocar — montado
-         * depois, o começo do vídeo sairia com o volume errado. */
-        somDaPreferencia();
-        var p = video.play();
-        /* Navegador pode recusar o play (política de mídia, aba em segundo
-         * plano). Recusa não pode virar exceção não tratada no console. */
-        if (p && p.catch) p.catch(function () { sincronizarPlay(); });
-      } else {
-        video.pause();
-      }
+      if (video.paused) tocarPorGesto();
+      else video.pause();
     }
 
     /* A ENTRADA DO "ASSISTIR". O destaque da chegada abre
      * a ficha com o pedido de tocar, e o app.js chama isto logo depois de
      * `criar()` — a decisão D5, "o toque em Assistir é o pedido".
      *
-     * NÃO É UM SEGUNDO CAMINHO PARA O PLAY: é o MESMO `alternarPlay` do botão,
-     * da tecla e do toque, e só com o vídeo parado — pedir para tocar o que já
-     * toca não pode virar pausa. A REGRA 1 continua com uma chamada de
-     * `play()` no projeto, e o teste que as conta continua em 1.
+     * NÃO É UM TERCEIRO CAMINHO PARA O PLAY: é o MESMO `alternarPlay` do botão,
+     * da tecla e do toque (logo, `tocarPorGesto`), e só com o vídeo parado —
+     * pedir para tocar o que já toca não pode virar pausa. A REGRA 1 admite
+     * duas chamadas de `play()` no player, e este não é uma delas.
      *
      * O player não sabe de onde veio o pedido, e não precisa: quem garante que
      * só se chega aqui por um clique é o app.js, que não deixa o pedido
@@ -746,6 +1039,9 @@
      * play precisa ficar o mais perto possível do toque. */
     function tocar() {
       if (!video.paused) return;
+      /* `retomar: perguntar` com um ponto guardado: a pergunta vem antes, e
+       * o "Assistir" a deixa na tela em vez de responder por quem clicou. */
+      if (cartaoDeRetomada && !cartaoDeRetomada.hidden) { cartaoDeRetomada.focarPrimeiro(); return; }
       if (!temFonte) { tocarQuandoLigar = true; return; }
       alternarPlay();
     }
@@ -1095,7 +1391,10 @@
 
     function carregarLegenda() {
       if (legenda.cues) return Promise.resolve(legenda.cues);
-      var url = AppPlayerCore.urlLegenda(midia);
+      /* O idioma padrão do cliente (`player.legenda.idiomaPadrao`) vale quando
+       * o título tem essa faixa; sem ela, a primeira, como sempre. */
+      var idiomaDaLegenda = cfg.legenda.idiomaPadrao;
+      var url = (idiomaDaLegenda && AppPlayerCore.urlLegenda(midia, idiomaDaLegenda)) || AppPlayerCore.urlLegenda(midia);
       if (!url) return Promise.reject(new Error(tr('player.erroSemUrlLegenda')));
       return fetch(url).then(function (r) {
         /* 404 é caso REAL e esperado: o institucional não tem legenda nenhuma
@@ -1536,7 +1835,7 @@
 
 
     function ajustarVelocidade(passo) {
-      video.playbackRate = AppPlayerCore.proximaVelocidade(video.playbackRate, passo);
+      video.playbackRate = AppPlayerCore.proximaVelocidade(video.playbackRate, passo, cfg.velocidades);
       mostrarSelo(String(video.playbackRate).replace('.', ',') + '×');
     }
 
@@ -2456,7 +2755,7 @@
     var ANOTAR_A_CADA_MS = 15000;
     var jaTocou = false, ultimaAnotacao = 0;
     function anotarOndeParou(agoraMesmo) {
-      if (!jaTocou) return;
+      if (!jaTocou || !cfg.retomar.guardarPosicao) return;
       var agora = Date.now();
       if (!agoraMesmo && agora - ultimaAnotacao < ANOTAR_A_CADA_MS) return;
       ultimaAnotacao = agora;
@@ -2466,6 +2765,9 @@
     raiz.addEventListener('pagehide', aoSairDaPagina);
 
     video.addEventListener('timeupdate', function () { pintar(); avisarTempo(); });
+    /* O cartão do próximo episódio: com `proximoEpisodio.modo: 'nunca'` (o
+     * padrão) a função sai na primeira linha. */
+    video.addEventListener('timeupdate', atualizarProximo);
     video.addEventListener('timeupdate', function () { if (!video.paused) anotarOndeParou(false); });
     video.addEventListener('progress', pintarBuffer);
     video.addEventListener('loadedmetadata', function () {
@@ -2517,7 +2819,17 @@
      * tempo, o pedido já foi atendido, e atendê-lo de novo seria pausar. */
     function aoLigarFonte() {
       temFonte = true;
-      if (!tocarQuandoLigar || destruido) return;
+      carregouFonte = true;
+      if (destruido) return;
+      /* O início sem gesto também espera a fonte, pelo mesmo motivo do
+       * "Assistir": um play dado antes da fonte é cancelado pela carga. */
+      if (inicioAutomaticoPendente) {
+        var origem = inicioAutomaticoPendente;
+        inicioAutomaticoPendente = '';
+        tocarAutomatico(origem);
+        return;
+      }
+      if (!tocarQuandoLigar) return;
       tocarQuandoLigar = false;
       if (video.paused) alternarPlay();
     }
@@ -2525,13 +2837,60 @@
     /* Último recurso: MP4 progressivo. Sem qualidade adaptativa e pesado —
      * 360p para não afogar a rede. */
     function cairParaMp4(motivo) {
-      if (destruido || !urlMp4) { avisar(motivo); return; }
+      if (destruido) return;
+      limparEsperaDeRede();
+      if (!urlMp4) { falharAoCarregar(motivo); return; }
       if (hls) { hls.destroy(); hls = null; }
+      usandoMp4 = true;
       video.src = urlMp4;
       carregouAlgo = true;
       avisar('');
       aoLigarFonte();
     }
+
+    /* SEM MAIS PARA ONDE IR: mensagem amigável e um botão para tentar de novo.
+     * Não toca em nada (nem play) e não mexe no que a pessoa já escolheu. */
+    function falharAoCarregar() {
+      if (destruido) return;
+      limparEsperaDeRede();
+      if (hls) { hls.destroy(); hls = null; }
+      avisar('');
+      caixa.classList.remove('pl-esperando');
+      caixa.classList.add('pl-falhou');
+      painelErro.hidden = false;
+      inicioAutomaticoPendente = '';
+      tocarQuandoLigar = false;
+      try { video.pause(); } catch (e) { /* sem vídeo */ }
+    }
+
+    /* "Tentar de novo" é um clique. Refaz a fonte do zero; quem quiser tocar
+     * aperta o play, como em qualquer ficha. */
+    function tentarDeNovo() {
+      if (destruido) return;
+      painelErro.hidden = true;
+      caixa.classList.remove('pl-falhou');
+      if (hls) { hls.destroy(); hls = null; }
+      video.removeAttribute('src');
+      try { video.load(); } catch (e) { /* alguns navegadores reclamam */ }
+      carregouAlgo = false; temFonte = false; usandoMp4 = false; falhasDeRede = 0;
+      ligarFonte();
+    }
+    bRecarregar.addEventListener('click', tentarDeNovo);
+
+    var falhasDeRede = 0;
+    var manifestoOk = false;
+    var esperaDeRede = 0;
+    var ESPERA_REDE_MS = 20000;
+    function limparEsperaDeRede() {
+      if (esperaDeRede) { clearTimeout(esperaDeRede); esperaDeRede = 0; }
+    }
+    video.addEventListener('error', function () {
+      if (destruido || !video.error) return;
+      /* O arquivo/stream falhou por baixo do hls.js ou do MP4: tenta o MP4
+       * uma vez; se já era ele, ou não há, é falha. */
+      if (!usandoMp4 && urlMp4) { cairParaMp4(tr('player.problemaDeReproducao')); return; }
+      falharAoCarregar();
+    });
 
     /* HLS nativo, para quem não tem MSE — na prática o iPhone, onde o Safari
      * toca de verdade. Só é escolhido quando o hls.js está fora de questão. */
@@ -2559,9 +2918,27 @@
          * palavra final, e só o hls.js carregado sabe dá-la. */
         if (!Hls.isSupported()) { cairParaNativoOuMp4(); return; }
         hls = new Hls(AppPlayerCore.configHls());
+        manifestoOk = false;
+        hls.on(Hls.Events.MANIFEST_PARSED, function () { manifestoOk = true; });
+        hls.on(Hls.Events.FRAG_LOADED, function () { falhasDeRede = 0; manifestoOk = true; limparEsperaDeRede(); });
         hls.on(Hls.Events.ERROR, function (_e, dados) {
           if (!dados || !dados.fatal) return;      /* o hls.js recupera sozinho */
-          if (dados.type === Hls.ErrorTypes.NETWORK_ERROR) { hls.startLoad(); return; }
+          if (dados.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            /* `startLoad()` NÃO refaz o manifesto que falhou: sem manifesto (404,
+             * rede abortada) não há o que retomar, e é falha na hora — com
+             * mensagem. Com manifesto, rede que cai e volta se recupera; rede
+             * que não volta, não: três tentativas seguidas, ou o tempo limite
+             * sem nenhum segmento novo, e é falha. */
+            if (!manifestoOk || ++falhasDeRede > 3) { cairParaMp4(tr('player.problemaDeReproducao')); return; }
+            if (!esperaDeRede) {
+              esperaDeRede = setTimeout(function () {
+                esperaDeRede = 0;
+                if (!destruido && hls) cairParaMp4(tr('player.problemaDeReproducao'));
+              }, ESPERA_REDE_MS);
+            }
+            hls.startLoad();
+            return;
+          }
           if (dados.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
           cairParaMp4(tr('player.problemaDeReproducao'));
         });
@@ -2589,7 +2966,24 @@
       }).catch(cairParaNativoOuMp4);
     }
 
+    /* `ligarFonte` é chamado de novo por `tentarDeNovo`; a primeira chamada
+     * acontece logo abaixo. */
+
     ligarFonte();
+
+    /* Quem pediu ao player um início sem gesto (autoplay da config, ou o
+     * próximo episódio que a ficha anterior abriu): o guardião decide JÁ, para
+     * não deixar uma espera armada à toa, e `tocarAutomatico` decide de novo
+     * quando a fonte chega. Com a config padrão, nada disto faz nada. */
+    var origemDoInicio = g.origemDoInicio === 'proximo-episodio' ? 'proximo-episodio' : 'autoplay';
+    if (AppPlayerCore.podeIniciarSozinho(contextoDeInicio(origemDoInicio), config)) {
+      if (temFonte) tocarAutomatico(origemDoInicio);
+      else inicioAutomaticoPendente = origemDoInicio;
+    }
+
+    /* A pergunta de retomar espera um instante: o app.js pode pedir um momento
+     * (`?t=`) logo depois de criar o player, e esse pedido manda mais. */
+    var esperaRetomada = cfg.retomar.modo === 'perguntar' ? setTimeout(oferecerRetomada, 0) : 0;
 
     /* Antes do `pintar()`: sem os segmentos montados não há onde pintar o
      * primeiro quadro da barra. A duração vem do catálogo — é o que deixa os
@@ -2620,7 +3014,8 @@
 
     function destruir() {
       if (destruido) return;
-      destruido = true;
+      destruido = true; limparEsperaDeRede();
+      if (esperaRetomada) { clearTimeout(esperaRetomada); esperaRetomada = 0; }
       /* Sair da ficha é o último "onde parou" — e o ouvinte da janela sai
        * junto, como os outros daqui. */
       anotarOndeParou(true);
@@ -2698,7 +3093,10 @@
 
     return {
       no: caixa, video: video, destruir: destruir,
-      irPara: irPara, aoTempo: aoTempo, tocar: tocar
+      /* Quem chama de fora (o app.js, com o `?t=` do link ou um capítulo
+       * clicado) pediu um momento: ele manda mais do que o "onde parou". */
+      irPara: function (segundos) { pediuMomento = true; irPara(segundos); },
+      aoTempo: aoTempo, tocar: tocar
     };
   }
 

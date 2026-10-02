@@ -82,6 +82,33 @@ KV). O superadmin é a variável `ADMIN_PASSWORD`. Quem é a pessoa: `sessaoDaRe
 `data.sessao` no handler. Toda consulta do caminho quente usa índice (`tests/contas-d1.test.js`, `EXPLAIN QUERY PLAN`):
 não adicione consulta por requisição sem índice. Nada de segredo, IP ou e-mail em claro em chave de limite ou log.
 
+## Player e guardião
+
+Guia para o cliente: `docs/player.md`. `core/site/guardiao.js` é o guardião único (`podeIniciarSozinho`) e saneia `player.*` e
+`home.destaque.fundo`; `.play()` só existe em `tocarPorGesto` e `tocarAutomatico` (player.js, esta começa pelo guardião) e em
+`tocarFundo` (destaque-fundo.js, também atrás do guardião). Não crie outro caminho de play: `tests/player-guardiao.test.js` e
+`tests/player-fundo.test.js` quebram. O padrão (`autoplay.modo: nunca`, próximo e retomar `nunca`, fundo `capa`) é o comportamento de sempre.
+
+## Home por blocos, coleções e Minha lista
+
+Guia para o cliente: `docs/home-e-colecoes.md`. A chegada é uma lista de blocos (`core/site/home-blocos.js`, puro, sem DOM; recebe as
+primitivas do `catalogo-core.js`, que é quem chama `App.home(itens, site, contexto)`; `App.prateleiras` é só as fileiras dela). Vale
+`site.blocos` (editado na tela Home da mesa, pelo rascunho e pelo PUT do catálogo: permissão `estrutura`, histórico e 409) > `home.blocos` do
+config > o padrão do código, que desenha a chegada de sempre (`tests/home-blocos.test.js` carrega o algoritmo antigo e exige o mesmo
+resultado). Tipo de bloco novo: registre em `TIPOS` e `PARAMETROS`, no enum do schema (`tests/home-config.test.js` cobra os dois lados), em
+`mesa-home.js` e nos três locales. Coleções livres (`catalogo.colecoes` ou `site.colecoes`) substituíram as listas `SERIES_*`. O servidor põe o
+config por baixo do `site` no GET (`App.siteComPadroes`) e entrega `padroes` à parte para a mesa; `padroes` e `quem` nunca são gravados. Minha lista:
+`/api/minha-lista` (D1, só espectador, teto de 200, sempre a de quem pede). `app.js` declara tudo com `function`: nome repetido substitui o
+anterior em silêncio (`tests/home-site.test.js` confere). O service worker (`sw.js`, gerado) é opcional e desligado por padrão; nunca guarda API,
+conta, mesa nem mídia.
+
+## Integração do destaque e documentação
+
+O bloco `destaque` é desenhado por `blocoDoDestaque` (app.js), que chama `ligarFundoDoDestaque`; só ele monta o fundo
+(`montarFundoDoDestaque`, carregado sob demanda: `guardiao.js` e `destaque-fundo.js` não entram no `index.html`) e
+guarda o `{ destruir }`. Não monte o fundo dentro de `destaqueHtml`. Guia do cliente: `docs/personalizar.md`; mantenha-o
+em dia com `docs/home-e-colecoes.md` e `docs/player.md` quando mudar opção de config.
+
 ## Tema, cores e fontes
 
 Cor **não se escreve** em `core/site/*.css` nem em JS: use `var(--token)`. Só `theme.css` (gerado) e `tokens-fixos.css`

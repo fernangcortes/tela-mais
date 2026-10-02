@@ -30,7 +30,7 @@ test('criação preguiçosa: o primeiro acesso cria as tabelas e os índices, o 
   assert.deepEqual(env.DB.consultar("SELECT name FROM sqlite_master WHERE type = 'table'"), [], 'o banco nasce vazio');
   await garantirBanco(env);
   const tabelas = env.DB.consultar("SELECT name FROM sqlite_master WHERE type = 'table'").map((l) => l.name);
-  for (const t of ['usuarios', 'sessoes', 'convites', 'links_magicos', 'consentimentos', 'limites', 'documentos', 'meta', 'd1_migrations']) {
+  for (const t of ['usuarios', 'sessoes', 'convites', 'links_magicos', 'consentimentos', 'limites', 'documentos', 'meta', 'minha_lista', 'd1_migrations']) {
     assert.ok(tabelas.includes(t), 'falta a tabela ' + t);
   }
   const antes = env.DB.chamadas.length;
@@ -38,7 +38,7 @@ test('criação preguiçosa: o primeiro acesso cria as tabelas e os índices, o 
   await garantirBanco(env);
   assert.equal(env.DB.chamadas.length, antes, 'a segunda chamada não deve tocar o banco');
   /* Convive com o `wrangler d1 migrations apply`: mesma tabela de controle e mesmo nome. */
-  assert.deepEqual(env.DB.consultar('SELECT name FROM d1_migrations').map((l) => l.name), ['0001_inicial.sql']);
+  assert.deepEqual(env.DB.consultar('SELECT name FROM d1_migrations').map((l) => l.name), ['0001_inicial.sql', '0002_minha_lista.sql']);
 });
 
 test('sem binding DB não há banco: garantirBanco devolve null e o espectador fica 503 (falha fechada)', async () => {

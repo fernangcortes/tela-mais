@@ -169,6 +169,94 @@ export function gerarManifest(config) {
   }, null, 2) + '\n';
 }
 
+/* O service worker (core/site/sw.js). MÍNIMO E OPCIONAL: só guarda a CASCA do site (a página inicial, os
+ * estilos, os scripts, as fontes, os textos por idioma, o manifest e os ícones) para o site abrir com a rede
+ * ruim ou fora do ar. Ele NUNCA toca em:
+ *   - /api/* (catálogo, conta, minha lista, mídia assinada: dado de quem está logado);
+ *   - /admin, entrar, cadastro e conta;
+ *   - mídia (vídeo, áudio, capas): vem de outro endereço (o do provedor) e, quando vem do próprio, é pedido
+ *     com Range, que ele ignora;
+ *   - qualquer pedido que não seja GET, ou que leve Authorization.
+ * Fora dessa lista o navegador faz o de sempre, como se o service worker não existisse.
+ *
+ * `recursos.pwaCacheDoShell` desligado (o padrão) gera o sw.js "de desligar": quem já o tinha instalado o vê
+ * apagar os próprios caches e se desinstalar na visita seguinte. Por isso o arquivo existe nos dois casos. */
+export function gerarServiceWorker(config) {
+  const prefixo = String((config.marca && config.marca.prefixoDeArmazenamento) || 'tm').replace(/[^A-Za-z0-9_-]/g, '') || 'tm';
+  const ligado = config.recursos && config.recursos.pwaCacheDoShell === true;
+  const cabeca = [
+    '/* sw.js — GERADO por scripts/aplicar-config.mjs a partir de config/site.json (recursos.pwaCacheDoShell).',
+    ' * Não edite à mão. Leia docs/home-e-colecoes.md antes de ligar. */',
+    "'use strict';",
+    `var PREFIXO_DO_CACHE = '${prefixo}-casca-';`
+  ];
+  if (!ligado) {
+    return cabeca.concat([
+      '/* Desligado: apaga o que este service worker guardou e se desinstala. */',
+      "self.addEventListener('install', function () { self.skipWaiting(); });",
+      "self.addEventListener('activate', function (e) {",
+      '  e.waitUntil(caches.keys().then(function (nomes) {',
+      '    return Promise.all(nomes.filter(function (n) { return n.indexOf(PREFIXO_DO_CACHE) === 0; }).map(function (n) { return caches.delete(n); }));',
+      '  }).then(function () { return self.registration.unregister(); }));',
+      '});',
+      ''
+    ]).join('\n');
+  }
+  return cabeca.concat([
+    "var CACHE = PREFIXO_DO_CACHE + 'v1';",
+    '/* Nunca guardar: a API, a mesa (admin e mesa*.js) e as páginas da conta. */',
+    'var PROIBIDO = /^\\/(api|admin|mcp)(\\/|\\.|$)|^\\/(entrar|cadastro|conta)(\\.html)?$|^\\/mesa[^/]*$/;',
+    '/* O que é "casca": arquivos do próprio site, por tipo e por nome. */',
+    'var ARQUIVO_DA_CASCA = /^\\/(locales\\/[A-Za-z-]+\\.json|config\\.public\\.json|manifest\\.webmanifest|(icone|favicon|logo|og-image)[A-Za-z0-9._-]*\\.(png|svg|ico|webp))$/;',
+    '',
+    'function daCasca(req, url) {',
+    "  if (req.method !== 'GET' || url.origin !== self.location.origin) return false;",
+    "  if (req.headers.has('range') || req.headers.has('authorization')) return false;",
+    '  if (PROIBIDO.test(url.pathname)) return false;',
+    "  if (req.mode === 'navigate') return url.pathname === '/' || url.pathname === '/index.html';",
+    "  var d = req.destination;",
+    "  return d === 'style' || d === 'script' || d === 'font' || ARQUIVO_DA_CASCA.test(url.pathname);",
+    '}',
+    '',
+    '/* Resposta que pode ir para o cache: inteira, do próprio site, e que ninguém pediu para não guardar. */',
+    'function guardavel(resp) {',
+    "  if (!resp || resp.status !== 200 || resp.type !== 'basic') return false;",
+    "  var cc = resp.headers.get('cache-control') || '';",
+    "  return !/no-store|private/i.test(cc) && !resp.headers.has('set-cookie');",
+    '}',
+    '',
+    "self.addEventListener('install', function () { self.skipWaiting(); });",
+    "self.addEventListener('activate', function (e) {",
+    '  e.waitUntil(caches.keys().then(function (nomes) {',
+    '    return Promise.all(nomes.filter(function (n) { return n.indexOf(PREFIXO_DO_CACHE) === 0 && n !== CACHE; }).map(function (n) { return caches.delete(n); }));',
+    '  }).then(function () { return self.clients.claim(); }));',
+    '});',
+    '',
+    "self.addEventListener('fetch', function (ev) {",
+    '  var req = ev.request;',
+    '  var url = new URL(req.url);',
+    '  if (!daCasca(req, url)) return;   /* o navegador faz o de sempre */',
+    "  if (req.mode === 'navigate') {",
+    '    /* A página: a rede primeiro; sem rede, a última que deu certo. */',
+    '    ev.respondWith(fetch(req).then(function (resp) {',
+    '      if (guardavel(resp)) { var c = resp.clone(); caches.open(CACHE).then(function (k) { k.put(req, c); }); }',
+    '      return resp;',
+    '    }).catch(function () { return caches.match(req).then(function (r) { return r || Response.error(); }); }));',
+    '    return;',
+    '  }',
+    '  /* Estilo, script, fonte, textos: o guardado já, e o novo para a próxima vez. */',
+    '  ev.respondWith(caches.open(CACHE).then(function (k) {',
+    '    return k.match(req).then(function (guardado) {',
+    '      var rede = fetch(req).then(function (resp) { if (guardavel(resp)) k.put(req, resp.clone()); return resp; });',
+    '      rede.catch(function () { /* sem rede: vale o guardado */ });',
+    '      return guardado || rede;',
+    '    });',
+    '  }));',
+    '});',
+    ''
+  ]).join('\n');
+}
+
 export function gerarRobots(config) {
   if (!indexavel(config)) return 'User-agent: *\nDisallow: /\n';
   return 'User-agent: *\nDisallow: /admin\nDisallow: /api/\n';
@@ -199,7 +287,9 @@ export function gerarPublico(config) {
     recursos: {
       busca: config.recursos.busca,
       continuarAssistindo: config.recursos.continuarAssistindo,
-      pwaInstalavel: config.recursos.pwaInstalavel
+      pwaInstalavel: config.recursos.pwaInstalavel,
+      pwaCacheDoShell: config.recursos.pwaCacheDoShell === true,
+      minhaLista: config.recursos.minhaLista !== false
     },
     seo: { indexavel: indexavel(config) }
   };

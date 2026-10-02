@@ -9,6 +9,8 @@ import { json, erro } from '../_lib/sessao.js';
 import AppI18n from '../../site/i18n.js';
 import { registrarPublicacao } from './historico.js';
 import App from '../../site/catalogo-core.js';
+import AppHome from '../../site/home-blocos.js';
+import AppGuardiao from '../../site/guardiao.js';
 import { comMidia, montarMidia, idiomasDeLegendaPadrao, opcoesDeAssinatura, respostaDeErro } from '../_lib/provedores/index.js';
 
 const CHAVE = 'catalogo';
@@ -104,6 +106,20 @@ function ajustes(guardado) {
   };
 }
 
+/* O que o NAVEGADOR precisa saber da config para decidir o player e o fundo do
+ * destaque: só `player.*` e `home.destaque.fundo`, já saneados pelo guardião
+ * (guardiao.js), que é quem lê isto do outro lado. Nada de segredo, nada de
+ * ambiente: são escolhas de comportamento. Config ausente = os padrões, e o
+ * padrão é o de sempre (nada toca, nada avança, fundo = capa). */
+function configDoCliente(config) {
+  const c = config || {};
+  const destaque = c.home && c.home.destaque ? c.home.destaque : {};
+  return {
+    player: AppGuardiao.configDoPlayer(c.player),
+    home: { destaque: { fundo: AppGuardiao.fundoDoDestaque(destaque.fundo) } }
+  };
+}
+
 /* A estrutura da chegada (M4): o nome, a ordem e o "escondida" das
  * prateleiras, a classe de cada série, o destaque e os textos fixos.
  *
@@ -117,6 +133,23 @@ function ajustes(guardado) {
  * está no KV, porque é contra esse valor que o Publicar confere o "antes". */
 function site(guardado) {
   return App.siteSaneado(guardado && guardado.site);
+}
+
+/* O que o config/site.json diz sobre a home e as coleções (M6), por baixo do que a mesa escolheu: os blocos
+ * (`home.blocos`), as coleções e o modelo de conteúdo (`catalogo.*`) e os idiomas do site (para a mesa
+ * mostrar um título por idioma). O site PÚBLICO recebe tudo já mesclado em `site`; a mesa recebe o `site` cru
+ * e este `padroes` à parte, porque é contra o valor cru que o Publicar confere o "antes" (409). */
+function padroesDaHome(config) {
+  return App.padroesDaConfig(config || {});
+}
+
+/* Quem está olhando, para a home decidir o que mostrar (blocos "só com conta") e se oferece a Minha lista.
+ * Só o que a própria pessoa já sabe; nenhum dado de conta. */
+function quemEsta(data, config) {
+  const papel = (data && data.sessao && data.sessao.papel) || 'anonimo';
+  const contas = Boolean(data && data.modo && data.modo !== 'publico') || papel === 'espectador';
+  const ligada = !config || !config.recursos || config.recursos.minhaLista !== false;
+  return { logado: papel !== 'anonimo', espectador: papel === 'espectador', minhaLista: ligada && contas };
 }
 
 /* A CAPA DO DESTAQUE, numa chave própria (o LCP da chegada,
@@ -168,7 +201,8 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
   if (!guardado) {
     return json(200, {
       versao: 1, rev: 0, itens: [], vazio: true,
-      ajustes: ajustes(null), site: site(null),
+      ajustes: ajustes(null), site: App.siteComPadroes(site(null), padroesDaHome(config)), comportamento: configDoCliente(config),
+      quem: quemEsta(data, config),
       codigo: 'catalogo-nao-importado', observacao: AppI18n.t('api.catalogo-nao-importado')
     });
   }
@@ -178,7 +212,8 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
     if (!data.admin) return erro(401, 'nao-autorizado');
     try {
       return json(200, Object.assign({}, guardado, {
-        itens: await comMidias(data.provedor, guardado.itens || [], config, data), ajustes: ajustes(guardado)
+        itens: await comMidias(data.provedor, guardado.itens || [], config, data), ajustes: ajustes(guardado),
+        padroes: padroesDaHome(config)
       }));
     } catch (e) {
       return respostaDeErro(erro, e);
@@ -186,7 +221,8 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
   }
 
   const publicados = (guardado.itens || []).filter(i => i && i.publicar === true);
-  const sitePublico = site(guardado);
+  /* O site público recebe a home já mesclada: o que a mesa escolheu, senão o config, senão o padrão do código. */
+  const sitePublico = App.siteComPadroes(site(guardado), padroesDaHome(config));
 
   /* A capa do destaque sai do MESMO `midia.capa` que a chegada vai ler. */
   const opcoesMidia = opcoesDeAssinatura(data, { idiomasDeLegenda: idiomasDeLegendaPadrao(config) });
@@ -200,7 +236,10 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
     return respostaDeErro(erro, e);
   }
   const emDestaque = App.destaque(comUrls, sitePublico);
-  const capa = emDestaque ? App.urlCapa(emDestaque) : null;
+  /* Home sem o bloco de destaque (a equipe o tirou ou o escondeu): não há capa de LCP para pré-carregar, e um
+   * <link rel="preload"> de imagem que a página não usa é banda desperdiçada (e aviso no console). */
+  const mostraDestaque = App.blocosEfetivos(sitePublico).some((b) => b.tipo === 'destaque' && !b.escondido && b.visibilidade !== 'logado');
+  const capa = emDestaque && mostraDestaque ? App.urlCapa(emDestaque) : null;
   /* SÓ no modo público (`assinar` falso). Nos restritos a URL da capa sai ASSINADA
    * (Bunny: token de diretório; Stream: JWT) e muda a cada requisição: gravá-la
    * custaria uma escrita de KV por visita (o plano grátis dá 1000 por dia) e deixaria
@@ -217,6 +256,8 @@ export async function onRequestGet({ env, request, data, waitUntil, config }) {
     total: comUrls.length,
     ajustes: ajustes(guardado),
     site: sitePublico,
+    comportamento: configDoCliente(config),
+    quem: quemEsta(data, config),
     itens: comUrls
   });
 }
@@ -237,6 +278,21 @@ export async function onRequestPut({ request, env, data }) {
   if (!corpo || typeof corpo !== 'object' || !Array.isArray(corpo.itens)) {
     return erro(400, 'catalogo-esperado-itens');
   }
+  /* A home por blocos (M6) é validada ANTES de ser saneada: o saneador descarta em silêncio o que não tem a
+   * forma certa, e quem escreveu um tipo de bloco que não existe merece um erro, não uma home que ignorou
+   * a metade. O resto (limites, textos, links) o saneador apara e a mesa nunca produz fora da forma. */
+  if (corpo.site && typeof corpo.site === 'object') {
+    const ruins = AppHome.blocosInvalidos(corpo.site.blocos);
+    if (ruins.length) return erro(400, 'blocos-invalidos', { n: ruins.length }, { blocos: ruins.slice(0, 20) });
+    if ('colecoes' in corpo.site && corpo.site.colecoes !== null && !Array.isArray(corpo.site.colecoes)) {
+      return erro(400, 'colecoes-invalidas');
+    }
+    if ('modeloDeConteudo' in corpo.site && corpo.site.modeloDeConteudo !== null &&
+        AppHome.MODELOS.indexOf(corpo.site.modeloDeConteudo) < 0) {
+      return erro(400, 'modelo-invalido');
+    }
+  }
+
   /* O que entra no KV tem `fonte` no formato novo e NUNCA `midia`: ela é
    * calculada pelo servidor a cada resposta, e a mesa a devolve junto com o
    * resto do documento que leu. */
@@ -272,6 +328,8 @@ export async function onRequestPut({ request, env, data }) {
     atualizado_em: new Date().toISOString()
   });
   delete novo.config;   /* config vem do ambiente, não é dado do catálogo */
+  delete novo.padroes;  /* o que o config diz sobre a home (M6) viaja no GET da mesa e volta no PUT: nunca é dado do catálogo */
+  delete novo.quem;
 
   /* A ESTRUTURA é guardada saneada, ou não é guardada. Saneada porque o que
    * vai para o KV tem de ter forma conferida e ordem de chaves estável — é
