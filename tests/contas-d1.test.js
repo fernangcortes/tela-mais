@@ -38,7 +38,7 @@ test('criação preguiçosa: o primeiro acesso cria as tabelas e os índices, o 
   await garantirBanco(env);
   assert.equal(env.DB.chamadas.length, antes, 'a segunda chamada não deve tocar o banco');
   /* Convive com o `wrangler d1 migrations apply`: mesma tabela de controle e mesmo nome. */
-  assert.deepEqual(env.DB.consultar('SELECT name FROM d1_migrations').map((l) => l.name), ['0001_inicial.sql', '0002_minha_lista.sql']);
+  assert.deepEqual(env.DB.consultar('SELECT name FROM d1_migrations').map((l) => l.name), ['0001_inicial.sql', '0002_minha_lista.sql', '0003_mcp.sql']);
 });
 
 test('sem binding DB não há banco: garantirBanco devolve null e o espectador fica 503 (falha fechada)', async () => {
@@ -248,7 +248,7 @@ test('retenção (cron): apaga sessão, link e convite vencidos e contador velho
   db.prepare('INSERT INTO limites (chave, contagem, atualizado_em) VALUES (?,?,?)').run('recente', 1, agora);
 
   const r = await limparExpirados(env);
-  assert.deepEqual(r, { sessoes: 1, linksMagicos: 1, convites: 1, limites: 1 });
+  assert.deepEqual(r, { sessoes: 1, linksMagicos: 1, convites: 1, limites: 1, auditoriaMcp: 0 });
   assert.equal(env.DB.consultar("SELECT COUNT(*) AS n FROM sessoes WHERE token_hash = 'velha'")[0].n, 0);
   assert.equal(env.DB.consultar("SELECT COUNT(*) AS n FROM links_magicos WHERE token_hash = 'l-novo'")[0].n, 1);
   assert.equal((await c.get('/api/catalogo')).status, 200, 'a sessão viva continua valendo');

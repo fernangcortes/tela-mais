@@ -186,7 +186,7 @@ async function guardarCapaDoDestaque(env, url) {
 
 /* Lê o catálogo já com a `fonte` de cada item no formato novo
  * (`{ provedor, id, extras }`): o KV migra aos poucos, a cada PUT. */
-async function lerCatalogo(env) {
+export async function lerCatalogo(env) {
   if (!env.CATALOGO) return null;
   return App.catalogoMigrado(await env.CATALOGO.get(CHAVE, 'json'));
 }
@@ -274,6 +274,17 @@ export async function onRequestPut({ request, env, data }) {
   } catch (e) {
     return erro(400, 'corpo-invalido');
   }
+  return gravarCatalogo({ env, corpo, conta: data.conta });
+}
+
+/* O caminho ÚNICO de gravação do catálogo: o PUT da mesa e o MCP (M10) passam por aqui, e por isso têm a mesma
+ * validação, a mesma conferência de permissão por campo, o mesmo 409 e o mesmo histórico. Quem chama já provou quem é
+ * (`conta`: a da equipe, ou a que um token do MCP representa) e já leu o JSON. Devolve a Response do PUT. */
+export async function gravarCatalogo({ env, corpo, conta }) {
+  if (!conta) return erro(401, 'nao-autorizado');
+  if (!env.CATALOGO) {
+    return erro(500, 'kv-nao-vinculado');
+  }
 
   if (!corpo || typeof corpo !== 'object' || !Array.isArray(corpo.itens)) {
     return erro(400, 'catalogo-esperado-itens');
@@ -354,8 +365,8 @@ export async function onRequestPut({ request, env, data }) {
    * o que ficou guardado, não o que chegou. */
   const difs = App.diferencasDoCatalogo(atual || { itens: [] }, novo);
 
-  if (!data.conta.super) {
-    const barradas = App.proibidas(data.conta, difs);
+  if (!conta.super) {
+    const barradas = App.proibidas(conta, difs);
     if (barradas.length) {
       return erro(403, 'conta-nao-pode-campos', { n: barradas.length }, {
         barradas: barradas.slice(0, 20).map(d => ({ alvo: d.alvo, campo: d.campo, permissao: d.permissao }))
@@ -377,7 +388,7 @@ export async function onRequestPut({ request, env, data }) {
   try {
     await registrarPublicacao(env, {
       anterior: atual, novo, corpoGravado: gravado, difs,
-      quem: (data.conta && data.conta.usuario) || 'superadmin'
+      quem: conta.usuario || 'superadmin'
     });
   } catch (e) {
     historico = false;

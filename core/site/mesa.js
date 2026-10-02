@@ -139,6 +139,7 @@
         h('li', { class: 'menu-grupo', text: tr('mesa.equipe') }),
         M.sessao.super ? itemMenu('contas', 'contas', tr('mesa.contas'), (M.contas.lista || []).length || null) : null,
         M.sessao.super ? itemMenu('acesso', 'conta', tr('acesso.mesaMenu')) : null,
+        M.sessao.super ? itemMenu('mcp', 'estrutura', tr('mcp.mesaMenu')) : null,
         itemMenu('conta', 'conta', M.sessao.super ? tr('mesa.superadmin') : M.sessao.nome),
         h('li', { class: 'menu-grupo', text: tr('operacao.grupo') }),
         itemMenu('saude', 'alerta', tr('saude.menu'), M.saude && M.saude.pendencias() ? M.saude.pendencias() : null, 'b-ouro'),
@@ -195,6 +196,7 @@
       : st.tela === 'enviar' ? [tr('mesa.catalogo'), tr('mesa.enviarTitulo')]
       : st.tela === 'contas' ? [tr('mesa.equipe'), tr('mesa.contas')]
       : st.tela === 'acesso' ? [tr('mesa.equipe'), tr('acesso.mesaMenu')]
+      : st.tela === 'mcp' ? [tr('mesa.equipe'), tr('mcp.mesaMenu')]
       : st.tela === 'conta' ? [tr('mesa.equipe'), tr('mesa.minhaConta')]
       : st.tela === 'saude' ? [tr('operacao.grupo'), tr('saude.menu')]
       : st.tela === 'backup' ? [tr('operacao.grupo'), tr('backup.menu')]
@@ -238,6 +240,7 @@
         : st.tela === 'capa' ? M.telaCapa(cat)
         : st.tela === 'contas' ? M.telaContas()
         : st.tela === 'acesso' ? M.telaAcesso()
+        : st.tela === 'mcp' ? M.telaMcp()
         : st.tela === 'conta' ? M.telaMinhaConta()
         : st.tela === 'saude' ? M.telaSaude()
         : st.tela === 'backup' ? M.telaBackup()

@@ -528,6 +528,7 @@
     if (M.st.tela === 'enviar' && M.painelEnvio) return M.painelEnvio(cat);
     if (M.st.tela === 'contas' && M.painelContas) return M.painelContas();
     if (M.st.tela === 'acesso' && M.painelAcesso) return M.painelAcesso();
+    if (M.st.tela === 'mcp' && M.painelMcp) return M.painelMcp();
     if (M.st.tela === 'saude' && M.painelSaude) return M.painelSaude();
     if (M.st.tela === 'backup' && M.painelBackup) return M.painelBackup();
     if (M.st.tela === 'custos' && M.painelCustos) return M.painelCustos();

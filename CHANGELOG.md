@@ -19,6 +19,9 @@ Primeira versão pública para teste.
 - Instalação guiada por qualquer agente de IA (`AGENTS.md`, `scripts/setup.mjs`) e assistente de configuração no `/admin`.
 - Tela Saúde, backup e restauração (`scripts/exportar-kv.mjs`, `scripts/importar-kv.mjs`), calculadora de custo
   (`docs/custos.md`) e atualização do produto sem tocar na sua configuração (`docs/atualizar.md`).
+- Servidor MCP opcional (`/mcp`, desligado por padrão e só leitura): assistentes de IA como o Claude Code consultam e organizam o catálogo com um
+  token que você cria e revoga em `/admin`, Integrações (MCP), ou por `setup.mjs mcp`. Escrita só pelo caminho validado da mesa, com histórico,
+  confirmação nas ações com efeito e auditoria (`docs/mcp.md`).
 
 ### Correções
 - A mensagem de erro do player quando o vídeo não carrega agora aparece em até 15 segundos (antes, cerca de 52).

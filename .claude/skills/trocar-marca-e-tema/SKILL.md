@@ -2,7 +2,7 @@
 name: trocar-marca-e-tema
 description: Define nome, slogan, logo, cores, tema, fonte, idiomas e textos do streaming do cliente, validando contraste. Use quando pedirem para personalizar a aparência, trocar a marca, as cores ou os textos.
 ---
-<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md a155fc3cf439 -->
+<!-- GERADO por scripts/setup.mjs sync-agents. Não edite este arquivo: edite a fonte (AGENTS.md, .agents/skills, .agents/ferramentas) e rode "node scripts/setup.mjs sync-agents". Fonte: AGENTS.md 112280574856 -->
 
 # Marca, tema e textos
 

@@ -99,7 +99,13 @@ export const PERMISSOES = {
    * que ele faz no servidor são do superadmin. Backup: a equipe baixa o que já enxerga (catálogo e configuração operacional);
    * as CONTAS no arquivo e a importação são do superadmin (o handler confere `?contas=1`). */
   '/api/saude': { GET: 'equipe', POST: 'super', PUT: 'super' },
-  '/api/backup': { GET: 'equipe', POST: 'super' }
+  '/api/backup': { GET: 'equipe', POST: 'super' },
+
+  /* MCP (M10). Os tokens do MCP e a auditoria são do superadmin. O `/mcp` é 'aberto' PARA O MIDDLEWARE de propósito: quem chama é um
+   * agente com token `mcp_…` (nem a sessão da equipe nem o cookie de espectador valem), e o handler confere por dentro, nesta
+   * ordem: `mcp.ligado` (senão 404), Origin, token válido (senão 401), limite de taxa e escopo de cada ferramenta. */
+  '/api/mcp-tokens': { GET: 'super', POST: 'super', DELETE: 'super' },
+  '/mcp': { GET: 'aberto', POST: 'aberto', DELETE: 'aberto' }
 };
 
 export function nivelDe(caminho, metodo) {

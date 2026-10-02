@@ -546,7 +546,7 @@ test('a mesa carrega o idioma ANTES dos scripts dela, em ordem, e oferece os tr√
   assert.deepEqual([...admin.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]), ['i18n.js', 'mesa-inicio.js']);
   const inicio = ler('core/site/mesa-inicio.js');
   const ordem = [...inicio.matchAll(/'([\w./-]+\.js)'/g)].map((m) => m[1]);
-  assert.deepEqual(ordem, ['vendor/tus.min.js', 'home-blocos.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js']);
+  assert.deepEqual(ordem, ['vendor/tus.min.js', 'home-blocos.js', 'catalogo-core.js', 'indice-core.js', 'mesa-base.js', 'mesa-painel.js', 'mesa-telas.js', 'mesa-home.js', 'mesa-acesso.js', 'mesa-mcp.js', 'mesa-saude.js', 'mesa-backup.js', 'mesa-custos.js', 'mesa-assistente.js', 'mesa.js']);
   assert.match(inicio, /disponiveis: I18n\.IDIOMAS_DE_FABRICA/);
   assert.match(inicio, /tag\.async = false/);
   assert.match(ler('core/site/mesa.js'), /index\.html\?mesa=1&idioma=/, 'o site no quadro abre no idioma da mesa');

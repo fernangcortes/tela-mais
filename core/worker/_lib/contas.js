@@ -417,19 +417,23 @@ export async function excluirUsuario(db, id, email) {
 
 const DIA = 24 * 3600;
 
+/* A auditoria do MCP vive 180 dias (igual a RETENCAO_DA_AUDITORIA_DIAS em mcp-tokens.js). */
+const RETENCAO_DA_AUDITORIA_MCP_DIAS = 180;
+
 /* O que o cron diário (`scheduled`) faz: some o que venceu. Devolve quantas
  * linhas saíram de cada tabela. Sem D1, não há o que limpar. */
 export async function limparExpirados(env, agora = agoraS()) {
   const db = await garantirBanco(env);
   if (!db) return null;
-  const [sessoes, links, convites, limites] = await db.batch([
+  const [sessoes, links, convites, limites, auditoriaMcp] = await db.batch([
     db.prepare('DELETE FROM sessoes WHERE expira_em < ?').bind(agora),
     db.prepare('DELETE FROM links_magicos WHERE expira_em < ?').bind(agora - DIA),
     db.prepare('DELETE FROM convites WHERE expira_em < ?').bind(agora - 30 * DIA),
-    db.prepare('DELETE FROM limites WHERE atualizado_em < ? AND bloqueado_ate < ?').bind(agora - DIA, agora)
+    db.prepare('DELETE FROM limites WHERE atualizado_em < ? AND bloqueado_ate < ?').bind(agora - DIA, agora),
+    db.prepare('DELETE FROM mcp_auditoria WHERE em < ?').bind(agora - RETENCAO_DA_AUDITORIA_MCP_DIAS * DIA)
   ]);
   const n = (r) => (r && r.meta && r.meta.changes) || 0;
-  return { sessoes: n(sessoes), linksMagicos: n(links), convites: n(convites), limites: n(limites) };
+  return { sessoes: n(sessoes), linksMagicos: n(links), convites: n(convites), limites: n(limites), auditoriaMcp: n(auditoriaMcp) };
 }
 
 export { temBanco, garantirBanco };

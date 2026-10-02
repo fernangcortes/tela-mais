@@ -104,14 +104,14 @@ export function criarPerguntas(respostas = {}) {
 }
 
 /* ---------------------------------------------------------------- rodar um comando */
-export async function rodar(argv, { raiz, mundo = criarMundo(), fetch = criarFetch({}), perguntas = null, env = {}, stdin = null, aplicar = aplicarConfig } = {}) {
+export async function rodar(argv, { raiz, mundo = criarMundo(), fetch = criarFetch({}), perguntas = null, env = {}, stdin = null, aplicar = aplicarConfig, extra = {} } = {}) {
   let out = '';
   let err = '';
   const ctx = {
     raiz, env: { ...env }, exec: mundo.exec, fetch,
     perguntar: perguntas || criarPerguntas(), interativo: Boolean(perguntas),
     aplicarConfig: aplicar, lerStdin: async () => { if (stdin === null) throw new Error('sem stdin no teste'); return stdin; },
-    agora: () => new Date('2026-10-02T12:00:00Z')
+    agora: () => new Date('2026-10-02T12:00:00Z'), ...extra
   };
   const { codigo, relatorio } = await principal(argv, { ctx, interativo: Boolean(perguntas), out: (t) => { out += t; }, err: (t) => { err += t; } });
   let json = null;
