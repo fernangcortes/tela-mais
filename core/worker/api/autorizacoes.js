@@ -8,7 +8,7 @@
  * Quem cria o pedido é /api/upload-token, na hora do envio. Aprovar não sobe
  * o vídeo sozinho: só libera o próximo /api/upload-token com o mesmo pedidoId.
  */
-import { json, lerAutorizacoes, gravarAutorizacoes, acharPedido } from './_middleware.js';
+import { json, lerAutorizacoes, gravarAutorizacoes, acharPedido } from '../_lib/sessao.js';
 
 function soSuper(data) {
   return data.conta && data.conta.super === true ? null : json(403, { erro: 'só o superadmin decide pedidos de envio' });

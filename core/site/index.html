@@ -3,11 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Título, descrição, og:* e robots são GERADOS de config/site.json por
+     scripts/aplicar-config.mjs: não edite entre os marcadores. -->
+<!-- config:inicio -->
 <meta name="robots" content="noindex, nofollow, noarchive">
+<title>Plataforma Exemplo — catálogo</title>
+<meta name="description" content="Catálogo de vídeos da Plataforma Exemplo.">
+<meta name="theme-color" content="#0f1115">
+<meta property="og:title" content="Plataforma Exemplo — catálogo">
+<meta property="og:description" content="Catálogo de vídeos da Plataforma Exemplo.">
+<meta property="og:image" content="og-image.png">
+<meta property="og:type" content="website">
+<!-- config:fim -->
 <!-- NÃO troque por "no-referrer". A proteção do provedor de vídeo é por Allowed Referrers:
      sem o cabeçalho Referer, a pull zone responde 403 e as capas somem. -->
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Plataforma Exemplo — catálogo</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
@@ -17,14 +27,9 @@
      --fundo do style.css — a barra do Android e a tela de abertura ficam da
      cor da chegada, sem clarão. -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0f1115">
 
-<meta property="og:title" content="Plataforma Exemplo — catálogo">
-<meta property="og:description" content="Catálogo de vídeos da Plataforma Exemplo.">
-<!-- og:image absoluta e og:url são acrescentados por functions/index.js a
+<!-- og:image absoluta e og:url são acrescentados por core/worker/home.js a
      partir de APP_SITE_URL; sem a variável, fica a imagem relativa. -->
-<meta property="og:image" content="og-image.png">
-<meta property="og:type" content="website">
 
 <!-- O LCP da chegada é a capa do destaque, e ela depende de duas esperas que
      não precisam ser em fila (Lighthouse em 22/09: 3,0 a 3,2 s no perfil de
@@ -36,7 +41,7 @@
      é um pedido a mais para quem edita, contra uma espera a menos para todo
      mundo. -->
 <!-- A pré-conexão com a pull zone de vídeo (BUNNY_PULLZONE) é acrescentada
-     por functions/index.js, junto do preload da capa. -->
+     por core/worker/home.js, junto do preload da capa. -->
 <link rel="preload" href="/api/catalogo" as="fetch" crossorigin>
 <!-- A ABERTURA: a marca que acende, uma vez por
      sessão, só na chegada. Quem decide é ESTE script, e ele mora aqui, antes
@@ -70,6 +75,7 @@ try {
 } catch (e) {}
 </script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 

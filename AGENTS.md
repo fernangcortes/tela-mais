@@ -6,18 +6,23 @@ Guia para qualquer agente LLM (e para pessoas) que trabalhe neste repositório.
 
 tela mAIs: streaming white label (vídeo sob demanda estilo Netflix) que cada cliente
 instala na própria conta Cloudflare. Site estático (HTML/CSS/JS sem framework, sem
-build), funções serverless em `core/site/functions/` (serão movidas para
-`core/worker/` no marco M2) e scripts Node (`scripts/`, ESM, sem dependências).
-Código e documentação em pt-BR. Estado: M1, não pronto para produção.
+build), um Worker da Cloudflare em `core/worker/` (roteador próprio, sem
+dependências; `wrangler.jsonc` na raiz) e scripts Node (`scripts/`, ESM, sem dependências).
+Código e documentação em pt-BR. Estado: M2, não pronto para produção.
 
 ## Comandos
 
 ```bash
 npm test                      # testes (Node 22+); comando oficial, equivale a `node --test`
+npm run config:validar        # valida config/site.json contra config/site.schema.json (sai 1 se inválida)
+npm run config:aplicar        # gera theme.css, manifest, robots.txt, config.public.json e os trechos marcados do HTML (idempotente; --verificar só confere)
+npm run dev                   # wrangler dev: Worker + assets locais (segredos em .dev.vars)
 node scripts/anti-marca.mjs   # varredura anti-marca; precisa dar zero ocorrências
 ```
 
-Rode os dois antes de dar uma tarefa por concluída.
+Depois de editar `config/site.json`, rode `config:validar` e `config:aplicar` e versione os arquivos gerados. Config ausente ou inválida faz o Worker falhar fechado (modo `privado`). Precedência: KV > arquivo > padrão do schema. Tokens de sessão usam `SESSION_SECRET`, separado de `ADMIN_PASSWORD`.
+
+Rode `npm test` e a varredura anti-marca antes de dar uma tarefa por concluída.
 
 ## Regras invioláveis
 

@@ -1,12 +1,51 @@
 {
-  "nome": "Plataforma Exemplo",
-  "descricao": "Catálogo de vídeos sob demanda.",
-  "idioma": "pt-BR",
-  "prefixoStorage": "tm",
-  "cores": {
-    "fundo": "#121212",
-    "superficie": "#1e1e1e",
-    "texto": "#f2f2f2",
-    "destaque": "#6b8afd"
-  }
+  "$schema": "./site.schema.json",
+  "versaoDoEsquema": 1,
+  "marca": {
+    "nome": "Plataforma Exemplo",
+    "nomeCurto": "Exemplo",
+    "slogan": "Vídeos para aprender e se inspirar",
+    "descricao": "Catálogo de vídeos da Plataforma Exemplo.",
+    "organizacao": "Organização Exemplo",
+    "prefixoDeArmazenamento": "tm"
+  },
+  "tema": {
+    "modo": "escuro",
+    "cores": {
+      "escuro": {
+        "marca": "#6aa6ff",
+        "fundo": "#0f1115",
+        "superficie": "#171a1f",
+        "texto": "#eceff4"
+      }
+    }
+  },
+  "idiomas": { "padrao": "pt-BR", "disponiveis": ["pt-BR"] },
+  "textos": {
+    "pt-BR": { "rodape": "Plataforma Exemplo." }
+  },
+  "acesso": { "modo": "publico" },
+  "video": {
+    "provedor": "bunny",
+    "bunny": {
+      "bibliotecaId": { "$env": "BUNNY_LIBRARY_ID" },
+      "chaveApi": { "$env": "BUNNY_API_KEY" },
+      "hostDaPullZone": { "$env": "BUNNY_PULLZONE" },
+      "chaveDeToken": { "$env": "BUNNY_TOKEN_KEY" }
+    }
+  },
+  "recursos": {
+    "busca": { "porPalavra": true, "pelaFala": true, "porSentido": false },
+    "continuarAssistindo": true,
+    "pwaInstalavel": true
+  },
+  "player": {
+    "autoplay": { "modo": "nunca" },
+    "proximoEpisodio": { "modo": "perguntar", "segundosDeContagem": 8 },
+    "retomar": { "modo": "perguntar" },
+    "marcaDagua": { "ligada": false }
+  },
+  "seo": { "indexavel": false },
+  "mcp": { "ligado": false, "somenteLeitura": true },
+  "implantacao": { "nomeDoProjeto": "plataforma-exemplo" }
 }

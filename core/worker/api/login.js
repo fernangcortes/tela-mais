@@ -4,7 +4,7 @@
  * mantém os scripts de carga entrando do mesmo jeito (eles mandam só a senha).
  * Com `usuario`, é uma das contas criadas pelo superadmin, guardadas no KV.
  */
-import { json, emitirToken, iguaisEmTempoConstante, lerContas, acharConta, conferirSenha, contaSuper } from './_middleware.js';
+import { json, emitirToken, iguaisEmTempoConstante, lerContas, acharConta, conferirSenha, contaSuper, segredoDeSessao } from '../_lib/sessao.js';
 
 /* Atraso proposital: encarece a tentativa de adivinhar em série. A proteção de
  * verdade é o Cloudflare Access na frente do site (Task 5.2). */
@@ -13,6 +13,12 @@ function atraso() {
 }
 
 export async function onRequestPost({ request, env }) {
+  /* Sem a chave de sessão não há como emitir token: falha fechada e avisa
+   * quem instala, em vez de devolver um 500 misterioso depois de a senha
+   * conferir. */
+  if (!segredoDeSessao(env)) {
+    return json(503, { erro: 'SESSION_SECRET não configurada (mínimo 32 caracteres), separada da senha do admin' });
+  }
   let corpo;
   try {
     corpo = await request.json();
@@ -27,7 +33,9 @@ export async function onRequestPost({ request, env }) {
   const usuario = String((corpo && corpo.usuario) || '').trim().toLowerCase();
 
   if (!usuario || usuario === 'superadmin' || usuario === 'admin') {
-    if (!iguaisEmTempoConstante(senha, env.ADMIN_PASSWORD)) {
+    /* Sem ADMIN_PASSWORD o superadmin não existe (e comparar com `undefined`
+     * aceitaria a senha "undefined"). */
+    if (!env.ADMIN_PASSWORD || !iguaisEmTempoConstante(senha, env.ADMIN_PASSWORD)) {
       await atraso();
       return json(401, { erro: 'usuário ou senha incorretos' });
     }

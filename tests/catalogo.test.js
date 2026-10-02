@@ -11,6 +11,7 @@ const vm = require('node:vm');
 
 const App = require('../core/site/catalogo-core.js');
 const SITE = path.join(__dirname, '..', 'core', 'site');
+const WORKER = path.join(__dirname, '..', 'core', 'worker');
 
 /* Todo arquivo lido aqui passa por este helper, e o 
  vira 
@@ -93,9 +94,9 @@ test('voltar para a grade destrói o player — esconder não para o vídeo', ()
  * `urlCapa` depende de `capa_versao` para furar o cache do CDN — e a projeção
  * pública não estava mandando esse campo. */
 test('a projeção pública leva capa_versao — sem ela a grade mostra a capa em cache', () => {
-  const fn = lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js'));
+  const fn = lerTexto(path.join(WORKER, 'api', 'catalogo.js'));
   const proj = fn.match(/function paraPublico\(item\)\s*\{([\s\S]*?)\n\}/);
-  assert.ok(proj, 'não achei paraPublico em functions/api/catalogo.js');
+  assert.ok(proj, 'não achei paraPublico em core/worker/api/catalogo.js');
   assert.match(proj[1], /capa_versao/,
     'paraPublico precisa incluir capa_versao, senão a grade nunca vê a capa nova');
 });
@@ -1357,9 +1358,9 @@ test('o Player.js é carregado sob demanda, não junto com a página', () => {
 /* Mesmo bug da capa: campo que não sai por paraPublico não existe para a
  * grade, e a lista de capítulos sumiria da ficha sem ninguém entender por quê. */
 test('a projeção pública leva os capítulos — sem eles a lista some da ficha', () => {
-  const fn = lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js'));
+  const fn = lerTexto(path.join(WORKER, 'api', 'catalogo.js'));
   const proj = fn.match(/function paraPublico\(item\)\s*\{([\s\S]*?)\n\}/);
-  assert.ok(proj, 'não achei paraPublico em functions/api/catalogo.js');
+  assert.ok(proj, 'não achei paraPublico em core/worker/api/catalogo.js');
   assert.match(proj[1], /capitulos/, 'paraPublico precisa incluir capitulos');
 });
 
@@ -1370,9 +1371,9 @@ test('a projeção pública leva os capítulos — sem eles a lista some da fich
  * Sem esta linha o número chega ao KV por `scripts/framerate.mjs` e nunca
  * chega ao navegador — e o sintoma seria o atalho simplesmente não existir. */
 test('a projeção pública leva o framerate — sem ele o passo de quadro não tem régua', () => {
-  const fn = lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js'));
+  const fn = lerTexto(path.join(WORKER, 'api', 'catalogo.js'));
   const proj = fn.match(/function paraPublico\(item\)\s*\{([\s\S]*?)\n\}/);
-  assert.ok(proj, 'não achei paraPublico em functions/api/catalogo.js');
+  assert.ok(proj, 'não achei paraPublico em core/worker/api/catalogo.js');
   assert.match(proj[1], /framerate/, 'paraPublico precisa incluir framerate');
 });
 
@@ -4879,7 +4880,7 @@ test('a moldura sobre a barra substitui a dica, e a dica é a reserva', () => {
  * de errar é o primeiro: `config` vem do AMBIENTE e o PUT o descarta, então um
  * ajuste guardado ali se apagaria na gravação seguinte, sem erro nenhum. */
 test('o ajuste do player mora no catálogo, não no config do ambiente', () => {
-  const api = lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js'));
+  const api = lerTexto(path.join(WORKER, 'api', 'catalogo.js'));
 
   /* O PUT continua apagando o config — e não pode apagar os ajustes. */
   assert.match(api, /delete novo\.config;/);
@@ -5105,7 +5106,7 @@ test('titularidade e evidência só existem no /admin', () => {
   assert.ok(!/linhaDados\(dl, 'Evid/.test(app), 'a ficha voltou a mostrar o nível de evidência');
 
   const api = semComentarios(
-    lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js')));
+    lerTexto(path.join(WORKER, 'api', 'catalogo.js')));
   const publico = api.match(/function paraPublico\(item\)\s*\{([\s\S]*?)\n\}/);
   assert.ok(publico, 'não achei paraPublico em catalogo.js');
   assert.ok(!/titularidade|nivel_evidencia/.test(publico[1]),
@@ -5128,12 +5129,13 @@ test('titularidade e evidência só existem no /admin', () => {
  * entrar num commit. Este teste é a rede: arquivo estranho aqui reprova antes
  * de virar ativo público. */
 test('em site/ só mora o que pode ir para o ar', () => {
-  const pastas = ['functions', 'vendor'];
+  const pastas = ['vendor'];
   const extensoes = ['.html', '.js', '.css', '.svg', '.png', '.ico', '.txt', '.webmanifest'];
+  const especiais = ['_headers', 'config.public.json'];   /* config.public.json: gerado por scripts/aplicar-config.mjs, sem segredos */   /* cabeçalhos de segurança do Static Assets: não é servido como arquivo */
   const estranhos = fs.readdirSync(SITE).filter((nome) => {
     if (nome.startsWith('.') || nome === 'node_modules') return true;
     if (fs.statSync(path.join(SITE, nome)).isDirectory()) return !pastas.includes(nome);
-    return !extensoes.includes(path.extname(nome).toLowerCase());
+    return !especiais.includes(nome) && !extensoes.includes(path.extname(nome).toLowerCase());
   });
   assert.deepEqual(estranhos, [],
     'isto iria para o ar no próximo deploy: ' + estranhos.join(', '));
@@ -5656,9 +5658,9 @@ test('o cartão só repete a série quando a prateleira mistura séries', () => 
  * destaque PADRÃO, que é um título de verdade, e ninguém desconfia que o
  * botão do /admin não faz nada. */
 test('a projeção pública leva o destaque — sem ele a escolha do /admin some', () => {
-  const fn = lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js'));
+  const fn = lerTexto(path.join(WORKER, 'api', 'catalogo.js'));
   const proj = fn.match(/function paraPublico\(item\)\s*\{([\s\S]*?)\n\}/);
-  assert.ok(proj, 'não achei paraPublico em functions/api/catalogo.js');
+  assert.ok(proj, 'não achei paraPublico em core/worker/api/catalogo.js');
   assert.match(proj[1], /destaque:\s*item\.destaque === true/,
     'paraPublico precisa incluir destaque, e só como true');
 });
@@ -5998,7 +6000,7 @@ test('o contorno dos controles usa --contorno, não a divisória', () => {
 
 /* ================= contas e permissões, no servidor (M2) ================ */
 
-/* Estes testes EXECUTAM as funções do Pages — o middleware, o login e as
+/* Estes testes EXECUTAM o Worker — o roteador, o middleware, o login e as
  * rotas —, com um KV de mentira na memória. É a diferença entre cobrar que o
  * código diz "403" e cobrar que ele RESPONDE 403. Rodam no Node sem rede:
  * `crypto.subtle` é o mesmo dos dois lados. */
@@ -6038,7 +6040,7 @@ const kvDeMentira = (inicial) => {
     }
   };
 };
-const ambiente = (kv) => ({ ADMIN_PASSWORD: 'senha-do-super', CATALOGO: kv, BUNNY_LIBRARY_ID: '1', BUNNY_API_KEY: 'x' });
+const ambiente = (kv) => ({ ADMIN_PASSWORD: 'senha-do-super', SESSION_SECRET: 'segredo-de-sessao-com-mais-de-32-caracteres', CATALOGO: kv, BUNNY_LIBRARY_ID: '1', BUNNY_API_KEY: 'x' });
 
 /* Troca o fetch global por um que responde à criação de vídeo sem rede — só os
  * testes de limite de envio chegam a este ponto; o resto do arquivo nunca cria
@@ -6056,47 +6058,26 @@ function bunnyDeMentira() {
   return () => { globalThis.fetch = original; };
 }
 
-/* Sobe o pedido pela mesma porta do Pages: middleware primeiro, rota depois.
- * `bruto` é o corpo que não é JSON — a capa que a mesa manda à /api/midia. */
-async function pedir(env, { metodo = 'GET', caminho, corpo, bruto, token, cabecalhos }) {
-  const mid = await import('../core/site/functions/api/_middleware.js');
-  const rota = caminho.split('?')[0];
-  const modulos = {
-    '/api/login': '../core/site/functions/api/login.js',
-    '/api/conta': '../core/site/functions/api/conta.js',
-    '/api/contas': '../core/site/functions/api/contas.js',
-    '/api/catalogo': '../core/site/functions/api/catalogo.js',
-    '/api/upload-token': '../core/site/functions/api/upload-token.js',
-    '/api/autorizacoes': '../core/site/functions/api/autorizacoes.js',
-    '/api/historico': '../core/site/functions/api/historico.js',
-    '/api/midia': '../core/site/functions/api/midia.js',
-    '/api/busca/fala': '../core/site/functions/api/busca/fala.js',
-    '/api/busca/indexar': '../core/site/functions/api/busca/indexar.js',
-    '/api/busca/sentido': '../core/site/functions/api/busca/sentido.js'
-  };
+/* Sobe o pedido pela porta de verdade do Worker (`core/worker/index.js`):
+ * roteador, middleware e handler. `modo` é o modo de acesso da config; aqui o
+ * padrão é `publico` porque estes testes cobrem os handlers, e a matriz por
+ * modo mora em tests/worker-matriz.test.js. `bruto` é o corpo que não é JSON —
+ * a capa que a mesa manda à /api/midia. */
+async function pedir(env, { metodo = 'GET', caminho, corpo, bruto, token, cabecalhos, modo = 'publico' }) {
+  const { criarWorker } = await import('../core/worker/index.js');
+  const worker = criarWorker({ obterConfig: async () => ({ acesso: { modo } }) });
   const request = new Request('https://exemplo.test' + caminho, {
     method: metodo,
     headers: Object.assign({ 'content-type': 'application/json' }, token ? { authorization: 'Bearer ' + token } : {}, cabecalhos || {}),
     body: bruto !== undefined ? bruto : (corpo === undefined ? undefined : JSON.stringify(corpo))
   });
-  const data = {};
   const promessas = [];
-  const resposta = await mid.onRequest({
-    request, env, data,
-    next: async () => {
-      /* Rota que não existe responde como o Pages: 404 — e o middleware já
-       * barrou antes, se ela não é pública. */
-      if (!modulos[rota]) return new Response('não existe', { status: 404 });
-      const modulo = await import(modulos[rota]);
-      const fn = modulo['onRequest' + metodo[0] + metodo.slice(1).toLowerCase()];
-      return fn ? fn({ request, env, data, waitUntil: (p) => promessas.push(p) }) : new Response('sem rota', { status: 405 });
-    }
-  });
+  const resposta = await worker.fetch(request, env, { waitUntil: (p) => promessas.push(p) });
   await Promise.all(promessas);
   const texto = await resposta.clone().text();
   let corpoResposta = null;
   try { corpoResposta = JSON.parse(texto); } catch (e) { /* resposta sem JSON */ }
-  return { status: resposta.status, corpo: corpoResposta, texto, cabecalhos: resposta.headers, data };
+  return { status: resposta.status, corpo: corpoResposta, texto, cabecalhos: resposta.headers };
 }
 
 const entrar = async (env, usuario, senha) =>
@@ -6111,17 +6092,22 @@ test('o superadmin entra com a senha do ambiente, e o token de antes continua va
   const errada = await pedir(env, { metodo: 'POST', caminho: '/api/login', corpo: { senha: 'chutando' } });
   assert.equal(errada.status, 401);
 
-  /* O TOKEN DO FORMATO ANTIGO — o que os scripts de carga e as sessões abertas
-   * têm no dia da virada — continua entrando, como superadmin. Sem isto, os
-   * scripts de publicação parariam no primeiro deploy das contas. */
+  /* O TOKEN DO FORMATO ANTIGO (`expira.assinatura`, assinado com a SENHA do
+   * admin) deixou de valer: a chave de sessão é outra (SESSION_SECRET). Os
+   * scripts de carga não são afetados, eles entram por /api/login. */
   const enc = new TextEncoder();
   const expira = Math.floor(Date.now() / 1000) + 600;
   const chave = await crypto.subtle.importKey('raw', enc.encode('senha-do-super'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const assinatura = [...new Uint8Array(await crypto.subtle.sign('HMAC', chave, enc.encode('tm-admin:' + expira)))]
     .map(b => b.toString(16).padStart(2, '0')).join('');
   const antigo = await pedir(env, { caminho: '/api/conta', token: expira + '.' + assinatura });
-  assert.equal(antigo.status, 200);
-  assert.equal(antigo.corpo.super, true);
+  assert.equal(antigo.status, 401, 'o token assinado com a senha do admin ainda vale');
+
+  /* Sem SESSION_SECRET não há login nem sessão: falha fechada. */
+  const semChave = Object.assign({}, env, { SESSION_SECRET: undefined });
+  const recusado = await pedir(semChave, { metodo: 'POST', caminho: '/api/login', corpo: { senha: 'senha-do-super' } });
+  assert.equal(recusado.status, 503);
+  assert.equal((await pedir(semChave, { caminho: '/api/conta', token: entrada.token })).status, 401);
 });
 
 test('só o superadmin cria conta, e a senha nunca sai na listagem', async () => {
@@ -7068,7 +7054,7 @@ test('todo ícone PNG do index.html tem o tamanho que declara', () => {
 
 test('a imagem de compartilhamento tem 1200×630 e até 100 KB', () => {
   const html = lerTexto(path.join(SITE, 'index.html'));
-  /* no HTML estático a imagem é relativa; a function `functions/index.js` a torna absoluta */
+  /* no HTML estático a imagem é relativa; a função `core/worker/home.js` a torna absoluta */
   const og = html.match(/<meta property="og:image" content="(?:[^"]*\/)?([^"/]+)">/);
   assert.ok(og, 'o index.html perdeu o og:image');
   const arquivo = path.join(SITE, og[1]);
@@ -8012,7 +7998,8 @@ test('os textos fixos do site saem do dado, e não de uma frase solta no app.js'
     assert.ok(!app.includes("'" + App.TEXTOS_PADRAO[chave] + "'"),
       'a frase de ' + chave + ' está escrita à mão no app.js, fora do alcance da mesa');
   }
-  assert.match(app, /function frase\(chave\) \{\s*return App\.textoDoSite\(estado\.site, chave\);/);
+  /* A frase ainda cai em App.textoDoSite (o padrão do código); antes dele, só entra o config.public.json. */
+  assert.match(app, /function frase\(chave\) \{[\s\S]*?return App\.textoDoSite\(estado\.site, chave\);/);
 });
 
 /* A chegada desenha o que a mesa escolheu: as prateleiras VISÍVEIS, na ordem
@@ -8471,7 +8458,7 @@ test('a tela do histórico desfaz pelo rascunho, e restaura pelo servidor', () =
 /* Ver o histórico é de TODO admin (todo admin vê tudo). Só a restauração
  * pede permissão — e quem a nega é o servidor, no POST. */
 test('ver o histórico é de todo admin; restaurar é que pede permissão', () => {
-  const rota = semComentarios(lerTexto(path.join(SITE, 'functions', 'api', 'historico.js')));
+  const rota = semComentarios(lerTexto(path.join(WORKER, 'api', 'historico.js')));
   const get = rota.match(/export async function onRequestGet\(([\s\S]*?)\n\}/);
   assert.ok(get, 'não achei o GET do histórico');
   assert.ok(!/contaPode/.test(get[1]), 'o GET do histórico passou a exigir permissão, e todo admin vê tudo');
@@ -8494,7 +8481,7 @@ test('ver o histórico é de todo admin; restaurar é que pede permissão', () =
  * O teste de runtime prova o comportamento; este cobra a ordem no código, que é
  * o que garante que a publicação já está gravada quando o rastro falha. */
 test('o histórico é gravado depois do catálogo, e o erro dele fica contido', () => {
-  const api = semComentarios(lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js')));
+  const api = semComentarios(lerTexto(path.join(WORKER, 'api', 'catalogo.js')));
   const put = api.match(/export async function onRequestPut\(([\s\S]*?)\n\}/);
   assert.ok(put, 'não achei o PUT');
   const posGravacao = put[1].indexOf("env.CATALOGO.put(CHAVE, gravado)");
@@ -8615,7 +8602,7 @@ const catalogoDaBusca = () => ({
   ]
 });
 
-/* A regra da fase 3: "o _middleware.js abre só os GET novos, com teste". */
+/* A regra da fase 3: "o middleware abre só os GET novos, com teste" (hoje a tabela de permissoes.js). */
 test('o middleware abre só o GET da fala; escrever na busca exige conta', async () => {
   const env = ambiente(kvDeMentira({ catalogo: JSON.stringify(catalogoDaBusca()) }));
   assert.equal((await pedir(env, { caminho: '/api/busca/fala' })).status, 200, 'o GET da fala não abriu');
@@ -9059,11 +9046,11 @@ test('as capas da prateleira descem pelo observador do site, e a janela anda com
 test('a chegada abre a pull zone e pede o catálogo já no HTML', async () => {
   const html = lerTexto(path.join(SITE, 'index.html'));
   /* O endereço da pull zone NÃO mora no HTML estático (o mesmo arquivo serve
-   * qualquer instalação): a function `functions/index.js` põe a pré-conexão a
+   * qualquer instalação): a função `core/worker/home.js` põe a pré-conexão a
    * partir de BUNNY_PULLZONE. */
   assert.doesNotMatch(html, /b-cdn\.net/, 'o HTML estático carrega o endereço de uma pull zone');
   assert.doesNotMatch(html, /rel="preconnect"/, 'a pré-conexão tem que vir da function, não do arquivo');
-  const fn = await import('../core/site/functions/index.js');
+  const fn = await import('../core/worker/home.js');
   const comPz = fn.comEndereco(html, 'https://exemplo.example.com', 'vz-exemplo.b-cdn.net');
   assert.ok(comPz.includes('<link rel="preconnect" href="https://vz-exemplo.b-cdn.net">\n' + fn.MARCA),
     'a pré-conexão não entrou antes da folha de estilo');
@@ -9325,7 +9312,7 @@ test('os estados vazios e de erro passam todos pela mesma peça, com saída à m
 /* ======================= o LCP: a capa do destaque no HTML ================ */
 
 /* A parte 2 do LCP. O `GET /api/catalogo` guarda a
- * URL da capa do destaque numa chave curta, e o `functions/index.js` a põe
+ * URL da capa do destaque numa chave curta, e o `core/worker/home.js` a põe
  * num <link rel="preload"> do HTML. Estes testes RODAM as duas funções, com o
  * KV de mentira. */
 const ambienteComPullzone = (kv) => Object.assign(ambiente(kv), { BUNNY_PULLZONE: 'vz-teste.b-cdn.net' });
@@ -9361,14 +9348,14 @@ test('o GET do catálogo guarda a capa do destaque, e só regrava quando ela mud
   assert.equal(escritas, 2);
 
   /* O GET completo, da mesa, não mexe na chave: ele devolve o que não está no ar. */
-  const get = semComentarios(lerTexto(path.join(SITE, 'functions', 'api', 'catalogo.js')))
+  const get = semComentarios(lerTexto(path.join(WORKER, 'api', 'catalogo.js')))
     .match(/export async function onRequestGet[\s\S]*?\n\}/)[0];
   assert.ok(get.indexOf('guardarCapaDoDestaque(') > get.indexOf('if (completo)'),
     'a chave é gravada antes de separar o pedido da mesa — sairia a capa de um título fora do ar');
 });
 
 test('a página inicial ganha o preload da capa, e sai intacta em todo erro', async () => {
-  const idx = await import('../core/site/functions/index.js');
+  const idx = await import('../core/worker/home.js');
   const html = lerTexto(path.join(SITE, 'index.html'));
   assert.equal(html.split(idx.MARCA).length - 1, 1, 'o index.html perdeu a linha da folha de estilo onde o preload entra');
 
@@ -9381,6 +9368,7 @@ test('a página inicial ganha o preload da capa, e sai intacta em todo erro', as
     }
   });
   const chamar = (valor, opcoes = {}) => idx.onRequestGet({
+    modo: opcoes.modo || 'publico',
     request: new Request('https://exemplo.test/', { headers: { 'if-none-match': '"estatico"' } }),
     env: {
       ASSETS: assets(opcoes.status),

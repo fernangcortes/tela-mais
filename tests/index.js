@@ -4,3 +4,5 @@
 'use strict';
 require('./catalogo.test.js');
 import('./anti-marca.test.js');
+import('./worker-matriz.test.js');
+import('./worker-seguranca.test.js');

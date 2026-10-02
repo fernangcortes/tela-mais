@@ -7,14 +7,14 @@
  *
  * Trocar permissões, desativar, trocar a senha ou trocar o limite de envio
  * sobe a `versao` da conta, e isso derruba as sessões abertas dela no pedido
- * seguinte (_middleware.js).
+ * seguinte (middleware.js).
  *
  * `limiteEnvio` é { maxVideos, maxDuracaoSeg, autorizacaoManual }, todos
  * opcionais — `null`/ausente em cada campo é "sem limite". Quem confere de
  * verdade é /api/upload-token, no envio; esta rota só guarda a configuração.
  */
-import { json, lerContas, gravarContas, acharConta, hashSenha, iteracoesDe } from './_middleware.js';
-import App from '../../catalogo-core.js';
+import { json, lerContas, gravarContas, acharConta, hashSenha, iteracoesDe } from '../_lib/sessao.js';
+import App from '../../site/catalogo-core.js';
 
 function soSuper(data) {
   return data.conta && data.conta.super === true ? null : json(403, { erro: 'só o superadmin gerencia contas' });

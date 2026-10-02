@@ -23,7 +23,7 @@
  * guarda onde o vídeo está (tipo, library, id), não como ele é.
  *
  * A ARMADILHA QUE ESTE SCRIPT SOZINHO NÃO RESOLVE: gravar no KV não basta.
- * `functions/api/catalogo.js` monta a resposta pública campo a campo, em
+ * `core/worker/api/catalogo.js` monta a resposta pública campo a campo, em
  * `paraPublico()` — **campo que não sai por ali não existe para o navegador**.
  * É o erro clássico: já aconteceu com a lista de capítulos e com `capa_arquivo`.
  * O `framerate` foi acrescentado lá junto com este script; se alguém copiar

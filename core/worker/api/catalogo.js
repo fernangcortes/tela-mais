@@ -5,9 +5,9 @@
  * O catálogo mora numa chave só do KV (`catalogo`). Para 50 títulos isso é
  * trivial e cabe folgado no plano gratuito.
  */
-import { json } from './_middleware.js';
+import { json } from '../_lib/sessao.js';
 import { registrarPublicacao } from './historico.js';
-import App from '../../catalogo-core.js';
+import App from '../../site/catalogo-core.js';
 
 const CHAVE = 'catalogo';
 
@@ -122,7 +122,7 @@ function site(guardado) {
 
 /* A CAPA DO DESTAQUE, numa chave própria (o LCP da chegada,
  * 23/09). A capa do destaque é o LCP da chegada, e ela só era descoberta
- * depois de o app.js baixar, rodar e ler este catálogo. O `functions/index.js`
+ * depois de o app.js baixar, rodar e ler este catálogo. O `home.js`
  * põe um <link rel="preload"> dela no HTML, e lê ESTA chave — uma string
  * curta — em vez do catálogo: a página inicial não pode depender de ler e
  * desmontar o catálogo inteiro dentro dos 10 ms de CPU do plano gratuito,

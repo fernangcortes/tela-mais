@@ -17,7 +17,7 @@
  *
  * O QUE ELE NÃO É:
  *   - não confere senha, não expira token, não olha permissão. Toda sessão é
- *     superadmin. Quem guarda essas regras é o `functions/api/`, e quem as
+ *     superadmin. Quem guarda essas regras é o `core/worker/api/`, e quem as
  *     testa é o `tests/catalogo.test.js`;
  *   - o GET público devolve os títulos publicados INTEIROS, e não o recorte de
  *     `paraPublico()`. Não use esta porta para conferir o que vaza para o

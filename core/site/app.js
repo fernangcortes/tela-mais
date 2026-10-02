@@ -52,6 +52,33 @@
 
   var TITULO_BASE = 'Plataforma Exemplo — catálogo';
 
+  /* config.public.json é GERADO de config/site.json (scripts/aplicar-config.mjs)
+   * e traz só o que o navegador pode ver: nome da marca, título-base, rodapé.
+   * É um complemento: se não vier (rede, arquivo ausente, JSON torto), o site
+   * segue com os textos escritos aqui e no catalogo-core.js, como antes. */
+  var CONFIG_PUBLICA = null;
+
+  function carregarConfigPublica() {
+    if (typeof fetch !== 'function') return;
+    fetch('config.public.json', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (c) {
+        if (!c || typeof c !== 'object') return;
+        CONFIG_PUBLICA = c;
+        if (typeof c.tituloBase === 'string' && c.tituloBase) TITULO_BASE = c.tituloBase;
+        if (estado.carregado) pintarRodape();
+      })
+      .catch(function () { /* sem config pública: vale o texto de fábrica */ });
+  }
+
+  /* O texto da config pública para a chave, no idioma padrão; '' se não houver. */
+  function textoDaConfigPublica(chave) {
+    var c = CONFIG_PUBLICA;
+    if (!c || !c.textos || !c.idiomas) return '';
+    var t = c.textos[c.idiomas.padrao];
+    return t && typeof t[chave] === 'string' ? t[chave] : '';
+  }
+
   /* ------------------------------------------------------------- modo mesa
    *
    * O /admin mostra o site dentro de um <iframe> com `?mesa=1`. Nesse modo a página não busca a API: recebe da mesa o catálogo com
@@ -365,6 +392,12 @@
    * na mesa (M4). Chamada na hora de desenhar, e não guardada numa constante,
    * porque dentro da mesa o texto muda a cada tecla do rascunho. */
   function frase(chave) {
+    /* Ordem: o que a mesa escreveu > config/site.json > padrão do código. */
+    var daMesa = estado.site && estado.site.textos && estado.site.textos[chave];
+    if (!daMesa) {
+      var daConfig = textoDaConfigPublica(chave);
+      if (daConfig) return daConfig;
+    }
     return App.textoDoSite(estado.site, chave);
   }
 
@@ -2943,6 +2976,7 @@
   }
 
   function iniciar() {
+    carregarConfigPublica();
     if (mesa.ligada) ligarMesa();
     ligarTopo();
     ligarAbertura();

@@ -1,4 +1,10 @@
-/* functions/index.js — a página inicial (`/`), e só ela.
+/* home.js — a página inicial (`/`), e só ela. (Era `functions/index.js` no Pages.)
+ *
+ * MODO DE ACESSO (D-4). O preload da capa só liga no modo `publico`: nos
+ * modos `cadastro` e `privado` a URL da capa é conteúdo do acervo e a página
+ * inicial é HTML aberto (o navegador não manda o token na navegação), então
+ * ela não pode carregá-la. As outras injeções (og:url, pré-conexão) não são
+ * conteúdo e continuam. Falha de config já chega aqui como `privado`.
  *
  * O LCP DA CHEGADA. O elemento é a capa do
  * destaque, e ela só era descoberta depois de o app.js baixar, rodar e ler o
@@ -80,12 +86,12 @@ export function comPreload(html, capa) {
     '<link rel="preload" as="image" href="' + capa + '" fetchpriority="high">\n' + MARCA);
 }
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, modo }) {
   let capa = null;
   try {
     /* 60 s de cache na borda: a troca do destaque chega em até um minuto, e
      * a página inicial não espera o KV central. */
-    capa = env.CATALOGO ? await env.CATALOGO.get(CHAVE_CAPA_DESTAQUE, { cacheTtl: 60 }) : null;
+    capa = (modo === 'publico' && env.CATALOGO) ? await env.CATALOGO.get(CHAVE_CAPA_DESTAQUE, { cacheTtl: 60 }) : null;
   } catch (e) {
     capa = null;
   }

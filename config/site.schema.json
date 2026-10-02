@@ -1,0 +1,1628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "site.schema.json",
+  "title": "Configuração do site (config/site.json)",
+  "description": "Configuração de implantação. Segredos NUNCA entram aqui: use {\"$env\":\"NOME_DA_VARIAVEL\"}. Tudo é opcional; o que faltar usa o padrão indicado. Config ausente ou inválida faz o site abrir no modo de acesso mais fechado (\"privado\").",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "cor": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+      "description": "Cor em hexadecimal, como #1a2b3c."
+    },
+    "segredo": {
+      "type": "object",
+      "required": [
+        "$env"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+          "description": "Nome da variável de ambiente (MAIÚSCULAS, números e _)."
+        }
+      },
+      "description": "Referência a um segredo guardado fora do arquivo: {\"$env\":\"NOME\"}."
+    },
+    "textoPorIdioma": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z]{2}(-[A-Z]{2})?$": {
+          "type": "string",
+          "maxLength": 300
+        }
+      },
+      "description": "Texto por idioma, ex.: {\"pt-BR\":\"Novidades\",\"en\":\"New\"}."
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^https://[^\\s]+$",
+      "maxLength": 300,
+      "description": "Endereço começando com https://."
+    },
+    "caminho": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_./-]+$",
+      "maxLength": 200,
+      "description": "Caminho de arquivo relativo, sem espaços e sem \"..\"."
+    }
+  },
+  "properties": {
+    "versaoDoEsquema": {
+      "description": "Versão do formato deste arquivo; muda só com migração.",
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "default": 1
+    },
+    "preset": {
+      "description": "Ponto de partida usado (escola, igreja, empresa...). Informativo.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$"
+    },
+    "marca": {
+      "description": "Identidade do cliente.",
+      "type": "object",
+      "properties": {
+        "nome": {
+          "description": "Nome da plataforma, como aparece para o público.",
+          "type": "string",
+          "default": "Plataforma Exemplo",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "nomeCurto": {
+          "description": "Nome curto (ícone na tela do celular, até 12 letras). Sem ele, usa o começo do nome.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12
+        },
+        "slogan": {
+          "description": "Frase de apoio.",
+          "type": "string",
+          "default": "",
+          "maxLength": 120
+        },
+        "descricao": {
+          "description": "Descrição para buscadores e redes sociais.",
+          "type": "string",
+          "default": "Catálogo de vídeos sob demanda.",
+          "maxLength": 200
+        },
+        "organizacao": {
+          "description": "Nome da organização responsável.",
+          "type": "string",
+          "maxLength": 100
+        },
+        "dominio": {
+          "description": "Endereço público do site, com https:// e sem barra no fim.",
+          "type": "string",
+          "pattern": "^https://[a-z0-9.-]+(:[0-9]{1,5})?$"
+        },
+        "contato": {
+          "description": "Contato público.",
+          "type": "object",
+          "properties": {
+            "email": {
+              "description": "E-mail de contato.",
+              "type": "string",
+              "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+              "maxLength": 120
+            },
+            "suporteUrl": {
+              "$ref": "#/$defs/url",
+              "description": "Página de ajuda."
+            }
+          },
+          "additionalProperties": false
+        },
+        "arquivos": {
+          "description": "Imagens da marca (caminhos relativos a core/site).",
+          "type": "object",
+          "properties": {
+            "logoParaFundoEscuro": {
+              "$ref": "#/$defs/caminho"
+            },
+            "logoParaFundoClaro": {
+              "$ref": "#/$defs/caminho"
+            },
+            "logoTamanho": {
+              "description": "Tamanho do logo em pixels.",
+              "type": "object",
+              "properties": {
+                "largura": {
+                  "description": "Largura.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2000
+                },
+                "altura": {
+                  "description": "Altura.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2000
+                }
+              },
+              "additionalProperties": false
+            },
+            "textoAlternativoDoLogo": {
+              "description": "Descrição do logo para leitores de tela.",
+              "type": "string",
+              "maxLength": 100
+            },
+            "iconeSvg": {
+              "$ref": "#/$defs/caminho",
+              "default": "icone.svg"
+            },
+            "icone192": {
+              "$ref": "#/$defs/caminho",
+              "default": "icone-192.png"
+            },
+            "icone512": {
+              "$ref": "#/$defs/caminho",
+              "default": "icone-512.png"
+            },
+            "iconeAdaptavel": {
+              "description": "O ícone aceita recorte arredondado do Android (maskable).",
+              "type": "boolean",
+              "default": true
+            },
+            "favicon32": {
+              "$ref": "#/$defs/caminho",
+              "default": "favicon-32.png"
+            },
+            "imagemDeCompartilhamento": {
+              "$ref": "#/$defs/caminho",
+              "default": "og-image.png"
+            }
+          },
+          "additionalProperties": false
+        },
+        "prefixoDeArmazenamento": {
+          "description": "Prefixo das chaves guardadas no navegador; evita colisão entre duas instalações no mesmo domínio.",
+          "type": "string",
+          "default": "tm",
+          "pattern": "^[a-z][a-z0-9-]{1,19}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tema": {
+      "description": "Aparência.",
+      "type": "object",
+      "properties": {
+        "modo": {
+          "description": "escuro, claro ou auto (segue o aparelho).",
+          "type": "string",
+          "enum": [
+            "escuro",
+            "claro",
+            "auto"
+          ],
+          "default": "escuro"
+        },
+        "cores": {
+          "description": "Paleta. Cores em hexadecimal. O validador mede o contraste (WCAG).",
+          "type": "object",
+          "properties": {
+            "escuro": {
+              "description": "Tema escuro.",
+              "type": "object",
+              "properties": {
+                "marca": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#6aa6ff",
+                  "description": "Cor principal da marca (botões, links, destaques)."
+                },
+                "marcaClara": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#8dbcff",
+                  "description": "Versão mais clara da marca (hover)."
+                },
+                "marcaFraca": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#151d2b",
+                  "description": "Versão bem escura da marca (fundos de chip ligado)."
+                },
+                "marca2": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#4f8de0",
+                  "description": "Segunda cor da marca."
+                },
+                "marca3": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#f5c542",
+                  "description": "Cor de destaque (selos, estrelas)."
+                },
+                "textoSobreMarca": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#07101c",
+                  "description": "Cor do texto escrito em cima da cor da marca."
+                },
+                "fundo": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#0f1115",
+                  "description": "Fundo da página."
+                },
+                "superficie": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#171a1f",
+                  "description": "Fundo de cartões e painéis."
+                },
+                "texto": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#eceff4",
+                  "description": "Texto principal."
+                },
+                "textoFraco": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#98a2ad",
+                  "description": "Texto secundário."
+                },
+                "borda": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#2a2f36",
+                  "description": "Separadores decorativos."
+                },
+                "contorno": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#656f78",
+                  "description": "Contorno de controles (campos, chips); precisa de contraste 3:1."
+                },
+                "alerta": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#e0b356",
+                  "description": "Cor de aviso."
+                },
+                "alertaFundo": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#2a2415",
+                  "description": "Fundo da faixa de aviso."
+                },
+                "erro": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#f08c86",
+                  "description": "Cor de erro."
+                },
+                "erroFundo": {
+                  "$ref": "#/$defs/cor",
+                  "default": "#2c1817",
+                  "description": "Fundo da faixa de erro."
+                },
+                "mesaFundo": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo da mesa de curadoria (/admin)."
+                },
+                "mesaPainel": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Painéis da mesa."
+                },
+                "mesaPainelAlto": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Painéis elevados da mesa."
+                }
+              },
+              "additionalProperties": false
+            },
+            "claro": {
+              "description": "Tema claro (opcional; conferido pelo mesmo teste de contraste).",
+              "type": "object",
+              "properties": {
+                "marca": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor principal da marca (botões, links, destaques)."
+                },
+                "marcaClara": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Versão mais clara da marca (hover)."
+                },
+                "marcaFraca": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Versão bem escura da marca (fundos de chip ligado)."
+                },
+                "marca2": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Segunda cor da marca."
+                },
+                "marca3": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor de destaque (selos, estrelas)."
+                },
+                "textoSobreMarca": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor do texto escrito em cima da cor da marca."
+                },
+                "fundo": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo da página."
+                },
+                "superficie": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo de cartões e painéis."
+                },
+                "texto": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Texto principal."
+                },
+                "textoFraco": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Texto secundário."
+                },
+                "borda": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Separadores decorativos."
+                },
+                "contorno": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Contorno de controles (campos, chips); precisa de contraste 3:1."
+                },
+                "alerta": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor de aviso."
+                },
+                "alertaFundo": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo da faixa de aviso."
+                },
+                "erro": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Cor de erro."
+                },
+                "erroFundo": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo da faixa de erro."
+                },
+                "mesaFundo": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Fundo da mesa de curadoria (/admin)."
+                },
+                "mesaPainel": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Painéis da mesa."
+                },
+                "mesaPainelAlto": {
+                  "$ref": "#/$defs/cor",
+                  "description": "Painéis elevados da mesa."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "tipografia": {
+          "description": "Letras.",
+          "type": "object",
+          "properties": {
+            "titulo": {
+              "description": "Uma família de letra.",
+              "type": "object",
+              "properties": {
+                "familia": {
+                  "description": "Nome da família (ex.: Inter).",
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "origem": {
+                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "type": "string",
+                  "enum": [
+                    "arquivo",
+                    "sistema",
+                    "google"
+                  ]
+                },
+                "arquivos": {
+                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "pesos": {
+                  "description": "Pesos usados.",
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 900
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "corpo": {
+              "description": "Uma família de letra.",
+              "type": "object",
+              "properties": {
+                "familia": {
+                  "description": "Nome da família (ex.: Inter).",
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "origem": {
+                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "type": "string",
+                  "enum": [
+                    "arquivo",
+                    "sistema",
+                    "google"
+                  ]
+                },
+                "arquivos": {
+                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "pesos": {
+                  "description": "Pesos usados.",
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 900
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "mono": {
+              "description": "Uma família de letra.",
+              "type": "object",
+              "properties": {
+                "familia": {
+                  "description": "Nome da família (ex.: Inter).",
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "origem": {
+                  "description": "De onde vem: arquivo (woff2 no projeto), sistema (já instalada) ou google (pede a terceiro).",
+                  "type": "string",
+                  "enum": [
+                    "arquivo",
+                    "sistema",
+                    "google"
+                  ]
+                },
+                "arquivos": {
+                  "description": "Caminhos dos woff2 (origem \"arquivo\").",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "pesos": {
+                  "description": "Pesos usados.",
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 900
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "reserva": {
+              "description": "Lista de fontes de reserva (evita salto de layout).",
+              "type": "string",
+              "default": "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9 ,'\"_-]+$"
+            },
+            "tamanhoBasePx": {
+              "description": "Tamanho base do texto.",
+              "type": "integer",
+              "default": 16,
+              "minimum": 12,
+              "maximum": 22
+            },
+            "escala": {
+              "description": "Escala de tamanhos (micro, menor, corpo, base, maior, titulo, secao).",
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "forma": {
+          "description": "Formas.",
+          "type": "object",
+          "properties": {
+            "raioPx": {
+              "description": "Arredondamento dos cantos.",
+              "type": "integer",
+              "default": 10,
+              "minimum": 0,
+              "maximum": 40
+            },
+            "sombra": {
+              "description": "Sombra dos cartões (valor CSS).",
+              "type": "string",
+              "default": "none",
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9 ,.()#%-]+$"
+            },
+            "larguraMaximaPx": {
+              "description": "Largura máxima do conteúdo.",
+              "type": "integer",
+              "default": 1400,
+              "minimum": 600,
+              "maximum": 3000
+            },
+            "espacoBasePx": {
+              "description": "Unidade de espaçamento.",
+              "type": "integer",
+              "default": 4,
+              "minimum": 2,
+              "maximum": 8
+            }
+          },
+          "additionalProperties": false
+        },
+        "movimento": {
+          "description": "Animações.",
+          "type": "object",
+          "properties": {
+            "reduzirSeOSistemaPedir": {
+              "description": "Respeitar \"reduzir movimento\" do aparelho.",
+              "type": "boolean",
+              "default": true
+            },
+            "curva": {
+              "description": "Curva de animação (CSS).",
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9 ,.()-]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "validarContraste": {
+          "description": "Mínimos de contraste exigidos da paleta.",
+          "type": "object",
+          "properties": {
+            "textoMinimo": {
+              "type": "number",
+              "default": 4.5,
+              "minimum": 3,
+              "maximum": 21
+            },
+            "controleMinimo": {
+              "type": "number",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 21
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "idiomas": {
+      "description": "Idiomas da interface.",
+      "type": "object",
+      "properties": {
+        "padrao": {
+          "description": "Idioma padrão.",
+          "type": "string",
+          "default": "pt-BR",
+          "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+        },
+        "disponiveis": {
+          "description": "Idiomas oferecidos.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+          },
+          "default": [
+            "pt-BR"
+          ]
+        },
+        "detectarDoNavegador": {
+          "description": "Escolher o idioma pelo navegador.",
+          "type": "boolean",
+          "default": false
+        },
+        "seletorVisivel": {
+          "description": "Mostrar seletor de idioma.",
+          "type": "boolean",
+          "default": false
+        },
+        "legendas": {
+          "description": "Preferências de legenda.",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "textos": {
+      "description": "Textos editáveis por idioma: {\"pt-BR\":{\"rodape\":\"...\"}}. Até 300 caracteres cada.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z]{2}(-[A-Z]{2})?$": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      }
+    },
+    "acesso": {
+      "description": "Quem pode ver. Padrão \"privado\": o mais fechado.",
+      "type": "object",
+      "properties": {
+        "modo": {
+          "description": "publico (todos), cadastro (qualquer um que se cadastre) ou privado (só convidados).",
+          "type": "string",
+          "enum": [
+            "publico",
+            "cadastro",
+            "privado"
+          ],
+          "default": "privado"
+        },
+        "publico": {
+          "description": "Modo público.",
+          "type": "object",
+          "properties": {
+            "sitemap": {
+              "description": "Publicar sitemap.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "cadastro": {
+          "description": "Modo cadastro.",
+          "type": "object",
+          "properties": {
+            "metodo": {
+              "description": "Como a pessoa entra.",
+              "type": "string",
+              "enum": [
+                "link-magico",
+                "email-e-senha"
+              ],
+              "default": "link-magico"
+            },
+            "turnstile": {
+              "description": "Proteção anti-robô (obrigatória no modo cadastro).",
+              "type": "boolean",
+              "default": true
+            },
+            "dominiosPermitidos": {
+              "description": "Só e-mails destes domínios (vazio = todos).",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$"
+              },
+              "default": []
+            },
+            "verificarEmail": {
+              "description": "Exigir confirmação do e-mail.",
+              "type": "boolean",
+              "default": true
+            },
+            "aprovacaoManual": {
+              "description": "A equipe aprova cada cadastro.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "privado": {
+          "description": "Modo privado.",
+          "type": "object",
+          "properties": {
+            "quemEntra": {
+              "description": "Quem entra.",
+              "type": "string",
+              "enum": [
+                "convidados"
+              ],
+              "default": "convidados"
+            },
+            "convitesPorEmail": {
+              "description": "Enviar convite por e-mail.",
+              "type": "boolean",
+              "default": true
+            },
+            "listaDeEmails": {
+              "description": "Convidados iniciais.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "default": []
+            },
+            "assinarMidia": {
+              "description": "Assinar os endereços do vídeo.",
+              "type": "boolean",
+              "default": true
+            },
+            "validadeDaAssinaturaSeg": {
+              "description": "Validade da assinatura, em segundos.",
+              "type": "integer",
+              "default": 14400,
+              "minimum": 60,
+              "maximum": 86400
+            }
+          },
+          "additionalProperties": false
+        },
+        "sessao": {
+          "description": "Sessões.",
+          "type": "object",
+          "properties": {
+            "horasEspectador": {
+              "description": "Duração da sessão do espectador (horas).",
+              "type": "integer",
+              "default": 720,
+              "minimum": 1,
+              "maximum": 8760
+            },
+            "horasEquipe": {
+              "description": "Duração da sessão da equipe (horas).",
+              "type": "integer",
+              "default": 8,
+              "minimum": 1,
+              "maximum": 168
+            },
+            "cookie": {
+              "description": "Cookie.",
+              "type": "object",
+              "properties": {
+                "sameSite": {
+                  "description": "SameSite.",
+                  "type": "string",
+                  "enum": [
+                    "Lax",
+                    "Strict"
+                  ],
+                  "default": "Lax"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "senha": {
+          "description": "Senhas.",
+          "type": "object",
+          "properties": {
+            "tamanhoMinimo": {
+              "description": "Tamanho mínimo.",
+              "type": "integer",
+              "default": 12,
+              "minimum": 8,
+              "maximum": 128
+            },
+            "iteracoesPbkdf2": {
+              "description": "Iterações do PBKDF2 (o plano gratuito tem ~10 ms de CPU).",
+              "type": "integer",
+              "default": 10000,
+              "minimum": 1000,
+              "maximum": 100000
+            }
+          },
+          "additionalProperties": false
+        },
+        "email": {
+          "description": "Envio de e-mail.",
+          "type": "object",
+          "properties": {
+            "adaptador": {
+              "description": "Serviço.",
+              "type": "string",
+              "enum": [
+                "nenhum",
+                "resend",
+                "cloudflare-email"
+              ],
+              "default": "nenhum"
+            }
+          },
+          "additionalProperties": false
+        },
+        "paginaDeLogin": {
+          "description": "Textos da página de login.",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "video": {
+      "description": "Provedor de vídeo.",
+      "type": "object",
+      "properties": {
+        "provedor": {
+          "description": "Onde os vídeos ficam.",
+          "type": "string",
+          "enum": [
+            "bunny",
+            "cloudflare-stream",
+            "hls-generico"
+          ],
+          "default": "bunny"
+        },
+        "bunny": {
+          "description": "Credenciais Bunny (sempre {\"$env\":...}).",
+          "type": "object",
+          "properties": {
+            "bibliotecaId": {
+              "$ref": "#/$defs/segredo"
+            },
+            "chaveApi": {
+              "$ref": "#/$defs/segredo"
+            },
+            "hostDaPullZone": {
+              "$ref": "#/$defs/segredo"
+            },
+            "chaveDeToken": {
+              "$ref": "#/$defs/segredo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cloudflareStream": {
+          "description": "Credenciais Cloudflare Stream.",
+          "type": "object",
+          "properties": {
+            "accountId": {
+              "$ref": "#/$defs/segredo"
+            },
+            "tokenApi": {
+              "$ref": "#/$defs/segredo"
+            },
+            "subdominioDeClientes": {
+              "$ref": "#/$defs/segredo"
+            }
+          },
+          "additionalProperties": false
+        },
+        "hlsGenerico": {
+          "description": "HLS genérico.",
+          "type": "object",
+          "properties": {
+            "baseUrl": {
+              "$ref": "#/$defs/url"
+            }
+          },
+          "additionalProperties": false
+        },
+        "envio": {
+          "description": "Upload pelo navegador.",
+          "type": "object",
+          "properties": {
+            "metodo": {
+              "description": "Método.",
+              "type": "string",
+              "enum": [
+                "direto-do-navegador"
+              ],
+              "default": "direto-do-navegador"
+            },
+            "tamanhoDoPedacoMb": {
+              "description": "Pedaço do upload (MB).",
+              "type": "integer",
+              "default": 50,
+              "minimum": 5,
+              "maximum": 500
+            },
+            "tamanhoMaximoGb": {
+              "description": "Tamanho máximo (GB).",
+              "type": "integer",
+              "default": 8,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "formatosAceitos": {
+              "description": "Extensões aceitas.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9]{2,5}$"
+              },
+              "default": [
+                "mp4",
+                "mov",
+                "mkv",
+                "webm"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "qualidades": {
+          "description": "Qualidades.",
+          "type": "object",
+          "properties": {
+            "maxima": {
+              "description": "Altura máxima (px).",
+              "type": "integer",
+              "default": 1080,
+              "minimum": 240,
+              "maximum": 4320
+            },
+            "ofereceMp4Reserva": {
+              "description": "Oferecer MP4 de reserva.",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "capa": {
+          "description": "Capas.",
+          "type": "object",
+          "properties": {
+            "larguraPx": {
+              "description": "Largura (px).",
+              "type": "integer",
+              "default": 640,
+              "minimum": 120,
+              "maximum": 3840
+            },
+            "qualidadeJpeg": {
+              "type": "number",
+              "default": 0.85,
+              "minimum": 0.3,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "recursos": {
+      "description": "Liga e desliga funções.",
+      "type": "object",
+      "properties": {
+        "busca": {
+          "description": "Busca.",
+          "type": "object",
+          "properties": {
+            "porPalavra": {
+              "description": "Por palavra.",
+              "type": "boolean",
+              "default": true
+            },
+            "pelaFala": {
+              "description": "Pelo que é falado.",
+              "type": "boolean",
+              "default": true
+            },
+            "porSentido": {
+              "description": "Por sentido (IA).",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "continuarAssistindo": {
+          "type": [
+            "boolean",
+            "object"
+          ],
+          "default": true,
+          "description": "Continuar assistindo (true/false ou bloco de opções)."
+        },
+        "pwaInstalavel": {
+          "description": "Instalável no celular.",
+          "type": "boolean",
+          "default": true
+        },
+        "paginaDaSerie": {
+          "description": "Página de série.",
+          "type": "object"
+        },
+        "capitulos": {
+          "type": "boolean"
+        },
+        "legendas": {
+          "type": "boolean"
+        },
+        "listaDeDesejos": {
+          "type": "boolean"
+        },
+        "comentarios": {
+          "type": "boolean"
+        },
+        "abertura": {
+          "description": "Animação de abertura.",
+          "type": "object"
+        },
+        "campos": {
+          "description": "Campos extras do catálogo.",
+          "type": "object"
+        },
+        "permissoesDaMesa": {
+          "description": "Permissões da equipe.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "limitesDeEnvioPorConta": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "player": {
+      "description": "Player. Nada toca sozinho sem o guardião do player.",
+      "type": "object",
+      "properties": {
+        "autoplay": {
+          "description": "Início automático.",
+          "type": "object",
+          "properties": {
+            "modo": {
+              "description": "nunca (padrão), mudo ou com-som-apos-interacao.",
+              "type": "string",
+              "enum": [
+                "nunca",
+                "mudo",
+                "com-som-apos-interacao"
+              ],
+              "default": "nunca"
+            },
+            "somenteDesktop": {
+              "description": "Só em computador.",
+              "type": "boolean",
+              "default": true
+            },
+            "respeitarEconomiaDeDados": {
+              "description": "Respeitar economia de dados.",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "proximoEpisodio": {
+          "description": "Próximo episódio.",
+          "type": "object",
+          "properties": {
+            "modo": {
+              "description": "Comportamento.",
+              "type": "string",
+              "enum": [
+                "perguntar",
+                "automatico",
+                "desligado"
+              ],
+              "default": "perguntar"
+            },
+            "segundosDeContagem": {
+              "description": "Contagem regressiva (s).",
+              "type": "integer",
+              "default": 8,
+              "minimum": 1,
+              "maximum": 60
+            },
+            "mostrarCartaoNosUltimosSeg": {
+              "description": "Cartão nos últimos N segundos.",
+              "type": "integer",
+              "default": 20,
+              "minimum": 0,
+              "maximum": 120
+            }
+          },
+          "additionalProperties": false
+        },
+        "retomar": {
+          "description": "Retomar de onde parou.",
+          "type": "object",
+          "properties": {
+            "modo": {
+              "description": "Comportamento.",
+              "type": "string",
+              "enum": [
+                "perguntar",
+                "sempre",
+                "nunca"
+              ],
+              "default": "perguntar"
+            },
+            "guardarPosicao": {
+              "description": "Guardar a posição.",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "marcaDagua": {
+          "description": "Marca d'água.",
+          "type": "object",
+          "properties": {
+            "ligada": {
+              "description": "Ligada.",
+              "type": "boolean",
+              "default": false
+            },
+            "texto": {
+              "description": "Texto.",
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "usar": {
+          "description": "Player.",
+          "type": "string",
+          "enum": [
+            "proprio"
+          ],
+          "default": "proprio"
+        },
+        "loop": {
+          "description": "Repetir.",
+          "type": "boolean",
+          "default": false
+        },
+        "preload": {
+          "description": "Pré-carregamento.",
+          "type": "string",
+          "enum": [
+            "none",
+            "metadata",
+            "auto"
+          ],
+          "default": "none"
+        },
+        "pularIntroducao": {
+          "description": "Botão de pular introdução.",
+          "type": "boolean",
+          "default": false
+        },
+        "controles": {
+          "description": "Controles.",
+          "type": "object"
+        },
+        "gestos": {
+          "description": "Gestos.",
+          "type": "object"
+        },
+        "som": {
+          "description": "Som.",
+          "type": "object"
+        },
+        "legenda": {
+          "description": "Legenda.",
+          "type": "object"
+        },
+        "teatro": {
+          "type": "boolean"
+        },
+        "passoDeQuadro": {
+          "type": "boolean"
+        },
+        "picInPic": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "home": {
+      "description": "Página inicial (valor inicial; o dia a dia fica no /admin).",
+      "type": "object",
+      "properties": {
+        "destaque": {
+          "description": "Destaque do topo.",
+          "type": "object",
+          "properties": {
+            "modo": {
+              "description": "Como escolher.",
+              "type": "string",
+              "enum": [
+                "manual",
+                "automatico",
+                "desligado"
+              ],
+              "default": "manual"
+            },
+            "tituloId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 200
+            },
+            "fundo": {
+              "description": "Vídeo ou imagem de fundo.",
+              "type": "object",
+              "properties": {
+                "tipo": {
+                  "description": "Tipo.",
+                  "type": "string",
+                  "enum": [
+                    "nenhum",
+                    "imagem",
+                    "video-mudo"
+                  ],
+                  "default": "imagem"
+                },
+                "atrasoMs": {
+                  "description": "Espera antes de tocar (ms).",
+                  "type": "integer",
+                  "default": 1200,
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "somenteDesktop": {
+                  "description": "Só em computador.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "respeitarEconomiaDeDados": {
+                  "description": "Respeitar economia de dados.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "respeitarMovimentoReduzido": {
+                  "description": "Respeitar \"reduzir movimento\".",
+                  "type": "boolean",
+                  "default": true
+                },
+                "usarTrailer": {
+                  "description": "Usar o trailer.",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            "botoes": {
+              "description": "Botões.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "blocos": {
+          "description": "Blocos, na ordem em que aparecem.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "tipo"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,40}$"
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "destaque",
+                  "continuar-assistindo",
+                  "prateleira-recentes",
+                  "prateleira-duracao",
+                  "prateleira-por-serie",
+                  "prateleira-colecao",
+                  "prateleira-restante",
+                  "categorias",
+                  "texto",
+                  "banner"
+                ]
+              },
+              "titulo": {
+                "$ref": "#/$defs/textoPorIdioma"
+              },
+              "limite": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "escondido": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "cartao": {
+          "description": "Cartões.",
+          "type": "object"
+        },
+        "paginaDeSeries": {
+          "description": "Página de séries.",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ia": {
+      "description": "Inteligência artificial (opcional).",
+      "type": "object",
+      "properties": {
+        "textos": {
+          "description": "Textos.",
+          "type": "object",
+          "properties": {
+            "provedor": {
+              "description": "Serviço.",
+              "type": "string",
+              "enum": [
+                "nenhum",
+                "workers-ai",
+                "anthropic"
+              ],
+              "default": "nenhum"
+            },
+            "modelo": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/segredo"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[A-Za-z0-9@/._:-]+$"
+                }
+              ]
+            },
+            "chave": {
+              "$ref": "#/$defs/segredo"
+            },
+            "estilo": {
+              "description": "Estilo dos textos.",
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "transcricao": {
+          "description": "Transcrição.",
+          "type": "object",
+          "properties": {
+            "provedor": {
+              "description": "Serviço.",
+              "type": "string",
+              "enum": [
+                "nenhum",
+                "workers-ai-whisper",
+                "assemblyai"
+              ],
+              "default": "nenhum"
+            },
+            "idioma": {
+              "description": "Idioma da fala.",
+              "type": "string",
+              "default": "pt",
+              "pattern": "^[a-z]{2}$"
+            },
+            "chave": {
+              "$ref": "#/$defs/segredo"
+            },
+            "modelo": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/segredo"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[A-Za-z0-9@/._:-]+$"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "capas": {
+          "description": "Capas.",
+          "type": "object"
+        },
+        "trailers": {
+          "description": "Trailers.",
+          "type": "object"
+        },
+        "orcamentoMensalUSD": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Teto mensal de gasto com IA, em dólares."
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "description": "Servidor MCP (agentes externos).",
+      "type": "object",
+      "properties": {
+        "ligado": {
+          "description": "Ligado.",
+          "type": "boolean",
+          "default": false
+        },
+        "somenteLeitura": {
+          "description": "Só leitura.",
+          "type": "boolean",
+          "default": true
+        },
+        "caminho": {
+          "description": "Caminho.",
+          "type": "string",
+          "default": "/mcp",
+          "pattern": "^/[a-z0-9/_-]{1,40}$"
+        },
+        "autenticacao": {
+          "description": "Autenticação.",
+          "type": "string",
+          "enum": [
+            "token-de-api"
+          ],
+          "default": "token-de-api"
+        },
+        "ferramentas": {
+          "description": "Ferramentas liberadas.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 60
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "seo": {
+      "description": "Buscadores.",
+      "type": "object",
+      "properties": {
+        "indexavel": {
+          "description": "Permitir que buscadores indexem (só vale no modo publico).",
+          "type": "boolean",
+          "default": false
+        },
+        "titulo": {
+          "description": "Título da página; aceita {{marca.nome}}.",
+          "type": "string",
+          "default": "{{marca.nome}} — catálogo",
+          "maxLength": 120
+        },
+        "descricao": {
+          "description": "Descrição; aceita {{marca.descricao}}.",
+          "type": "string",
+          "default": "{{marca.descricao}}",
+          "maxLength": 300
+        },
+        "dadosEstruturados": {
+          "description": "Dados estruturados.",
+          "type": "string",
+          "enum": [
+            "nenhum",
+            "VideoObject"
+          ],
+          "default": "nenhum"
+        },
+        "analitica": {
+          "description": "Métricas.",
+          "type": "object",
+          "properties": {
+            "provedor": {
+              "description": "Serviço.",
+              "type": "string",
+              "enum": [
+                "nenhum"
+              ],
+              "default": "nenhum"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "implantacao": {
+      "description": "Cloudflare.",
+      "type": "object",
+      "properties": {
+        "plataforma": {
+          "description": "Plataforma.",
+          "type": "string",
+          "enum": [
+            "cloudflare"
+          ],
+          "default": "cloudflare"
+        },
+        "nomeDoProjeto": {
+          "description": "Nome do Worker.",
+          "type": "string",
+          "default": "plataforma-exemplo",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,56}[a-z0-9]$"
+        },
+        "ramoDeProducao": {
+          "description": "Ramo do git de produção.",
+          "type": "string",
+          "default": "main",
+          "pattern": "^[A-Za-z0-9._/-]{1,60}$"
+        },
+        "recursos": {
+          "description": "Nomes dos recursos.",
+          "type": "object",
+          "properties": {
+            "kv": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "vectorize": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "d1": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "additionalProperties": false
+        },
+        "bindings": {
+          "description": "Nomes dos bindings.",
+          "type": "object",
+          "properties": {
+            "kv": {
+              "description": "KV.",
+              "type": "string",
+              "default": "CATALOGO",
+              "pattern": "^[A-Z][A-Z0-9_]{1,30}$"
+            },
+            "ia": {
+              "description": "IA.",
+              "type": "string",
+              "default": "AI",
+              "pattern": "^[A-Z][A-Z0-9_]{1,30}$"
+            },
+            "vetores": {
+              "description": "Vectorize.",
+              "type": "string",
+              "default": "VECTORIZE",
+              "pattern": "^[A-Z][A-Z0-9_]{1,30}$"
+            },
+            "bancoDeUsuarios": {
+              "description": "D1.",
+              "type": "string",
+              "default": "USUARIOS",
+              "pattern": "^[A-Z][A-Z0-9_]{1,30}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "$schema": {
+      "type": "string"
+    }
+  }
+}

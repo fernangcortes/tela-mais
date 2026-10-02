@@ -1,22 +1,25 @@
-/* functions/api/_middleware.js — roda antes de toda função em /api/*.
+/* _lib/sessao.js — de quem é a requisição e o que essa conta pode.
  *
- * Faz três coisas:
- *   1. descobre DE QUEM é a requisição (`data.conta`) e o que essa conta pode;
- *   2. barra o que não for público — o padrão é "exige conta", então uma
- *      função nova nasce protegida em vez de nascer aberta;
- *   3. entrega em `data.bunny` o acesso à API do Bunny, único lugar do projeto
- *      onde a AccessKey existe. Ela nunca é devolvida ao navegador.
+ * Vinha do `_middleware.js` do Pages; no Worker o middleware é `middleware.js`
+ * (política de acesso) e isto aqui ficou só com o que as rotas compartilham:
+ * resposta JSON, contas no KV, senha (PBKDF2), token de sessão e o cliente do
+ * Bunny, único lugar do projeto onde a AccessKey existe. Ela nunca é devolvida
+ * ao navegador.
  *
- * `_middleware.js` é o único nome de arquivo que o Pages trata como middleware
- * e não como rota — por isso os utilitários compartilhados moram aqui.
+ * DOIS SEGREDOS, DE PROPÓSITO. `ADMIN_PASSWORD` é a senha que o superadmin
+ * digita; `SESSION_SECRET` é a chave que assina os tokens de sessão. Antes a
+ * senha também assinava o token, então trocar uma coisa mexia na outra e quem
+ * vazasse o token válido podia tentar derivar a senha offline. Agora são
+ * independentes: a senha só prova quem entra, a chave só prova que o token é
+ * nosso. Sem `SESSION_SECRET` (ou com menos de 32 caracteres) NENHUMA sessão
+ * é emitida nem aceita — falha fechada.
  *
- * CONTAS (M2, 16/09). O superadmin é a senha do ambiente (`ADMIN_PASSWORD`) e
- * pode tudo; ele cria as outras contas, que moram no KV com permissões
- * escolhidas uma a uma. A conferência de verdade é no servidor: o PUT do
- * catálogo compara o documento velho com o novo e recusa campo que a conta não
- * pode mudar.
+ * CONTAS. O superadmin é a senha do ambiente e pode tudo; ele cria as outras
+ * contas, que moram no KV com permissões escolhidas uma a uma. A conferência
+ * de verdade é no servidor: o PUT do catálogo compara o documento velho com o
+ * novo e recusa campo que a conta não pode mudar.
  */
-import App from '../../catalogo-core.js';
+import App from '../../site/catalogo-core.js';
 
 const ROTULO_TOKEN = 'tm-admin:';
 const VALIDADE_TOKEN_S = 8 * 60 * 60;   /* 8 h: uma jornada de trabalho */
@@ -32,12 +35,6 @@ const CHAVE_AUTORIZACOES = 'autorizacoes';
  * invalidar nenhuma senha já guardada. As senhas nascem sorteadas pela mesa,
  * com 16 caracteres — é isso que carrega a segurança aqui, não o número. */
 const ITERACOES_PADRAO = 10000;
-
-/* As leituras da busca que o público faz sem conta.
- * Só GET: a escrita do índice é o `POST /api/busca/indexar`, que exige conta
- * e permissão. Uma rota entra aqui por decisão, com teste — nunca por nascer
- * em `functions/api/busca/`. */
-const ROTAS_DE_LEITURA_DA_BUSCA = ['/api/busca/fala', '/api/busca/sentido'];
 
 export function json(status, corpo, extras) {
   return new Response(JSON.stringify(corpo), {
@@ -166,10 +163,18 @@ export async function conferirSenha(senha, registro) {
 
 /* ------------------------------------------------------------------ token */
 
+/* A chave de assinatura das sessões. Curta demais conta como ausente. */
+export function segredoDeSessao(env) {
+  const s = env && env.SESSION_SECRET;
+  return typeof s === 'string' && s.length >= 32 ? s : null;
+}
+
 export async function emitirToken(env, conta) {
+  const segredo = segredoDeSessao(env);
+  if (!segredo) throw new Error('SESSION_SECRET ausente ou curta demais');
   const expira = agora() + VALIDADE_TOKEN_S;
   const versao = conta.super ? 0 : (conta.versao || 1);
-  const assinatura = await assinarHmac(env.ADMIN_PASSWORD, ROTULO_TOKEN + conta.usuario + ':' + expira + ':' + versao);
+  const assinatura = await assinarHmac(segredo, ROTULO_TOKEN + conta.usuario + ':' + expira + ':' + versao);
   return {
     token: ['v2', conta.usuario, expira, versao, assinatura].join('.'),
     expira,
@@ -180,26 +185,19 @@ export async function emitirToken(env, conta) {
   };
 }
 
-/* O token de ANTES das contas (`expira.assinatura`) continua valendo, e vale
- * como superadmin: é o que mantém os scripts de carga e as sessões abertas
- * funcionando no dia da virada, sem ninguém entrar de novo. */
-async function tokenLegado(token, senha) {
+export async function contaDoToken(token, env) {
+  const segredo = segredoDeSessao(env);
+  if (!segredo || !token || typeof token !== 'string') return null;
   const partes = token.split('.');
-  const expira = Number(partes[0]);
-  if (!Number.isFinite(expira) || expira < agora()) return false;
-  return iguaisEmTempoConstante(partes[1], await assinarHmac(senha, ROTULO_TOKEN + expira));
-}
-
-async function contaDoToken(token, env) {
-  if (!token || typeof token !== 'string') return null;
-  const partes = token.split('.');
-  if (partes.length === 2) return (await tokenLegado(token, env.ADMIN_PASSWORD)) ? contaSuper() : null;
+  /* O token do formato antigo (`expira.assinatura`, assinado com a senha do
+   * admin) deixou de valer: era a mistura de segredos que esta mudança desfaz.
+   * Quem o tinha entra de novo, uma vez. */
   if (partes.length !== 5 || partes[0] !== 'v2') return null;
 
   const [, usuario, expiraTexto, versaoTexto, assinatura] = partes;
   const expira = Number(expiraTexto);
   if (!Number.isFinite(expira) || expira < agora()) return null;
-  const esperado = await assinarHmac(env.ADMIN_PASSWORD, ROTULO_TOKEN + usuario + ':' + expira + ':' + versaoTexto);
+  const esperado = await assinarHmac(segredo, ROTULO_TOKEN + usuario + ':' + expira + ':' + versaoTexto);
   if (!iguaisEmTempoConstante(assinatura, esperado)) return null;
 
   if (usuario === 'superadmin') return contaSuper();
@@ -233,7 +231,7 @@ export function semPermissao(permissao) {
 
 /* --------------------------------------------------------------- o Bunny */
 
-function criarClienteBunny(env) {
+export function criarClienteBunny(env) {
   const libraryId = String(env.BUNNY_LIBRARY_ID || '');
   const apiKey = String(env.BUNNY_API_KEY || '');
   const base = 'https://video.bunnycdn.com/library/' + libraryId;
@@ -257,42 +255,3 @@ function criarClienteBunny(env) {
   };
 }
 
-export async function onRequest(context) {
-  const { request, env, data, next } = context;
-  const rota = new URL(request.url).pathname.replace(/\/+$/, '') || '/api';
-
-  if (!env.ADMIN_PASSWORD) {
-    return json(500, { erro: 'ADMIN_PASSWORD não configurada no ambiente do Pages' });
-  }
-
-  const cabecalho = request.headers.get('authorization') || '';
-  const token = cabecalho.toLowerCase().startsWith('bearer ') ? cabecalho.slice(7).trim() : '';
-  data.conta = await contaDoToken(token, env);
-  data.admin = !!data.conta;
-  data.bunny = criarClienteBunny(env);
-
-  /* Aberto ao público interno: o login, a leitura do catálogo e as leituras
-   * da busca. Todo o resto exige conta — inclusive rotas que
-   * ainda nem existem, e o POST de /api/busca/indexar, que escreve. */
-  const leituraDaBusca = ROTAS_DE_LEITURA_DA_BUSCA.indexOf(rota) >= 0 && request.method === 'GET';
-  const publico = rota === '/api/login' ||
-    (rota === '/api/catalogo' && request.method === 'GET') ||
-    leituraDaBusca;
-
-  if (!publico && !data.admin) {
-    return json(401, { erro: 'não autorizado' });
-  }
-
-  const resposta = await next();
-  const saida = new Response(resposta.body, resposta);
-  /* Tudo sai com `no-store`, menos as leituras da busca que dizem o próprio
-   * cache: o índice da fala tem `ETag` e `no-cache`, e é isso que devolve um
-   * 304 sem corpo à visita que busca de novo. Um `no-store` por cima faria o
-   * navegador baixar os ~430 KB a cada visita. */
-  if (!(leituraDaBusca && resposta.headers.has('cache-control'))) {
-    saida.headers.set('cache-control', 'no-store');
-  }
-  saida.headers.set('x-content-type-options', 'nosniff');
-  saida.headers.set('referrer-policy', 'no-referrer');
-  return saida;
-}
