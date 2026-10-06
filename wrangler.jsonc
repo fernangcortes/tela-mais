@@ -54,6 +54,7 @@
   ],
 
   // Retenção: todo dia, 03:17 UTC, apaga sessões, links e convites vencidos.
+  "vars": {},
   "triggers": { "crons": ["17 3 * * *"] },
 
   // Opcional: freio de tentativas do Cloudflare (Rate Limiting). Sem ele, o limite usa
