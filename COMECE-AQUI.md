@@ -83,6 +83,9 @@ Passo a passo das contas e de onde ficam as chaves: `docs/contas-e-chaves.md`.
 
 1. Clique em **Deploy to Cloudflare**: https://deploy.workers.cloudflare.com/?url=https://github.com/fernangcortes/tela-mais
    A Cloudflare copia o projeto para a sua conta do GitHub e cria o site e os bancos. Siga as telas dela até aparecer o endereço do site.
+   Se a Cloudflare abrir a tela **Select a repository** (importar um repositório do GitHub), também serve: escolha o repositório,
+   use como nome do Worker exatamente o `name` do `wrangler.jsonc` (no modelo, `plataforma-exemplo`), deixe o comando de build vazio
+   e o de deploy como `npx wrangler deploy`. Os bancos (KV e D1) são criados sozinhos na primeira publicação, e as tabelas no primeiro acesso.
 2. Na Cloudflare, abra **Workers e Pages**, o seu site, **Configurações**, **Variáveis e segredos**, e crie o segredo
    `ADMIN_PASSWORD` (mínimo 12 caracteres; guarde no gerenciador de senhas) e o `SESSION_SECRET` (a chave interna das sessões: **no mínimo 32 caracteres** e **diferente** da senha do administrador).
    Para criar o `SESSION_SECRET`, use o gerador de senhas do seu gerenciador de senhas (ou do navegador) com 40 caracteres e cole o resultado.
