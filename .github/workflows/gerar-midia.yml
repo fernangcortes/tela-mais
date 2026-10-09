@@ -101,7 +101,7 @@ jobs:
             printf '%s' "$INPUT_IDIOMAS" | grep -Eq '^[a-z]{2}(-[A-Za-z]{2})?(,[a-z]{2}(-[A-Za-z]{2})?)*$' || { echo "::error::idiomas inválidos (ex.: en,es)"; exit 1; }
           fi
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - name: Instala o ffmpeg e uma fonte para o título das capas
