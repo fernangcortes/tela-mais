@@ -135,7 +135,7 @@ jobs:
         run: node scripts/capas.mjs --fila --item "$INPUT_IDS" --saida capas-geradas
       - name: Guarda as capas candidatas (baixe, escolha e envie pelo /admin)
         if: ${{ inputs.tarefa == 'capas' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: capas-candidatas
           path: capas-geradas/
