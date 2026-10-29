@@ -79,7 +79,7 @@ export const deploy = {
       rel.passo('Para publicar de verdade: node scripts/setup.mjs deploy (peça a autorização da pessoa antes).');
       return SAIDA.OK;
     }
-    await exigirLogin(ctx, wr);
+    await exigirLogin(ctx, wr, { contaId: f.conta });
     const pub = await wr.publicar();
     if (!pub.ok) { rel.acao('deploy', 'O wrangler não conseguiu publicar', 'falhou'); throw falha('deploy-falhou', 'a publicação falhou.', { dica: pub.saida.split('\n').slice(-6).join(' ') }); }
     rel.acao('deploy', `Publicado${pub.url ? ' em ' + pub.url : ''}`, 'feito');
