@@ -81,10 +81,10 @@ A suíte comportamental foi escrita contra a configuração neutra "Plataforma E
 `dados/`, `.env` e `.dev.vars` não são copiados. A configuração e os arquivos reais da instalação
 não são alterados.
 
-Por isso o fluxo `testes.yml` e as atualizações automáticas usam `npm run test:produto` em qualquer
-cópia, inclusive personalizada. Em seguida, a configuração real volta a ser validada e os arquivos
-gerados com a sua marca são conferidos. Para desenvolver no repositório neutro, `npm test` continua
-sendo o caminho direto.
+Por enquanto, o fluxo `testes.yml` e a atualização automática continuam pulando a suíte numa cópia
+personalizada; as demais conferências rodam normalmente. Para executar a suíte completa manualmente,
+use `npm run test:produto`. Para desenvolver no repositório neutro, `npm test` continua sendo o
+caminho direto.
 
 No `setup.mjs deploy` local de uma cópia personalizada, a verificação curta com o `doctor` continua
 sendo o padrão e a suíte é pulada. Use `--com-testes` para rodar também a suíte isolada antes de
@@ -163,10 +163,9 @@ for público.
 
 ## Publicar automático (`deploy.yml`)
 
-A cada push nas branches configuradas em `.github/workflows/deploy.yml`, o fluxo roda os testes e,
-**só se passarem**, publica com `wrangler deploy`. Vem **desligado**: sem os dois segredos abaixo ele
-roda os testes e para, sem erro. A publicação manual (`node scripts/setup.mjs deploy`) continua
-funcionando.
+A cada push na `main` o fluxo roda os testes e, **só se passarem**, publica com `wrangler deploy`.
+Vem **desligado**: sem os dois segredos abaixo ele roda os testes e para, sem erro. A publicação
+manual (`node scripts/setup.mjs deploy`) continua funcionando.
 
 Segredos do repositório (*Settings > Secrets and variables > Actions*):
 
