@@ -32,7 +32,6 @@ test('deploy: só depois de `testes`, desligado sem o token, sem action de terce
   const t = fluxo('deploy');
   assert.match(t, /uses:\s*\.\/\.github\/workflows\/testes\.yml/);
   assert.match(t, /needs:\s*testes/);
-  assert.match(t, /branches:\s*\[main, claude\/white-label-streaming-repo-fp0zfj\]/, 'a branch padrão atual também dispara o deploy');
   assert.match(t, /secrets\.CLOUDFLARE_API_TOKEN/);
   assert.match(t, /secrets\.CLOUDFLARE_ACCOUNT_ID/);
   assert.match(t, /ligado=false/);
@@ -46,10 +45,14 @@ test('deploy: só depois de `testes`, desligado sem o token, sem action de terce
   }
 });
 
-test('testes.yml: a suíte completa roda também em cópias personalizadas; as demais conferências sempre', () => {
+test('testes.yml: os testes do produto só rodam na cópia com a marca neutra; as demais conferências sempre', () => {
   const t = fluxo('testes');
-  assert.match(t, /run: npm run test:produto/);
-  assert.doesNotMatch(t, /steps\.produto/);
+  assert.match(t, /Plataforma Exemplo/);
+  assert.match(t, /if: steps\.produto\.outputs\.produto == 'true'\n\s+run: npm test/);
+  for (const c of ['scan-secrets', 'sync-agents --check', 'aplicar-config.mjs --verificar', 'gerar-headers.mjs --verificar', 'migrar-config.mjs --verificar', 'anti-marca.mjs']) assert.ok(t.includes(c), c);
+});
+
+test('test:produto: o comando e as fixtures neutras existem para uso em qualquer cópia', () => {
   const pacote = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8'));
   assert.equal(pacote.scripts['test:produto'], 'node scripts/testar-produto.mjs');
   for (const rel of ['scripts/testar-produto.mjs', 'tests/fixtures/site.neutro.json', 'tests/fixtures/wrangler.neutro.jsonc']) {
@@ -57,7 +60,6 @@ test('testes.yml: a suíte completa roda também em cópias personalizadas; as d
   }
   const neutra = JSON.parse(fs.readFileSync(path.join(RAIZ, 'tests/fixtures/site.neutro.json'), 'utf8'));
   assert.equal(neutra.marca.nome, 'Plataforma Exemplo');
-  for (const c of ['scan-secrets', 'sync-agents --check', 'aplicar-config.mjs --verificar', 'gerar-headers.mjs --verificar', 'migrar-config.mjs --verificar', 'anti-marca.mjs']) assert.ok(t.includes(c), c);
 });
 
 test('backup: DESLIGADO por padrão, repositório separado e privado, contas só se pedido', () => {
@@ -82,8 +84,6 @@ test('atualizar-core: semanal, não roda no repositório oficial, só o produto,
   assert.match(t, /github\.repository != 'fernangcortes\/tela-mais'/);
   assert.match(t, /atualizar-core\.mjs/);
   assert.match(t, /migrar-config\.mjs/);
-  assert.match(t, /npm run test:produto/, 'atualizações de cópias personalizadas também rodam a suíte completa');
-  assert.doesNotMatch(t, /then npm test/);
   assert.match(t, /gh pr (create|edit)/);
   assert.doesNotMatch(t, /gh pr merge|--auto|enable_pr_auto_merge/);
   assert.match(t, /ATUALIZAR_TOKEN/);
