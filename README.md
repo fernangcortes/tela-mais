@@ -8,8 +8,8 @@ scripts Node para administrar o catálogo.
 ## Estado atual
 
 **Produto em estabilização para o primeiro piloto, com funcionalidades entregues até o marco M10.**
-O tela mAIs nasceu do Goiás Tec +, um streaming real que está em lançamento. Este repositório
-separa a plataforma em um produto neutro e reutilizável, com instalação guiada, operação,
+O tela mAIs nasceu de um streaming real que está em lançamento. Este repositório separa
+a plataforma em um produto neutro e reutilizável, com instalação guiada, operação,
 integrações MCP e IA de conteúdo com revisão humana. O white label ainda não tem uma instalação
 própria com usuários em produção: antes do primeiro piloto, faça uma publicação de teste e
 confira as telas Saúde e Backup e a reprodução dos vídeos.
