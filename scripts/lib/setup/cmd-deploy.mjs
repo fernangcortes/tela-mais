@@ -47,20 +47,19 @@ export const deploy = {
       rel.acao('aplicar-config', ap.alterados.length ? `Arquivos do site atualizados (${ap.alterados.length})` : 'Arquivos do site já estavam em dia', ap.alterados.length ? 'feito' : 'ja-estava');
     }
 
-    /* 4. testes do PRODUTO: eles conferem a marca neutra "Plataforma Exemplo", então só fazem sentido no repositório
-     * do produto. Num site já personalizado (o caso do cliente) quebrariam por causa do nome e das cores dele, e
-     * não dizem nada sobre o site. Aqui o que protege o cliente é o doctor (config, arquivos gerados, segredos). */
+    /* 4. O CI sempre roda a suíte isolada. No deploy local de uma cópia personalizada, a verificação curta continua
+     * sendo o doctor; --com-testes força a mesma suíte completa sem alterar a configuração do cliente. */
     const cfgAtual = await criarEstado(ctx).config();
     const siteDoProduto = Boolean(cfgAtual.ok && cfgAtual.config.marca.nome === 'Plataforma Exemplo');
     if (f['sem-testes']) { rel.aviso('pulei os testes (--sem-testes). Agente: isto só com o "sim" explícito de quem mantém o produto.'); rel.acao('testes', 'Testes pulados por --sem-testes', 'pulado'); }
-    else if (!siteDoProduto && !f['com-testes']) rel.acao('testes', 'Testes do produto não se aplicam a um site com a sua marca (eles esperam o nome de exemplo); o doctor acima já conferiu a configuração, os arquivos gerados e os segredos. Para rodá-los mesmo assim: --com-testes', 'pulado');
-    else if (dry) rel.acao('testes', 'Rodaria os testes (npm test)', 'simulado');
+    else if (!siteDoProduto && !f['com-testes']) rel.acao('testes', 'Deploy local sem a suíte completa nesta cópia personalizada; o doctor acima já conferiu a configuração, os arquivos gerados e os segredos. Para rodar a suíte isolada antes de publicar: --com-testes', 'pulado');
+    else if (dry) rel.acao('testes', 'Rodaria os testes (npm run test:produto)', 'simulado');
     else {
-      const t = await ctx.exec('npm', ['test'], { cwd: ctx.raiz });
+      const t = await ctx.exec('npm', ['run', 'test:produto'], { cwd: ctx.raiz });
       if (t.codigo !== 0) {
         rel.acao('testes', 'Os testes falharam: não vou publicar', 'falhou');
         rel.dado('testes', { codigo: t.codigo, final: (t.saida + t.erro).split(/\r?\n/).slice(-15).join('\n') });
-        throw falha('testes-falharam', 'os testes automáticos falharam, então não publiquei.', { dica: 'Rode npm test para ver qual falhou e peça ajuda com a mensagem.' });
+        throw falha('testes-falharam', 'os testes automáticos falharam, então não publiquei.', { dica: 'Rode npm run test:produto para ver qual falhou e peça ajuda com a mensagem.' });
       }
       rel.acao('testes', 'Testes passaram', 'feito');
     }
