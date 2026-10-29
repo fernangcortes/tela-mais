@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Streaming white label de vídeo sob demanda para Cloudflare.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test",
     "dev": "npx wrangler dev",

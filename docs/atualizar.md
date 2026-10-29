@@ -152,9 +152,10 @@ for público.
 
 ## Publicar automático (`deploy.yml`)
 
-A cada push na `main` o fluxo roda os testes e, **só se passarem**, publica com `wrangler deploy`.
-Vem **desligado**: sem os dois segredos abaixo ele roda os testes e para, sem erro. A publicação
-manual (`node scripts/setup.mjs deploy`) continua funcionando.
+A cada push na branch configurada em `.github/workflows/deploy.yml` (`main`, no arquivo atual), o
+fluxo roda os testes e, **só se passarem**, publica com `wrangler deploy`. Vem **desligado**: sem os
+dois segredos abaixo ele roda os testes e para, sem erro. A publicação manual
+(`node scripts/setup.mjs deploy`) continua funcionando.
 
 Segredos do repositório (*Settings > Secrets and variables > Actions*):
 
