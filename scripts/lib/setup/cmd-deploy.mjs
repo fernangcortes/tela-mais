@@ -47,12 +47,12 @@ export const deploy = {
       rel.acao('aplicar-config', ap.alterados.length ? `Arquivos do site atualizados (${ap.alterados.length})` : 'Arquivos do site já estavam em dia', ap.alterados.length ? 'feito' : 'ja-estava');
     }
 
-    /* 4. O CI sempre roda a suíte isolada. No deploy local de uma cópia personalizada, a verificação curta continua
-     * sendo o doctor; --com-testes força a mesma suíte completa sem alterar a configuração do cliente. */
+    /* 4. No deploy local de uma cópia personalizada, a verificação curta continua sendo o doctor;
+     * --com-testes força a suíte completa isolada sem alterar a configuração do cliente. */
     const cfgAtual = await criarEstado(ctx).config();
     const siteDoProduto = Boolean(cfgAtual.ok && cfgAtual.config.marca.nome === 'Plataforma Exemplo');
     if (f['sem-testes']) { rel.aviso('pulei os testes (--sem-testes). Agente: isto só com o "sim" explícito de quem mantém o produto.'); rel.acao('testes', 'Testes pulados por --sem-testes', 'pulado'); }
-    else if (!siteDoProduto && !f['com-testes']) rel.acao('testes', 'Deploy local sem a suíte completa nesta cópia personalizada; o doctor acima já conferiu a configuração, os arquivos gerados e os segredos. Para rodar a suíte isolada antes de publicar: --com-testes', 'pulado');
+    else if (!siteDoProduto && !f['com-testes']) rel.acao('testes', 'Deploy local sem a suíte completa nesta cópia com marca personalizada; o doctor acima já conferiu a configuração, os arquivos gerados e os segredos. Para rodar a suíte isolada antes de publicar: --com-testes', 'pulado');
     else if (dry) rel.acao('testes', 'Rodaria os testes (npm run test:produto)', 'simulado');
     else {
       const t = await ctx.exec('npm', ['run', 'test:produto'], { cwd: ctx.raiz });
@@ -79,7 +79,7 @@ export const deploy = {
       rel.passo('Para publicar de verdade: node scripts/setup.mjs deploy (peça a autorização da pessoa antes).');
       return SAIDA.OK;
     }
-    await exigirLogin(ctx, wr, { contaId: f.conta });
+    await exigirLogin(ctx, wr);
     const pub = await wr.publicar();
     if (!pub.ok) { rel.acao('deploy', 'O wrangler não conseguiu publicar', 'falhou'); throw falha('deploy-falhou', 'a publicação falhou.', { dica: pub.saida.split('\n').slice(-6).join(' ') }); }
     rel.acao('deploy', `Publicado${pub.url ? ' em ' + pub.url : ''}`, 'feito');
