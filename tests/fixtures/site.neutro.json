@@ -1,0 +1,42 @@
+{
+  "$schema": "./site.schema.json",
+  "versaoDoEsquema": 1,
+  "marca": {
+    "nome": "Plataforma Exemplo",
+    "nomeCurto": "Exemplo",
+    "slogan": "Vídeos para aprender e se inspirar",
+    "descricao": "Catálogo de vídeos da Plataforma Exemplo.",
+    "organizacao": "Organização Exemplo",
+    "prefixoDeArmazenamento": "tm"
+  },
+  "tema": {
+    "preset": "cinema",
+    "modo": "escuro"
+  },
+  "idiomas": { "padrao": "pt-BR", "disponiveis": ["pt-BR"] },
+  "textos": {},
+  "acesso": { "modo": "publico" },
+  "video": {
+    "provedor": "bunny",
+    "bunny": {
+      "bibliotecaId": { "$env": "BUNNY_LIBRARY_ID" },
+      "chaveApi": { "$env": "BUNNY_API_KEY" },
+      "hostDaPullZone": { "$env": "BUNNY_PULLZONE" },
+      "chaveDeToken": { "$env": "BUNNY_TOKEN_KEY" }
+    }
+  },
+  "recursos": {
+    "busca": { "porPalavra": true, "pelaFala": true, "porSentido": false },
+    "continuarAssistindo": true,
+    "pwaInstalavel": true
+  },
+  "player": {
+    "autoplay": { "modo": "nunca" },
+    "proximoEpisodio": { "modo": "nunca", "segundosDeContagem": 8 },
+    "retomar": { "modo": "nunca" },
+    "marcaDagua": { "ligada": false }
+  },
+  "seo": { "indexavel": false },
+  "mcp": { "ligado": false, "somenteLeitura": true },
+  "implantacao": { "nomeDoProjeto": "plataforma-exemplo" }
+}
