@@ -4,10 +4,10 @@ Este guia é para quem **não é técnico**. Você vai ter um site de vídeos (n
 sua marca, hospedado na sua própria conta. Quem faz o trabalho pesado é um assistente de inteligência artificial
 (um "agente"); você responde algumas perguntas, cria duas contas e clica em "Permitir".
 
-> **Antes do piloto:** o tela mAIs deriva do Goiás Tec +, um streaming real em lançamento, mas este repositório
-> white label está em estabilização para a sua primeira instalação com usuários. Faça antes uma publicação de
-> teste e confira as telas Saúde e Backup e a reprodução dos vídeos. Nenhum site impede que alguém grave a tela
-> do vídeo; o que fazemos é dificultar o caminho mais fácil.
+> **Antes do piloto:** o tela mAIs deriva de um streaming real em lançamento, mas este repositório white label
+> está em estabilização para a sua primeira instalação com usuários. Faça antes uma publicação de teste e confira
+> as telas Saúde e Backup e a reprodução dos vídeos. Nenhum site impede que alguém grave a tela do vídeo; o que
+> fazemos é dificultar o caminho mais fácil.
 
 ## Escolha o seu caminho
 
