@@ -11,7 +11,7 @@
  *   ... --json
  *
  * A release traz `core-vX.Y.Z.tar.gz` e `core-vX.Y.Z.sha256`; o sha256 é conferido ANTES de extrair. Depois de aplicar:
- *   node scripts/migrar-config.mjs && npm run config:validar && npm run config:aplicar && npm test
+ *   node scripts/migrar-config.mjs && npm run config:validar && npm run config:aplicar && npm run test:produto
  * (o workflow atualizar-core.yml faz isso e abre um PR). Nunca faz commit: quem faz é o fluxo ou a pessoa.
  * Códigos: 0 certo (ou já em dia), 1 falhou, 2 uso incorreto. */
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
@@ -128,7 +128,7 @@ export async function principal(argv = process.argv.slice(2), amb = ambienteReal
     ];
     if (seguranca) linhas.push('  Esta atualização traz correção de SEGURANÇA.');
     if (dados.acoes.length) { linhas.push('  Precisa de ação sua:'); for (const a of dados.acoes) linhas.push('    - ' + a); }
-    if (!f.simular) linhas.push('Agora rode: node scripts/migrar-config.mjs && npm run config:validar && npm run config:aplicar && npm test');
+    if (!f.simular) linhas.push('Agora rode: node scripts/migrar-config.mjs && npm run config:validar && npm run config:aplicar && npm run test:produto');
     return { codigo: 0, ...dados, texto: linhas.join('\n') + '\n' };
   } catch (e) {
     return falha(e.message || String(e));
