@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { pathToFileURL } = require('node:url');
 
 const RAIZ = path.join(__dirname, '..');
 const SITE = path.join(RAIZ, 'core', 'site');
@@ -21,7 +22,7 @@ const ptBR = require('../core/locales/pt-BR.json');
 const en = require('../core/locales/en.json');
 const es = require('../core/locales/es.json');
 
-const imp = (rel) => import(path.join(RAIZ, rel));
+const imp = (rel) => import(pathToFileURL(path.join(RAIZ, rel)).href);
 const ler = (rel) => fs.readFileSync(path.join(RAIZ, rel), 'utf8');
 
 /* --------------------------------------------------------------- t(): resolução */
