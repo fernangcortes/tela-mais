@@ -7,9 +7,12 @@ scripts Node para administrar o catálogo.
 
 ## Estado atual
 
-**Marco M6 de um plano em marcos (home por blocos, coleções, Minha lista, regras do player e vídeo de fundo, sobre provedores de vídeo e modos de acesso). Ainda não está pronto para produção.** Nesta etapa o
-código está sendo separado em um repositório próprio e neutro (marca padrão
-"Plataforma Exemplo"). O roteiro de setup para leigos (agentes de IA, `scripts/setup.mjs`) está sendo entregue no marco M7.
+**Produto em estabilização para o primeiro piloto, com funcionalidades entregues até o marco M10.**
+O tela mAIs nasceu de um streaming real que está em lançamento. Este repositório separa
+a plataforma em um produto neutro e reutilizável, com instalação guiada, operação,
+integrações MCP e IA de conteúdo com revisão humana. O white label ainda não tem uma instalação
+própria com usuários em produção: antes do primeiro piloto, faça uma publicação de teste e
+confira as telas Saúde e Backup e a reprodução dos vídeos.
 
 ## Instalar
 
