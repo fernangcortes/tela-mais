@@ -42,11 +42,18 @@ export function ambienteReal() {
       await writeFile(destino, Buffer.from(await r.arrayBuffer()));
     },
     async extrair(arquivo, pasta) {
+      /* O arquivo entra pela entrada padrão e a extração roda DENTRO da pasta: nenhum caminho com letra de unidade
+       * chega ao tar, que no Windows pode ser o GNU tar (lê "C:" como máquina remota) ou o bsdtar. */
       const { spawn } = await import('node:child_process');
+      const { createReadStream } = await import('node:fs');
       await new Promise((ok, erro) => {
-        const f = spawn('tar', ['-xzf', arquivo, '-C', pasta], { stdio: 'ignore' });
+        const f = spawn('tar', ['-xzf', '-'], { cwd: pasta, stdio: ['pipe', 'ignore', 'ignore'] });
         f.on('error', erro);
         f.on('close', (c) => (c === 0 ? ok() : erro(new Error('não consegui extrair o arquivo (tar).'))));
+        const entrada = createReadStream(arquivo);
+        entrada.on('error', () => { f.kill(); erro(new Error('não consegui extrair o arquivo (tar).')); });
+        f.stdin.on('error', () => {});
+        entrada.pipe(f.stdin);
       });
     }
   };

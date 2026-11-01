@@ -185,7 +185,8 @@ test('pasta que não é uma release, link simbólico e uso incorreto são recusa
 /* A release de verdade: tarball + sha256, baixados por um fetch falso. */
 function release(nova, base, { somaErrada = false } = {}) {
   const tar = path.join(base, 'core-v1.1.0.tar.gz');
-  execFileSync('tar', ['-czf', tar, '-C', path.dirname(nova), path.basename(nova)]);
+  /* Sem caminhos com letra de unidade no tar (o GNU tar do Windows lê "C:" como máquina remota): cwd + saída padrão. */
+  fs.writeFileSync(tar, execFileSync('tar', ['-czf', '-', path.basename(nova)], { cwd: path.dirname(nova), maxBuffer: 1 << 28 }));
   const soma = crypto.createHash('sha256').update(fs.readFileSync(tar)).digest('hex');
   fs.writeFileSync(path.join(base, 'core-v1.1.0.sha256'), (somaErrada ? 'a'.repeat(64) : soma) + '  core-v1.1.0.tar.gz\n');
   const arquivos = { 'https://x/tar': tar, 'https://x/sha': path.join(base, 'core-v1.1.0.sha256') };
@@ -196,7 +197,7 @@ function release(nova, base, { somaErrada = false } = {}) {
         { name: 'core-v1.1.0.tar.gz', browser_download_url: 'https://x/tar' }, { name: 'core-v1.1.0.sha256', browser_download_url: 'https://x/sha' }] };
     },
     async baixar(url, destino) { fs.copyFileSync(arquivos[url], destino); },
-    async extrair(arquivo, pasta) { execFileSync('tar', ['-xzf', arquivo, '-C', pasta]); }
+    async extrair(arquivo, pasta) { execFileSync('tar', ['-xzf', '-'], { cwd: pasta, input: fs.readFileSync(arquivo) }); }
   };
 }
 
@@ -330,7 +331,7 @@ test('release --notas imprime a seção da versão; --empacotar gera tarball + s
   const tar = path.join(saida, 'core-v' + VERSAO_ATUAL + '.tar.gz');
   const soma = fs.readFileSync(path.join(saida, 'core-v' + VERSAO_ATUAL + '.sha256'), 'utf8');
   assert.equal(soma.split(/\s+/)[0], crypto.createHash('sha256').update(fs.readFileSync(tar)).digest('hex'));
-  const lista = execFileSync('tar', ['-tzf', tar]).toString();
+  const lista = execFileSync('tar', ['-tzf', '-'], { input: fs.readFileSync(tar), maxBuffer: 1 << 28 }).toString();
   assert.match(lista, new RegExp('tela-mais-' + VERSAO_ATUAL.replace(/\./g, '\\.') + '/core/site/a\\.js'));
   assert.match(lista, new RegExp('tela-mais-' + VERSAO_ATUAL.replace(/\./g, '\\.') + '/LICENSE'));
   assert.doesNotMatch(lista, /dados|segredo/);
@@ -346,7 +347,7 @@ test('o tarball de release é aceito pelo atualizar-core (fecha o ciclo release 
   assert.equal((await preparar(['--empacotar', saida], { raiz: origem })).codigo, 0);
   const cliente = fs.mkdtempSync(path.join(os.tmpdir(), 'tela-cli-'));
   escrever(cliente, { '.core-version': '0.1.0\n', 'config/site.json': '{"meu":"dado"}', 'core/site/marca/logo.svg': 'meu logo' });
-  const r = await atualizar(['--de', path.join(saida, 'core-v0.2.0.tar.gz')], { raiz: cliente, extrair: async (a, p) => execFileSync('tar', ['-xzf', a, '-C', p]) });
+  const r = await atualizar(['--de', path.join(saida, 'core-v0.2.0.tar.gz')], { raiz: cliente, extrair: async (a, p) => execFileSync('tar', ['-xzf', '-'], { cwd: p, input: fs.readFileSync(a) }) });
   assert.equal(r.codigo, 0, r.texto);
   assert.equal(fs.readFileSync(path.join(cliente, '.core-version'), 'utf8').trim(), '0.2.0');
   assert.equal(fs.readFileSync(path.join(cliente, 'config/site.json'), 'utf8'), '{"meu":"dado"}');

@@ -43,15 +43,20 @@ export async function verificarFfmpeg() {
     const v = await executar('ffmpeg', ['-hide_banner', '-version']);
     const m = /ffmpeg version (\S+)/.exec(v.stdout);
     const f = await executar('ffmpeg', ['-hide_banner', '-filters']);
-    const filtros = new Set();
-    for (const l of f.stdout.split('\n')) { const x = /^\s*[A-Z.]{3}\s+(\S+)\s/.exec(l); if (x) filtros.add(x[1]); }
-    return { ok: true, versao: m ? m[1] : 'desconhecida', filtros };
+    return { ok: true, versao: m ? m[1] : 'desconhecida', filtros: parsearFiltros(f.stdout) };
   } catch (e) {
     return { ok: false, versao: null, filtros: new Set(), motivo: e.message };
   }
 }
 
 /* ---------- funções puras ---------- */
+
+/** Nomes dos filtros da saída de `ffmpeg -filters`. As flags têm 3 colunas (` T.C drawtext`) ou 2 (` T. drawtext`, ffmpeg 8). */
+export function parsearFiltros(texto) {
+  const filtros = new Set();
+  for (const l of String(texto).split('\n')) { const x = /^\s*[A-Z.]{2,3}\s+(\S+)\s/.exec(l); if (x) filtros.add(x[1]); }
+  return filtros;
+}
 
 export const arred = (n, casas = 3) => { const k = 10 ** casas; return Math.round(Number(n) * k) / k; };
 const limitar = (n, a, b) => Math.min(b, Math.max(a, n));
