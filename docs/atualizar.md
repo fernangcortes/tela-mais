@@ -35,7 +35,7 @@ node scripts/atualizar-core.mjs --baixar --simular     # mostra o que mudaria, s
 node scripts/atualizar-core.mjs --baixar               # baixa a última release, confere o sha256 e aplica
 node scripts/migrar-config.mjs                         # leva o seu site.json ao formato novo, se mudou
 npm run config:validar && npm run config:aplicar       # regera os arquivos do site com a SUA marca
-npm test                                               # (só na cópia com a marca de exemplo; veja abaixo)
+npm run test:produto                                   # suíte completa, sem alterar a sua configuração
 ```
 
 e mostra a você o "Precisa de ação sua" antes de publicar (`node scripts/setup.mjs deploy`).
@@ -75,9 +75,20 @@ Baixe `core-vX.Y.Z.tar.gz` e `core-vX.Y.Z.sha256` da página de releases do prod
 
 ### Os testes do produto e a sua marca
 
-Os testes do produto conferem a marca neutra "Plataforma Exemplo". Numa cópia já personalizada eles
-falham por isso, e **não é defeito seu**: o fluxo `testes.yml` e o `setup.mjs deploy` pulam essa
-parte sozinhos e rodam o resto (configuração válida, arquivos gerados em dia, varredura de segredos).
+A suíte comportamental foi escrita contra a configuração neutra "Plataforma Exemplo". O comando
+`npm run test:produto` cria uma cópia temporária do projeto, aplica nela a configuração e o
+`wrangler.jsonc` neutros, regenera os arquivos e roda a suíte completa. A cópia é apagada ao final;
+`dados/`, `.env` e `.dev.vars` não são copiados. A configuração e os arquivos reais da instalação
+não são alterados.
+
+Por enquanto, o fluxo `testes.yml` e a atualização automática continuam pulando a suíte numa cópia
+personalizada; as demais conferências rodam normalmente. Para executar a suíte completa manualmente,
+use `npm run test:produto`. Para desenvolver no repositório neutro, `npm test` continua sendo o
+caminho direto.
+
+No `setup.mjs deploy` local de uma cópia personalizada, a verificação curta com o `doctor` continua
+sendo o padrão e a suíte é pulada. Use `--com-testes` para rodar também a suíte isolada antes de
+publicar; uma falha nela impede o deploy.
 
 ## Backup e restauração
 

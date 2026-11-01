@@ -52,6 +52,16 @@ test('testes.yml: os testes do produto só rodam na cópia com a marca neutra; a
   for (const c of ['scan-secrets', 'sync-agents --check', 'aplicar-config.mjs --verificar', 'gerar-headers.mjs --verificar', 'migrar-config.mjs --verificar', 'anti-marca.mjs']) assert.ok(t.includes(c), c);
 });
 
+test('test:produto: o comando e as fixtures neutras existem para uso em qualquer cópia', () => {
+  const pacote = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8'));
+  assert.equal(pacote.scripts['test:produto'], 'node scripts/testar-produto.mjs');
+  for (const rel of ['scripts/testar-produto.mjs', 'tests/fixtures/site.neutro.json', 'tests/fixtures/wrangler.neutro.jsonc']) {
+    assert.ok(fs.existsSync(path.join(RAIZ, rel)), rel);
+  }
+  const neutra = JSON.parse(fs.readFileSync(path.join(RAIZ, 'tests/fixtures/site.neutro.json'), 'utf8'));
+  assert.equal(neutra.marca.nome, 'Plataforma Exemplo');
+});
+
 test('backup: DESLIGADO por padrão, repositório separado e privado, contas só se pedido', () => {
   const t = fluxo('backup');
   assert.match(t, /if: \$\{\{ vars\.BACKUP_LIGADO == 'true' \}\}/);
