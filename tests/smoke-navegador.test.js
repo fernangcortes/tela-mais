@@ -5,6 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const RAIZ = path.join(__dirname, '..');
 const lib = () => import('../scripts/lib/smoke.mjs');
@@ -26,10 +27,12 @@ test('sem Playwright o teste AVISA e pula (saída 0); com --exigir, falha (saíd
 
 test('caminhoDoPlaywright: PLAYWRIGHT_IMPORT primeiro, depois npm root -g; nada achado dá null', async () => {
   const { caminhoDoPlaywright } = await lib();
-  assert.equal(caminhoDoPlaywright({ env: {}, raizGlobal: '/x/lib/node_modules', existe: () => false }), null);
-  const g = caminhoDoPlaywright({ env: {}, raizGlobal: '/x/lib/node_modules', existe: (c) => c === path.join('/x/lib/node_modules', 'playwright', 'index.mjs') });
-  assert.match(g, /^file:\/\/\/x\/lib\/node_modules\/playwright\/index\.mjs$/);
-  const env = caminhoDoPlaywright({ env: { PLAYWRIGHT_IMPORT: '/y/pw/index.mjs' }, raizGlobal: '/x/lib/node_modules', existe: () => true });
+  const raizGlobal = path.resolve(path.sep, 'x', 'lib', 'node_modules'); // raiz fictícia, válida em qualquer SO
+  const indice = path.join(raizGlobal, 'playwright', 'index.mjs');
+  assert.equal(caminhoDoPlaywright({ env: {}, raizGlobal, existe: () => false }), null);
+  const g = caminhoDoPlaywright({ env: {}, raizGlobal, existe: (c) => c === indice });
+  assert.equal(g, pathToFileURL(indice).href);
+  const env = caminhoDoPlaywright({ env: { PLAYWRIGHT_IMPORT: '/y/pw/index.mjs' }, raizGlobal, existe: () => true });
   assert.match(env, /\/y\/pw\/index\.mjs$/);
   assert.equal(caminhoDoPlaywright({ env: {}, raizGlobal: '', existe: () => true }), null);
 });
