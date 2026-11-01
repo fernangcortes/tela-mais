@@ -111,16 +111,31 @@ export async function empacotar(raiz, destino, { exec } = {}) {
     await mkdir(destino, { recursive: true });
     const nome = `core-v${e.core}.tar.gz`;
     const tar = path.join(destino, nome);
-    await (exec || execReal)('tar', ['-czf', tar, '-C', tmp, topo]);
+    /* Roda dentro da pasta temporária e grava o .tar.gz pela saída padrão: nenhum caminho com letra de unidade chega ao
+     * tar (o GNU tar do Windows leria "C:" como máquina remota). */
+    await (exec || execReal)('tar', ['-czf', '-', topo], { cwd: tmp, saidaEm: tar });
     const soma = createHash('sha256').update(await readFile(tar)).digest('hex');
     await writeFile(path.join(destino, `core-v${e.core}.sha256`), `${soma}  ${nome}\n`, 'utf8');
     return { versao: e.core, tar, sha256: soma, arquivos: arquivos.length };
   } finally { await rm(tmp, { recursive: true, force: true }); }
 }
 
-async function execReal(cmd, args) {
+async function execReal(cmd, args, { cwd, saidaEm } = {}) {
   const { spawn } = await import('node:child_process');
-  await new Promise((ok, erro) => { const f = spawn(cmd, args, { stdio: 'inherit' }); f.on('error', erro); f.on('close', (c) => (c === 0 ? ok() : erro(new Error(`${cmd} saiu com ${c}`)))); });
+  const { createWriteStream } = await import('node:fs');
+  await new Promise((ok, erro) => {
+    const f = spawn(cmd, args, { cwd, stdio: ['inherit', saidaEm ? 'pipe' : 'inherit', 'inherit'] });
+    let gravacao = null;
+    if (saidaEm) {
+      gravacao = new Promise((fim, falha) => { const s = createWriteStream(saidaEm); s.on('error', falha); s.on('finish', fim); f.stdout.pipe(s); });
+      gravacao.catch(erro);
+    }
+    f.on('error', erro);
+    f.on('close', (c) => {
+      if (c !== 0) return erro(new Error(`${cmd} saiu com ${c}`));
+      (gravacao || Promise.resolve()).then(ok, erro);
+    });
+  });
 }
 
 export async function principal(argv = process.argv.slice(2), { raiz = RAIZ, hoje = () => new Date().toISOString().slice(0, 10) } = {}) {
