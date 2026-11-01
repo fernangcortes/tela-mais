@@ -11,7 +11,20 @@ permissions:
 
 jobs:
   testes:
-    runs-on: ubuntu-latest
+    # Linux e Windows: quem monta o streaming pode estar no Windows (npm run atualizar, empacotar, caminhos com C:\).
+    # TZ fixo num fuso a oeste de UTC para pegar datas que recuam um dia; no Windows os testes que precisam de
+    # ffmpeg ou Playwright pulam sozinhos, com motivo, quando eles não existem.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      TZ: America/Sao_Paulo
+    # Os passos usam sintaxe de bash (if/fi, $GITHUB_OUTPUT, várias linhas com parada no primeiro erro): bash também no Windows.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
