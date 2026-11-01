@@ -175,7 +175,7 @@
       return h('button', { type: 'button', 'aria-pressed': String(K.cenario === id), 'data-acao': 'custo-cenario', 'data-cenario': id, text: tr('custos.cenario.' + id) });
     }));
     caixa.appendChild(h('div', { class: 'aviso-opcao', role: 'note' }, h('b', { text: tr('custos.estimativaTitulo') + ' ' }),
-      tr('custos.estimativaTexto', { data: M.I18n.data(Date.parse(r.dataDosValores), 'data') })));
+      tr('custos.estimativaTexto', { data: M.I18n.data(Date.parse(r.dataDosValores), 'data', 'UTC') })));
     caixa.appendChild(h('div', { class: 'cartao-conta' },
       h('h2', { class: 'a-subtitulo', text: tr('custos.seuCaso') }), cenarios,
       h('div', { class: 'campo-duo' }, campo(CAMPOS[0]), campo(CAMPOS[1])),
