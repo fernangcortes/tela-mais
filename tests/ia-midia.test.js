@@ -21,6 +21,17 @@ test('parsearCenas e parsearSilencios leem a saída real do ffmpeg', async () =>
   assert.equal(L.parsearMedida('nada', 'lavfi.signalstats.YAVG'), null);
 });
 
+test('parsearFiltros lê as linhas de `ffmpeg -filters` com 3 colunas de flags e com 2 (ffmpeg 8)', async () => {
+  const L = await f();
+  const antigo = 'Filters:\n  T.. = Timeline support\n ... scale             V->V       Scale the input video size.\n T.C drawtext          V->V       Draw text on top of video frames.\n';
+  const novo = 'Filters:\n  T. = Timeline support\n .. scale             V->V       Scale the input video size.\n T. drawtext          V->V       Draw text on top of video frames.\r\n';
+  for (const texto of [antigo, novo]) {
+    const nomes = L.parsearFiltros(texto);
+    assert.ok(nomes.has('drawtext') && nomes.has('scale'));
+  }
+  assert.ok(!L.parsearFiltros(novo).has('Timeline'));
+});
+
 test('pontuarQuadro: preto, estourado e borrado perdem para um quadro nítido', async () => {
   const L = await f();
   const bom = L.pontuarQuadro({ brilho: 110, nitidez: 30, contraste: 120 });
